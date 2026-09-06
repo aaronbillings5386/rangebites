@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#161a21" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.amplitude.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.openstreetmap.org; connect-src 'self' https://maps.mail.ru https://lz4.overpass-api.de https://overpass.private.coffee https://nominatim.openstreetmap.org https://api2.amplitude.com https://cdn.amplitude.com; font-src 'self' data:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+  <title>RangeBites — restaurant specials</title>
+  <style>
+    :root {
+      --bg: #161a21;
+      --surface: #232a34;
+      --border: rgba(255, 255, 255, 0.14);
+      --text: #f2f4f7;
+      --muted: #8a93a5;
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+        "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0; min-height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: var(--font); font-size: 16px; line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      max-width: 420px; margin: 0 auto;
+      padding: calc(48px + var(--safe-top)) 20px calc(32px + var(--safe-bottom));
+    }
+    .kicker {
+      font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); font-weight: 650; margin: 0 0 10px;
+    }
+    h1 {
+      margin: 0 0 10px; font-size: 1.55rem; font-weight: 800;
+      letter-spacing: -0.03em; line-height: 1.2;
+    }
+    .lede {
+      margin: 0 0 22px; font-size: 1.02rem; font-weight: 650; line-height: 1.35; color: var(--text);
+    }
+    label {
+      display: block; font-size: 0.82rem; color: var(--muted);
+      font-weight: 650; margin-bottom: 6px;
+    }
+    input, textarea {
+      width: 100%; padding: 14px 16px; border-radius: 12px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); font: inherit; margin-bottom: 14px;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    input:focus, textarea:focus {
+      outline: 2px solid rgba(220, 227, 239, 0.45); outline-offset: 1px;
+    }
+    button[type="submit"] {
+      width: 100%; padding: 14px 16px; min-height: 48px; border: none;
+      border-radius: 999px; font: inherit; font-weight: 700; cursor: pointer;
+      color: #12151a; background: #dce3ef;
+    }
+    button[type="submit"]:disabled { opacity: 0.55; cursor: wait; }
+    button[type="submit"]:active { transform: scale(0.99); }
+    .hint { margin: -8px 0 14px; font-size: 0.78rem; color: var(--muted); }
+    .privacy {
+      margin: 16px 0 0; font-size: 0.82rem; color: var(--muted); line-height: 1.4;
+    }
+    .success {
+      display: none; margin: 0; font-size: 1.05rem; font-weight: 650;
+      line-height: 1.35;
+    }
+    .success.show { display: block; }
+    .form.hidden { display: none; }
+    .err {
+      display: none; font-size: 0.82rem; color: #ff8a8a; margin: 0 0 12px;
+    }
+    .err.show { display: block; }
+    .closed {
+      display: none; margin: 0 0 16px; font-size: 1.05rem; font-weight: 650;
+      line-height: 1.35;
+    }
+    .closed.show { display: block; }
+    .foot { margin: 28px 0 0; font-size: 0.82rem; color: var(--muted); }
+    .foot a { color: var(--muted); text-decoration: none; }
+    .foot a:hover { color: var(--text); }
+    .hp {
+      position: absolute; left: -10000px; top: auto; width: 1px; height: 1px;
+      overflow: hidden;
+    }
+  </style>
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260829p" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20260829p" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20260829p" />
+</head>
+<body>
+  <main class="wrap">
+    <p class="kicker">Restaurants</p>
+    <h1>Send a restaurant special</h1>
+    <p class="lede">For restaurants. Send an offer for review. We will not show it until it is checked. This is restaurant contact, not a diner email list.</p>
+    <p class="closed" id="closedMsg">Inbox isn’t open on this host yet</p>
+    <p class="success" id="successMsg">Got it. We won’t show it as a live coupon until it’s checked.</p>
+    <form class="form" id="specialsForm" novalidate>
+      <p class="err" id="errMsg" role="alert"></p>
+      <label for="restaurant_name">Restaurant name</label>
+      <input id="restaurant_name" name="restaurant_name" type="text" maxlength="80" required autocomplete="organization" />
+      <label for="city_or_zip">City or zip</label>
+      <input id="city_or_zip" name="city_or_zip" type="text" maxlength="80" required autocomplete="address-level2" />
+      <label for="special_text">Special text</label>
+      <textarea id="special_text" name="special_text" maxlength="280" required></textarea>
+      <p class="hint">What diners should ask for. Confirm it yourself — we don’t invent codes.</p>
+      <label for="code">Code (optional)</label>
+      <input id="code" name="code" type="text" maxlength="40" autocomplete="off" />
+      <label for="website">Website (optional)</label>
+      <input id="website" name="website" type="url" maxlength="200" inputmode="url" placeholder="https://" autocomplete="url" />
+      <p class="hint">http or https only.</p>
+      <label for="contact_email">Contact email</label>
+      <input id="contact_email" name="contact_email" type="email" maxlength="120" required autocomplete="email" />
+      <div class="hp" aria-hidden="true">
+        <label for="company_url">Company</label>
+        <input id="company_url" name="company_url" type="text" tabindex="-1" autocomplete="off" />
+      </div>
+      <button type="submit" id="submitBtn">Send for review</button>
+    </form>
+    <p class="privacy">Restaurant contact only. Not a diner list. We do not publish a support inbox here.</p>
+    <p class="foot"><a href="index.html">RangeBites</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="sitemap.html">Sitemap</a></p>
+    <p class="privacy">RangeBites helps you find food nearby. Nearby restaurants and listed deals. No account. Not a reservation. Not legal, tax, or finance advice. Not RangeBits.</p>
+  </main>
+  <script src="specials.js"></script>
+</body>
+</html>
