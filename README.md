@@ -1,3 +1,6 @@
+> **GitHub mirror** of the live static app at [rangebites.com](https://rangebites.com).  
+> Account: `aaronbillings5386/rangebites`. Deploy/publish still follows the live host — this repo is backup + public source.
+
 # RangeBites
 
 Privacy-first restaurant radar (mobile-first web demo): nearby food from OpenStreetMap, distance, illustrative deals, Reviews on Maps, and business contact when tagged.
