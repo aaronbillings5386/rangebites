@@ -605,6 +605,10 @@
     persistUiPrefs();
     renderList();
     const cat = foodCategoryById(state.filters.foodCategory);
+    if (!state.lat) {
+      setStatus("Tap Locate Me, or search any city. Any type of food.");
+      return;
+    }
     const n = filteredPlaces().length;
     setStatus(cat ? n + " " + cat.label.toLowerCase() + " places" : n + " restaurants after filters");
   }
