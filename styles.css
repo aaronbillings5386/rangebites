@@ -1570,6 +1570,10 @@ html[data-device="desktop"] .search-first {
   margin: 0;
   max-width: none;
 }
+html[data-device="desktop"] .food-cats {
+  padding-left: 22px;
+  padding-right: 22px;
+}
 html[data-device="desktop"] .status-line {
   padding-left: 22px;
   padding-right: 22px;
@@ -1759,6 +1763,69 @@ html[data-device="desktop"] .sheet.filters-sheet.open {
   text-align: center;
   font-weight: 650;
   white-space: normal;
+}
+
+/* DoorDash-style food-type row — always visible, horizontal on the main surface */
+.food-cats {
+  padding: 2px 14px 8px;
+  max-width: 100%;
+}
+.chips-food-cats {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0 8px;
+  max-width: 100%;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.chips-food-cats::-webkit-scrollbar { display: none; }
+.chip.chip-food-cat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 68px;
+  max-width: 80px;
+  min-height: 58px;
+  padding: 8px 8px 6px;
+  border-radius: 14px;
+  flex: 0 0 auto;
+}
+.chip-food-cat .cuisine-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  line-height: 0;
+}
+.chip-food-cat .cuisine-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+.chip-food-cat .cuisine-name {
+  font-size: 0.64rem;
+  line-height: 1.15;
+  text-align: center;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.chip.chip-food-cat.is-empty {
+  opacity: 0.4;
+}
+.chip.chip-food-cat.is-empty.active {
+  opacity: 1;
+}
+.filters-sheet .chips-food-cats {
+  flex-wrap: wrap;
+  overflow: visible;
+  padding-bottom: 2px;
 }
 
 .btn-filters-done {
@@ -2781,6 +2848,7 @@ html, body, .app {
 @media (min-width: 768px) and (max-width: 1099px) {
   .header { padding-left: 22px; padding-right: 22px; }
   .search-first { padding: 12px 22px 10px; }
+  .food-cats { padding-left: 22px; padding-right: 22px; }
   .brand-logo { width: 44px !important; height: 44px !important; }
   .brand h1 { font-size: 1.22rem; }
   .stage,
@@ -2819,6 +2887,7 @@ html, body, .app {
   .brand-logo { width: 44px !important; height: 44px !important; }
   .brand h1 { font-size: 1.25rem; }
   .search-first { padding: 12px 22px 10px; }
+  .food-cats { padding-left: 22px; padding-right: 22px; }
   .stage,
   html.has-places .stage,
   html[data-device="desktop"] .stage,
