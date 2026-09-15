@@ -1,6 +1,7 @@
 /**
  * RangeBites restaurant specials inbox.
  * Public insert only. Owner-only read. Never render submissions as live coupons.
+ * Same-origin fetch only. Do not load Amplitude, maps.mail.ru, or public Overpass.
  */
 (function () {
   "use strict";

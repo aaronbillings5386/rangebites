@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#161a21" />
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.amplitude.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.openstreetmap.org; connect-src 'self' https://maps.mail.ru https://lz4.overpass-api.de https://overpass.private.coffee https://nominatim.openstreetmap.org https://api2.amplitude.com https://cdn.amplitude.com; font-src 'self' data:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.openstreetmap.org https://*.openstreetmap.de https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
   <title>RangeBites — restaurant specials</title>
   <style>
     :root {
@@ -89,9 +89,9 @@
       overflow: hidden;
     }
   </style>
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260829p" />
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20260829p" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20260829p" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260915d" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20260915d" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20260915d" />
 </head>
 <body>
   <main class="wrap">
@@ -109,8 +109,10 @@
       <label for="special_text">Special text</label>
       <textarea id="special_text" name="special_text" maxlength="280" required></textarea>
       <p class="hint">What diners should ask for. Confirm it yourself — we don’t invent codes.</p>
-      <label for="code">Code (optional)</label>
-      <input id="code" name="code" type="text" maxlength="40" autocomplete="off" />
+      <div class="code-field" hidden>
+        <label for="code">Suggested promo text (not a coupon)</label>
+        <input id="code" name="code" type="text" maxlength="40" autocomplete="off" tabindex="-1" />
+      </div>
       <label for="website">Website (optional)</label>
       <input id="website" name="website" type="url" maxlength="200" inputmode="url" placeholder="https://" autocomplete="url" />
       <p class="hint">http or https only.</p>
@@ -124,8 +126,8 @@
     </form>
     <p class="privacy">Restaurant contact only. Not a diner list. We do not publish a support inbox here.</p>
     <p class="foot"><a href="index.html">RangeBites</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="sitemap.html">Sitemap</a></p>
-    <p class="privacy">RangeBites helps you find food nearby. Nearby restaurants and listed deals. No account. Not a reservation. Not legal, tax, or finance advice. Not RangeBits.</p>
+    <p class="privacy">RangeBites helps you find food nearby. Nearby restaurants and listed promo text. No account. Not a reservation. Not legal, tax, or finance advice. Not RangeBits.</p>
   </main>
-  <script src="specials.js"></script>
+  <script src="specials.js?v=20260915d"></script>
 </body>
 </html>

@@ -889,8 +889,8 @@
     }
     if (p.openStatus === "open") {
       const until = minutesUntilClose(raw, now);
-      if (until != null) return "Open now, until " + clockFromMinutes(nowMin + until);
-      return "Open now";
+      if (until != null) return "Tagged open until " + clockFromMinutes(nowMin + until) + " · verify";
+      return "Tagged open · verify";
     }
     if (p.openStatus === "closed") return "Closed";
     return "";
@@ -1437,6 +1437,7 @@
     const around = `(around:${r},${lat},${lng})`;
     const named = '["name"]';
     // Lean query — same food types, fewer unions so phones finish before timeout.
+    // Pantries: amenity=food_bank|soup_kitchen only. Copy must not claim social_facility/office/worldwide.
     const food = "restaurant|fast_food|cafe|bar|pub|ice_cream|food_court|biergarten|food_bank|soup_kitchen";
     return `[out:json][timeout:${t}];(` +
       `node["amenity"~"^(` + food + `)$"]${named}${around};` +
@@ -1972,7 +1973,7 @@
     if (!wrap) return;
     const el = wrap.querySelector(".deal-rail-label");
     if (!el) return;
-    el.innerHTML = `See the deal. Then go. <span class="deal-rail-sub">Only when a listing tags a promo</span>`;
+    el.innerHTML = `Promo text on this listing <span class="deal-rail-sub">Confirm with the restaurant</span>`;
   }
 
   function renderDealRail(list) {
@@ -2268,7 +2269,7 @@
       if (dealCount > 0 && !state.loading) {
         dealCountEl.hidden = false;
         dealCountEl.textContent =
-          dealCount === 1 ? "1 deal" : `${dealCount} deals`;
+          dealCount === 1 ? "1 listing promo" : `${dealCount} listing promos`;
       } else {
         dealCountEl.hidden = true;
         dealCountEl.textContent = "";
@@ -2344,11 +2345,11 @@
           : state.filters.foodCategory
           ? `<li class="empty"><strong>No ${escapeHtml((foodCategoryById(state.filters.foodCategory) || {}).label || "that type")} in this range.</strong> Matches OpenStreetMap cuisine and amenity tags, plus a few name words. Tap the chip again to show all.</li>`
           : state.dietaryFilter === "freefood"
-          ? `<li class="empty"><strong>No tagged pantries in this range.</strong> We only show pantries OpenStreetMap already tags.</li>`
+          ? `<li class="empty"><strong>No tagged pantries in this range.</strong> In this search area, food banks and soup kitchens show only when OpenStreetMap tags amenity=food_bank or soup_kitchen. Listings may be wrong or stale; confirm before you go.</li>`
           : state.filters.hasDeal
-          ? `<li class="empty"><strong>No listed deals here.</strong> Widen the range, or clear the deal filter.</li>`
+          ? `<li class="empty"><strong>No promo text here.</strong> Widen the range, or clear the promo filter.</li>`
           : (state.filters.openNow && state.places && state.places.length
-          ? `<li class="empty"><strong>None open now.</strong> They show when hours say open.</li>`
+          ? `<li class="empty"><strong>None tagged open.</strong> They show when OSM hours say open — verify.</li>`
           : `<li class="empty"><strong>No tagged food in this range.</strong> Search another city.</li>`);
       requestAnimationFrame(function () { renderMarkers([]); });
       return;
@@ -2366,7 +2367,7 @@
           : "";
         let openBadge = "";
         if (p.hours && p.openStatus === "open" && p.closesSoon) openBadge = `<span class="badge badge-soon">Closes soon</span>`;
-        else if (p.hours && p.openStatus === "open") openBadge = `<span class="badge badge-open">Open now</span>`;
+        else if (p.hours && p.openStatus === "open") openBadge = `<span class="badge badge-open">Tagged open</span>`;
         else if (p.hours && p.openStatus === "closed") openBadge = `<span class="badge badge-closed">Closed</span>`;
         else if (p.hours && p.opensSoon) openBadge = "";
         const kitchenBadge = p.kitchenClosedDoorsOpen
@@ -2616,7 +2617,7 @@
     if (opts.startDirections) startPlatformDirections(place);
     const body = $("#dealSheetBody");
     const title = $("#dealSheetTitle");
-    if (title) title.textContent = place.deal ? "Deal" : "Place";
+    if (title) title.textContent = place.deal ? "Promo text" : "Place";
     const sponsored = place.sponsored
       ? `<span class="badge badge-sponsored" style="margin-left:6px">Sponsored</span>`
       : "";
@@ -2684,23 +2685,23 @@
     renderList();
     const shown = filteredPlaces().length;
     const deals = filteredPlaces().filter((p) => !!p.deal).length;
-    const dealsHint = deals > 0 ? " · Deals up top" : "";
+    const dealsHint = deals > 0 ? " · Promo text up top" : "";
     const aSearch = analytics();
     if (aSearch) aSearch.searchCompleted(state.radiusMiles, shown);
     if (statusMsg) {
-      setStatus(statusMsg + (statusMsg.includes("Deals up top") ? "" : dealsHint));
+      setStatus(statusMsg + (statusMsg.includes("Promo text up top") ? "" : dealsHint));
       return;
     }
     if (live) {
       if (!shown && places.length) {
         setStatus(state.filters.openNow
-          ? "None open now. They show when hours say open."
+          ? "None tagged open. They show when OSM hours say open — verify."
           : "No tagged food in this range.");
       } else if (!shown) {
         setStatus("No tagged food in this range.");
       } else {
         setStatus(
-          shown + (state.filters.openNow ? " open now" : " nearby") +
+          shown + (state.filters.openNow ? " tagged open" : " nearby") +
             (places.length >= MAX_RESULTS ? " · top " + MAX_RESULTS : "") +
             dealsHint
         );
@@ -3457,7 +3458,7 @@
       syncOpenNowUI();
       renderList();
       setStatus(state.filters.openNow
-        ? (filteredPlaces().length + " open now")
+        ? (filteredPlaces().length + " tagged open")
         : (filteredPlaces().length + " nearby"));
     }
     const filterOpen = $("#filterOpen");

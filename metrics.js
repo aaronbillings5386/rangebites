@@ -97,8 +97,8 @@
 
   function formatOpens(n) {
     var v = Number(n) || 0;
-    if (v === 1) return "1 visit proudly served";
-    return v + " proudly served";
+    if (v === 1) return "1 visit";
+    return v + " visits";
   }
 
   function paintVisitCount(n) {
