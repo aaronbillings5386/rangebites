@@ -1437,6 +1437,7 @@
     const around = `(around:${r},${lat},${lng})`;
     const named = '["name"]';
     // Lean query — same food types, fewer unions so phones finish before timeout.
+    // Pantries: amenity=food_bank|soup_kitchen only. Copy must not claim social_facility/office/worldwide.
     const food = "restaurant|fast_food|cafe|bar|pub|ice_cream|food_court|biergarten|food_bank|soup_kitchen";
     return `[out:json][timeout:${t}];(` +
       `node["amenity"~"^(` + food + `)$"]${named}${around};` +
@@ -1972,7 +1973,7 @@
     if (!wrap) return;
     const el = wrap.querySelector(".deal-rail-label");
     if (!el) return;
-    el.innerHTML = `See the deal. Then go. <span class="deal-rail-sub">Only when a listing tags a promo</span>`;
+    el.innerHTML = `See the deal. Then go. <span class="deal-rail-sub">From listing text</span>`;
   }
 
   function renderDealRail(list) {
@@ -2344,7 +2345,7 @@
           : state.filters.foodCategory
           ? `<li class="empty"><strong>No ${escapeHtml((foodCategoryById(state.filters.foodCategory) || {}).label || "that type")} in this range.</strong> Matches OpenStreetMap cuisine and amenity tags, plus a few name words. Tap the chip again to show all.</li>`
           : state.dietaryFilter === "freefood"
-          ? `<li class="empty"><strong>No tagged pantries in this range.</strong> We only show pantries OpenStreetMap already tags.</li>`
+          ? `<li class="empty"><strong>No tagged pantries in this range.</strong> In this search area, food banks and soup kitchens show only when OpenStreetMap tags amenity=food_bank or soup_kitchen. Listings may be wrong or stale; confirm before you go.</li>`
           : state.filters.hasDeal
           ? `<li class="empty"><strong>No listed deals here.</strong> Widen the range, or clear the deal filter.</li>`
           : (state.filters.openNow && state.places && state.places.length
