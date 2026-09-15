@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- rb-build 20260901q -->
+  <!-- rb-build 20260915a -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#14110e" />
@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="RangeBites" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260901q" />
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20260901q" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20260901q" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260915a" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20260915a" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20260915a" />
   <link rel="canonical" href="https://rangebites.com/" />
   <meta name="description" content="Find restaurants, cafes, and food nearby. Search any city. No account." />
   <title>RangeBites — find food nearby</title>
@@ -31,14 +31,14 @@
   <meta name="twitter:description" content="Find restaurants, cafes, and food nearby. Search any city." />
   <meta name="twitter:image" content="https://rangebites.com/icons/icon-512.png" />
   <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"RangeBites","url":"https://rangebites.com/","potentialAction":{"@type":"SearchAction","target":"https://rangebites.com/?q={search_term_string}","query-input":"required name=search_term_string"}},{"@type":"WebApplication","name":"RangeBites","url":"https://rangebites.com/","applicationCategory":"LifestyleApplication","operatingSystem":"Web","description":"Find restaurants, cafes, and food nearby. Search any city."}]}</script>
-    <link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=20260901q" />
-  <link rel="stylesheet" href="styles.css?v=20260901q" />
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=20260915a" />
+  <link rel="stylesheet" href="styles.css?v=20260915a" />
 </head>
 <body>
   <div class="app">
     <header class="header">
       <div class="brand">
-        <img class="brand-logo" src="icons/logo.png?v=20260901q" alt="" width="44" height="44">
+        <img class="brand-logo" src="icons/logo.png?v=20260915a" alt="" width="44" height="44">
         <h1>RangeBites</h1>
       </div>
       <div class="header-right">
@@ -79,6 +79,10 @@
         <p class="free-note">Locate or search any city.</p>
       </div>
     </section>
+
+    <div class="food-cats" id="foodCatWrap">
+      <div class="chips chips-food-cats" id="foodCatChips" data-food-cats role="group" aria-label="Food type"></div>
+    </div>
 
     <div id="a2hsHint" class="a2hs-hint" hidden>
       <p class="a2hs-copy">On iPhone: Share, then Add to Home Screen.</p>
@@ -168,20 +172,8 @@
       </div>
 
       <div class="filter-group">
-        <div class="section-label">Food type</div>
-        <select class="filter-select" id="filterType" aria-label="Food type">
-          <option value="all">All food</option>
-          <option value="restaurant">Restaurant</option>
-          <option value="fast_food">Fast food</option>
-          <option value="cafe">Café</option>
-          <option value="bar">Bar</option>
-          <option value="pub">Pub</option>
-          <option value="ice_cream">Ice cream</option>
-          <option value="bakery">Bakery</option>
-          <option value="deli">Deli</option>
-          <option value="food_court">Food court</option>
-          <option value="food_bank">Food bank</option>
-        </select>
+        <div class="section-label">Food type <span class="label-hint">(one at a time)</span></div>
+        <div class="chips chips-food-cats" id="foodCatChipsSheet" data-food-cats role="group" aria-label="Food type"></div>
       </div>
 
       <div class="filter-group">
@@ -217,7 +209,7 @@
       </div>
 
       <div class="filter-group" id="cuisineGroup">
-        <div class="section-label" id="cuisineChipsLabel" hidden>Cuisine</div>
+        <div class="section-label" id="cuisineChipsLabel" hidden>More from OSM</div>
         <div class="chips chips-cuisine" id="cuisineChips" hidden role="group" aria-label="Cuisine from OSM tags"></div>
       </div>
 
@@ -310,9 +302,9 @@
     </div>
   </aside>
 
-  <script src="vendor/leaflet/leaflet.js?v=20260901q"></script>
-  <script src="metrics.js?v=20260901q"></script>
-  <script src="deals.js?v=20260901q"></script>
-  <script src="app.js?v=20260901q"></script>
+  <script src="vendor/leaflet/leaflet.js?v=20260915a"></script>
+  <script src="metrics.js?v=20260915a"></script>
+  <script src="deals.js?v=20260915a"></script>
+  <script src="app.js?v=20260915a"></script>
 </body>
 </html>

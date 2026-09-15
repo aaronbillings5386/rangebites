@@ -50,7 +50,37 @@
     latin_american: "latin", "latin-american": "latin",
     "middle-eastern": "middle_eastern", middleeastern: "middle_eastern",
     fish: "seafood",
+    taco: "mexican", tacos: "mexican", burrito: "mexican",
+    coffee: "coffee", coffee_shop: "coffee",
+    icecream: "ice_cream", "ice-cream": "ice_cream",
+    "fish-and-chips": "fish_and_chips", fishandchips: "fish_and_chips",
+    brunch: "breakfast", pancake: "breakfast", pancakes: "breakfast",
+    pasta: "italian", curry: "indian",
+    doughnut: "donut", donuts: "donut",
+    fried_chicken: "chicken", "fried-chicken": "chicken",
   };
+  /**
+   * Fixed DoorDash-style food categories. Always rendered (even in empty towns).
+   * Match order: OSM amenity/shop → cuisine tokens → optional diet flags → conservative name hints.
+   * Single-select: tap to filter, tap again to clear. Documented in the PR.
+   */
+  const FOOD_CATEGORIES = [
+    { id: "pizza", label: "Pizza", cuisines: ["pizza"], amenities: [], nameHints: ["pizza", "pizzeria"] },
+    { id: "burgers", label: "Burgers", cuisines: ["burger"], amenities: [], nameHints: ["burger", "hamburger"] },
+    { id: "mexican", label: "Mexican", cuisines: ["mexican", "tex-mex"], amenities: [], nameHints: ["mexican", "taco", "burrito", "taqueria"] },
+    { id: "asian", label: "Asian", cuisines: ["chinese", "thai", "japanese", "korean", "vietnamese", "asian", "ramen", "sushi", "poke", "filipino", "malaysian", "indonesian", "taiwanese"], amenities: [], nameHints: ["chinese", "thai", "sushi", "ramen", "pho", "korean", "japanese", "vietnamese", "asian"] },
+    { id: "bbq", label: "BBQ", cuisines: ["barbecue"], amenities: [], nameHints: ["bbq", "barbecue", "barbeque"] },
+    { id: "seafood", label: "Seafood", cuisines: ["seafood", "sushi", "poke", "fish_and_chips"], amenities: ["seafood"], nameHints: ["seafood", "oyster", "lobster", "fish"] },
+    { id: "cafe", label: "Cafe", cuisines: ["coffee"], amenities: ["cafe"], nameHints: ["coffee", "espresso"] },
+    { id: "breakfast", label: "Breakfast", cuisines: ["breakfast", "diner"], amenities: [], nameHints: ["breakfast", "brunch", "diner", "pancake"] },
+    { id: "healthy", label: "Healthy", cuisines: ["vegan", "vegetarian", "salad", "juice", "smoothie", "poke"], amenities: [], dietAny: true, nameHints: ["salad", "vegan", "juice", "smoothie"] },
+    { id: "dessert", label: "Dessert", cuisines: ["ice_cream", "dessert", "gelato", "donut", "pastry", "cake"], amenities: ["ice_cream"], nameHints: ["ice cream", "gelato", "yogurt", "donut", "dessert"] },
+    { id: "italian", label: "Italian", cuisines: ["italian"], amenities: [], nameHints: ["italian", "trattoria", "pasta"] },
+    { id: "indian", label: "Indian", cuisines: ["indian"], amenities: [], nameHints: ["indian", "tandoor", "curry"] },
+  ];
+  const FOOD_CATEGORY_IDS = {};
+  FOOD_CATEGORIES.forEach(function (c) { FOOD_CATEGORY_IDS[c.id] = 1; });
+  const FOOD_CATEGORY_FROM_TYPE = { cafe: "cafe", ice_cream: "dessert" };
   /** Hearts: osm id, name, address only — never lat/lng */
   const SAVED_KEY = "rb_saved";
   const SAVED_MAX = 80;
@@ -100,6 +130,7 @@
       kidsArea: false,
       lateNight: false,
       cuisine: null,
+      foodCategory: null,
       diet: { vegan: false, vegetarian: false, gluten_free: false, halal: false },
     },
     /** Last Overpass radius in miles — local chips may narrow without a new query */
@@ -189,6 +220,7 @@
           kidsArea: !!state.filters.kidsArea,
           lateNight: !!state.filters.lateNight,
           cuisine: state.filters.cuisine ? String(state.filters.cuisine).slice(0, 40) : null,
+          foodCategory: FOOD_CATEGORY_IDS[state.filters.foodCategory] ? state.filters.foodCategory : null,
           diet: {
             vegan: !!(state.filters.diet && state.filters.diet.vegan),
             vegetarian: !!(state.filters.diet && state.filters.diet.vegetarian),
@@ -258,6 +290,15 @@
     state.filters.lateNight = !!f.lateNight;
     const cuis = typeof f.cuisine === "string" ? f.cuisine.trim().toLowerCase().slice(0, 40) : "";
     state.filters.cuisine = cuis || null;
+    const catRaw = typeof f.foodCategory === "string" ? f.foodCategory.trim().toLowerCase() : "";
+    if (FOOD_CATEGORY_IDS[catRaw]) {
+      state.filters.foodCategory = catRaw;
+    } else if (FOOD_CATEGORY_FROM_TYPE[state.filters.type]) {
+      state.filters.foodCategory = FOOD_CATEGORY_FROM_TYPE[state.filters.type];
+      state.filters.type = "all";
+    } else {
+      state.filters.foodCategory = null;
+    }
     const d = f.diet && typeof f.diet === "object" ? f.diet : {};
     state.filters.diet = {
       vegan: !!d.vegan,
@@ -295,6 +336,7 @@
     if (lateBtn) lateBtn.classList.toggle("active", !!state.filters.lateNight);
     const typeSel = $("#filterType");
     if (typeSel) typeSel.value = state.filters.type;
+    renderFoodCategoryChips();
     $$("[data-tag]").forEach((btn) => {
       const key = btn.getAttribute("data-tag");
       if (UI_PREFS_TAGS[key]) btn.classList.toggle("active", !!state.filters[key]);
@@ -474,6 +516,101 @@
       vegetarian: '<path d="M12 4c3 4 4 8 0 16"/><path d="M12 10c-4 2-6 6-6 9"/><path d="M12 10c4 2 6 6 6 9"/>',
     };
     return "<svg " + svg + ">" + (inner[token] || inner.american) + "</svg>";
+  }
+
+  function foodCategoryById(id) {
+    const key = String(id || "");
+    for (let i = 0; i < FOOD_CATEGORIES.length; i++) {
+      if (FOOD_CATEGORIES[i].id === key) return FOOD_CATEGORIES[i];
+    }
+    return null;
+  }
+
+  function foodCategoryIconSvg(id) {
+    const tokenMap = {
+      pizza: "pizza",
+      burgers: "burger",
+      mexican: "mexican",
+      asian: "ramen",
+      bbq: "barbecue",
+      seafood: "seafood",
+      cafe: "breakfast",
+      breakfast: "breakfast",
+      healthy: "vegetarian",
+      dessert: "ice_cream",
+      italian: "italian",
+      indian: "indian",
+    };
+    if (id === "dessert") {
+      const svg = 'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+      return "<svg " + svg + '><path d="M12 3c2 2 3 4 3 6a3 3 0 1 1-6 0c0-2 1-4 3-6z"/><path d="M8 15c0 3 8 3 8 0"/><path d="M9 15h6"/></svg>';
+    }
+    if (id === "cafe") {
+      const svg = 'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+      return "<svg " + svg + '><path d="M6 9h10v6a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V9z"/><path d="M16 11h2a2 2 0 1 1 0 4h-2"/><path d="M9 5c.4 1 .4 2 0 3"/><path d="M12 5c.4 1 .4 2 0 3"/></svg>';
+    }
+    return cuisineIconSvg(tokenMap[id] || "american");
+  }
+
+  function escapeRegExp(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function nameHasFoodHint(name, hint) {
+    const n = String(name || "").toLowerCase();
+    const h = String(hint || "").toLowerCase().trim();
+    if (!n || !h) return false;
+    if (h.indexOf(" ") >= 0) return n.indexOf(h) >= 0;
+    return new RegExp("(^|[^a-z0-9])" + escapeRegExp(h) + "([^a-z0-9]|$)", "i").test(n);
+  }
+
+  function placeMatchesFoodCategory(p, cat) {
+    if (!p || !cat) return false;
+    const amenity = String(p.amenity || "").toLowerCase();
+    if (cat.amenities && cat.amenities.indexOf(amenity) >= 0) return true;
+    const tokens = cuisineTokens(p).map(canonCuisine);
+    const want = cat.cuisines || [];
+    for (let i = 0; i < tokens.length; i++) {
+      if (want.indexOf(tokens[i]) >= 0) return true;
+    }
+    if (cat.dietAny && (p.dietVegan || p.dietVegetarian)) return true;
+    const hints = cat.nameHints || [];
+    for (let i = 0; i < hints.length; i++) {
+      if (nameHasFoodHint(p.name, hints[i])) return true;
+    }
+    return false;
+  }
+
+  function foodCategoryMatchCount(cat) {
+    const places = state.places || [];
+    let n = 0;
+    for (let i = 0; i < places.length; i++) {
+      const p = places[i];
+      if (p.miles > state.radiusMiles + 0.05) continue;
+      if (placeMatchesFoodCategory(p, cat)) n += 1;
+    }
+    return n;
+  }
+
+  function setFoodCategory(id) {
+    const next = FOOD_CATEGORY_IDS[id] ? id : null;
+    const cur = FOOD_CATEGORY_IDS[state.filters.foodCategory] ? state.filters.foodCategory : null;
+    state.filters.foodCategory = cur === next ? null : next;
+    if (state.filters.foodCategory) {
+      state.filters.cuisine = null;
+      state.filters.type = "all";
+      const typeSel = $("#filterType");
+      if (typeSel) typeSel.value = "all";
+    }
+    persistUiPrefs();
+    renderList();
+    const cat = foodCategoryById(state.filters.foodCategory);
+    if (!state.lat) {
+      setStatus("Tap Locate Me, or search any city. Any type of food.");
+      return;
+    }
+    const n = filteredPlaces().length;
+    setStatus(cat ? n + " " + cat.label.toLowerCase() + " places" : n + " restaurants after filters");
   }
 
   function isLateNightHours(hours) {
@@ -1050,6 +1187,7 @@
       !!state.filters.kidsArea ||
       !!state.filters.lateNight ||
       !!state.filters.cuisine ||
+      !!state.filters.foodCategory ||
       !!(state.filters.diet && (state.filters.diet.vegan || state.filters.diet.vegetarian || state.filters.diet.gluten_free || state.filters.diet.halal)) ||
       (state.filters.type && state.filters.type !== "all");
     btn.classList.toggle("is-active", nonDefault);
@@ -1627,6 +1765,8 @@
       const want = canonCuisine(state.filters.cuisine);
       list = list.filter((p) => cuisineTokens(p).map(canonCuisine).indexOf(want) >= 0);
     }
+    const cat = foodCategoryById(state.filters.foodCategory);
+    if (cat) list = list.filter((p) => placeMatchesFoodCategory(p, cat));
     const nq = String(state.nameQuery || "").trim().toLowerCase();
     if (nq) list = list.filter((p) => String(p.name || "").toLowerCase().includes(nq));
     list = sortDealsFirst(list).slice(0, MAX_RESULTS);
@@ -1990,6 +2130,38 @@
       .join("");
   }
 
+  function renderFoodCategoryChips() {
+    const wraps = $$("[data-food-cats]");
+    if (!wraps.length) return;
+    const hasPlaces = !!(state.places && state.places.length);
+    const selected = FOOD_CATEGORY_IDS[state.filters.foodCategory] ? state.filters.foodCategory : null;
+    const html = FOOD_CATEGORIES.map((cat) => {
+      const on = selected === cat.id;
+      const count = hasPlaces ? foodCategoryMatchCount(cat) : null;
+      const empty = hasPlaces && count === 0;
+      const countPart = !hasPlaces
+        ? ""
+        : count === 0
+          ? ", none here"
+          : ", " + count + (count === 1 ? " place" : " places");
+      return (
+        `<button type="button" class="chip chip-food-cat${on ? " active" : ""}${empty ? " is-empty" : ""}"` +
+        ` data-food-cat="${escapeHtml(cat.id)}"` +
+        ` aria-pressed="${on ? "true" : "false"}"` +
+        ` aria-label="${escapeHtml(cat.label)}${escapeHtml(countPart)}">` +
+        `<span class="cuisine-icon" aria-hidden="true">${foodCategoryIconSvg(cat.id)}</span>` +
+        `<span class="cuisine-name">${escapeHtml(cat.label)}</span>` +
+        `</button>`
+      );
+    }).join("");
+    wraps.forEach((wrap) => {
+      wrap.hidden = false;
+      wrap.innerHTML = html;
+    });
+    const mainWrap = $("#foodCatWrap");
+    if (mainWrap) mainWrap.hidden = false;
+  }
+
   function renderCuisineChips() {
     const wrap = $("#cuisineChips");
     const label = $("#cuisineChipsLabel");
@@ -2042,6 +2214,7 @@
     renderOpenStrip();
     renderOpensSoonRail();
     renderDietChips();
+    renderFoodCategoryChips();
     renderCuisineChips();
     syncOsmTagChips();
     const ul = $("#placeList");
@@ -2137,6 +2310,8 @@
           ? (readSaved().length
               ? `<li class="empty"><strong>None of your saved restaurants are in this range.</strong> Widen it, or clear Saved.</li>`
               : `<li class="empty"><strong>No saved restaurants on this device.</strong> Heart a restaurant to remember it here. No GPS trail.</li>`)
+          : state.filters.foodCategory
+          ? `<li class="empty"><strong>No ${escapeHtml((foodCategoryById(state.filters.foodCategory) || {}).label || "that type")} in this range.</strong> Matches OpenStreetMap cuisine and amenity tags, plus a few name words. Tap the chip again to show all.</li>`
           : state.dietaryFilter === "freefood"
           ? `<li class="empty"><strong>No tagged pantries in this range.</strong> We only show pantries OpenStreetMap already tags.</li>`
           : state.filters.hasDeal
@@ -3189,6 +3364,7 @@
         state.filters.kidsArea = false;
         state.filters.lateNight = false;
         state.filters.cuisine = null;
+        state.filters.foodCategory = null;
         state.filters.diet = { vegan: false, vegetarian: false, gluten_free: false, halal: false };
         persistUiPrefs();
         syncRadiusChipsUI();
@@ -3263,6 +3439,7 @@
     if (filterType) {
       filterType.addEventListener("change", (e) => {
         state.filters.type = e.target.value;
+        if (state.filters.type !== "all") state.filters.foodCategory = null;
         persistUiPrefs();
         renderList();
         setStatus(filteredPlaces().length + " restaurants after filters");
@@ -3282,6 +3459,15 @@
       });
     });
 
+    $$("[data-food-cats]").forEach((wrap) => {
+      wrap.addEventListener("click", (e) => {
+        const chip = e.target.closest("[data-food-cat]");
+        if (!chip || !wrap.contains(chip)) return;
+        e.stopPropagation();
+        setFoodCategory(chip.getAttribute("data-food-cat"));
+      });
+    });
+
     const cuisineWrap = $("#cuisineChips");
     if (cuisineWrap) {
       cuisineWrap.addEventListener("click", (e) => {
@@ -3290,6 +3476,7 @@
         e.stopPropagation();
         const c = chip.getAttribute("data-cuisine");
         state.filters.cuisine = canonCuisine(state.filters.cuisine) === c ? null : c;
+        if (state.filters.cuisine) state.filters.foodCategory = null;
         persistUiPrefs();
         renderList();
         setStatus(filteredPlaces().length + " restaurants after filters");
