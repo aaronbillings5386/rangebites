@@ -1765,10 +1765,13 @@ html[data-device="desktop"] .sheet.filters-sheet.open {
   white-space: normal;
 }
 
-/* DoorDash-style food-type row — always visible, horizontal on the main surface */
+/* Food-type row — only after a search, and only categories with ≥1 in-range match */
 .food-cats {
   padding: 2px 14px 8px;
   max-width: 100%;
+}
+.food-cats[hidden] {
+  display: none;
 }
 .chips-food-cats {
   display: flex;
@@ -1815,12 +1818,6 @@ html[data-device="desktop"] .sheet.filters-sheet.open {
   text-align: center;
   font-weight: 650;
   white-space: nowrap;
-}
-.chip.chip-food-cat.is-empty {
-  opacity: 0.4;
-}
-.chip.chip-food-cat.is-empty.active {
-  opacity: 1;
 }
 .filters-sheet .chips-food-cats {
   flex-wrap: wrap;

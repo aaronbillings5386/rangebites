@@ -58,17 +58,25 @@
     pasta: "italian", curry: "indian",
     doughnut: "donut", donuts: "donut",
     fried_chicken: "chicken", "fried-chicken": "chicken",
+    szechuan: "chinese", sichuan: "chinese", szechwan: "chinese", cantonese: "chinese",
+    dim_sum: "chinese", dimsum: "chinese", "dim-sum": "chinese",
+    gyro: "greek", gyros: "greek", souvlaki: "greek",
+    izakaya: "japanese", teriyaki: "japanese", udon: "japanese", sashimi: "sushi",
   };
   /**
-   * Fixed DoorDash-style food categories. Always rendered (even in empty towns).
+   * Food-type chips. Rendered only for categories with ≥1 match in the current search (in-range places).
+   * Hidden before Locate/city search. Zero-match chips are omitted, not dimmed. Fixed order; skip missing.
    * Match order: OSM amenity/shop → cuisine tokens → optional diet flags → conservative name hints.
-   * Single-select: tap to filter, tap again to clear. Documented in the PR.
+   * Single-select: tap to filter, tap again to clear.
    */
   const FOOD_CATEGORIES = [
     { id: "pizza", label: "Pizza", cuisines: ["pizza"], amenities: [], nameHints: ["pizza", "pizzeria"] },
     { id: "burgers", label: "Burgers", cuisines: ["burger"], amenities: [], nameHints: ["burger", "hamburger"] },
     { id: "mexican", label: "Mexican", cuisines: ["mexican", "tex-mex"], amenities: [], nameHints: ["mexican", "taco", "burrito", "taqueria"] },
-    { id: "asian", label: "Asian", cuisines: ["chinese", "thai", "japanese", "korean", "vietnamese", "asian", "ramen", "sushi", "poke", "filipino", "malaysian", "indonesian", "taiwanese"], amenities: [], nameHints: ["chinese", "thai", "sushi", "ramen", "pho", "korean", "japanese", "vietnamese", "asian"] },
+    { id: "japanese", label: "Japanese", cuisines: ["japanese", "sushi", "ramen"], amenities: [], nameHints: ["japanese", "sushi", "ramen", "izakaya", "teriyaki", "udon", "sashimi"] },
+    { id: "chinese", label: "Chinese", cuisines: ["chinese"], amenities: [], nameHints: ["chinese", "szechuan", "sichuan", "dim sum"] },
+    { id: "thai", label: "Thai", cuisines: ["thai"], amenities: [], nameHints: ["thai", "pad thai"] },
+    { id: "asian", label: "Asian", cuisines: ["korean", "vietnamese", "asian", "poke", "filipino", "malaysian", "indonesian", "taiwanese"], amenities: [], nameHints: ["korean", "vietnamese", "asian", "pho", "filipino"] },
     { id: "bbq", label: "BBQ", cuisines: ["barbecue"], amenities: [], nameHints: ["bbq", "barbecue", "barbeque"] },
     { id: "seafood", label: "Seafood", cuisines: ["seafood", "sushi", "poke", "fish_and_chips"], amenities: ["seafood"], nameHints: ["seafood", "oyster", "lobster", "fish"] },
     { id: "cafe", label: "Cafe", cuisines: ["coffee"], amenities: ["cafe"], nameHints: ["coffee", "espresso"] },
@@ -77,6 +85,8 @@
     { id: "dessert", label: "Dessert", cuisines: ["ice_cream", "dessert", "gelato", "donut", "pastry", "cake"], amenities: ["ice_cream"], nameHints: ["ice cream", "gelato", "yogurt", "donut", "dessert"] },
     { id: "italian", label: "Italian", cuisines: ["italian"], amenities: [], nameHints: ["italian", "trattoria", "pasta"] },
     { id: "indian", label: "Indian", cuisines: ["indian"], amenities: [], nameHints: ["indian", "tandoor", "curry"] },
+    { id: "mediterranean", label: "Mediterranean", cuisines: ["mediterranean", "greek"], amenities: [], nameHints: ["mediterranean", "greek", "gyro", "souvlaki", "taverna"] },
+    { id: "american", label: "American", cuisines: ["american"], amenities: [], nameHints: ["american"] },
   ];
   const FOOD_CATEGORY_IDS = {};
   FOOD_CATEGORIES.forEach(function (c) { FOOD_CATEGORY_IDS[c.id] = 1; });
@@ -531,6 +541,9 @@
       pizza: "pizza",
       burgers: "burger",
       mexican: "mexican",
+      japanese: "sushi",
+      chinese: "chinese",
+      thai: "thai",
       asian: "ramen",
       bbq: "barbecue",
       seafood: "seafood",
@@ -540,6 +553,8 @@
       dessert: "ice_cream",
       italian: "italian",
       indian: "indian",
+      mediterranean: "mediterranean",
+      american: "american",
     };
     if (id === "dessert") {
       const svg = 'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
@@ -2134,32 +2149,48 @@
     const wraps = $$("[data-food-cats]");
     if (!wraps.length) return;
     const hasPlaces = !!(state.places && state.places.length);
+    const visible = [];
+    if (hasPlaces) {
+      for (let i = 0; i < FOOD_CATEGORIES.length; i++) {
+        const cat = FOOD_CATEGORIES[i];
+        const count = foodCategoryMatchCount(cat);
+        if (count > 0) visible.push({ cat, count });
+      }
+    }
+    if (
+      hasPlaces &&
+      state.filters.foodCategory &&
+      !visible.some((row) => row.cat.id === state.filters.foodCategory)
+    ) {
+      state.filters.foodCategory = null;
+      persistUiPrefs();
+    }
     const selected = FOOD_CATEGORY_IDS[state.filters.foodCategory] ? state.filters.foodCategory : null;
-    const html = FOOD_CATEGORIES.map((cat) => {
-      const on = selected === cat.id;
-      const count = hasPlaces ? foodCategoryMatchCount(cat) : null;
-      const empty = hasPlaces && count === 0;
-      const countPart = !hasPlaces
-        ? ""
-        : count === 0
-          ? ", none here"
-          : ", " + count + (count === 1 ? " place" : " places");
-      return (
-        `<button type="button" class="chip chip-food-cat${on ? " active" : ""}${empty ? " is-empty" : ""}"` +
-        ` data-food-cat="${escapeHtml(cat.id)}"` +
-        ` aria-pressed="${on ? "true" : "false"}"` +
-        ` aria-label="${escapeHtml(cat.label)}${escapeHtml(countPart)}">` +
-        `<span class="cuisine-icon" aria-hidden="true">${foodCategoryIconSvg(cat.id)}</span>` +
-        `<span class="cuisine-name">${escapeHtml(cat.label)}</span>` +
-        `</button>`
-      );
-    }).join("");
+    const html = visible
+      .map((row) => {
+        const cat = row.cat;
+        const on = selected === cat.id;
+        const countPart = row.count === 1 ? ", 1 place" : ", " + row.count + " places";
+        return (
+          `<button type="button" class="chip chip-food-cat${on ? " active" : ""}"` +
+          ` data-food-cat="${escapeHtml(cat.id)}"` +
+          ` aria-pressed="${on ? "true" : "false"}"` +
+          ` aria-label="${escapeHtml(cat.label)}${escapeHtml(countPart)}">` +
+          `<span class="cuisine-icon" aria-hidden="true">${foodCategoryIconSvg(cat.id)}</span>` +
+          `<span class="cuisine-name">${escapeHtml(cat.label)}</span>` +
+          `</button>`
+        );
+      })
+      .join("");
+    const show = visible.length > 0;
     wraps.forEach((wrap) => {
-      wrap.hidden = false;
+      wrap.hidden = !show;
       wrap.innerHTML = html;
     });
     const mainWrap = $("#foodCatWrap");
-    if (mainWrap) mainWrap.hidden = false;
+    if (mainWrap) mainWrap.hidden = !show;
+    const sheetGroup = $("#foodCatFilterGroup");
+    if (sheetGroup) sheetGroup.hidden = !show;
   }
 
   function renderCuisineChips() {
