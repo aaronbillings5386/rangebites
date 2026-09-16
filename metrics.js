@@ -97,8 +97,8 @@
 
   function formatOpens(n) {
     var v = Number(n) || 0;
-    if (v === 1) return "1 visit";
-    return v + " visits";
+    if (v === 1) return "1 page open";
+    return v + " page opens";
   }
 
   function paintVisitCount(n) {

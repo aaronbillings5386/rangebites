@@ -8,7 +8,7 @@
  * - rb_saved: osm id + name + address you heart on this device. Never lat/lng. No GPS trail.
  * - Clear now wipes GPS+places only; UI prefs + hearts stay. Do NOT wipe on pagehide — iOS Safari fires it on the GPS sheet, app switch, and Maps.
  * - Locate Me + live OSM Overpass only. No demo map, no fake places, no invented hours/phones.
- * - Same-origin Overpass/Nominatim proxies only (/api/overpass, /api/nominatim). Never mail.ru Overpass (hangs). We do not invent restaurants.
+ * - Same-origin Overpass/Nominatim proxies only (/api/overpass, /api/nominatim). Never mail.ru Overpass (hangs). lz4 is not in the client URL list (504 stall). We do not invent restaurants.
  */
 (function () {
   "use strict";
@@ -16,10 +16,9 @@
   /** Neutral map view until Locate Me — not a fake city of places */
   const MAP_DEFAULT = { lat: 20, lng: 0, zoom: 2 };
   const MAX_RESULTS = 120;
-  /** Same-origin Overpass only. Primary = overpass.openstreetmap.fr via /api/overpass; backup = lz4. */
+  /** Same-origin Overpass only. Client URL list is /api/overpass only. Never mail.ru. lz4 is not in this list. */
   const OVERPASS_URLS = [
     "/api/overpass",
-    "/api/overpass-lz4",
   ];
   /** Server-side Overpass [timeout:N]; client abort is a little longer. */
   const OVERPASS_TIMEOUT_S = 25;
@@ -884,15 +883,15 @@
     const nowMin = now.getHours() * 60 + now.getMinutes();
     if (p.openStatus === "open" && p.closesSoon && p.untilOpen == null) {
       const until = minutesUntilClose(raw, now);
-      if (until != null) return "Closes soon · until " + clockFromMinutes(nowMin + until);
-      return "Closes soon";
+      if (until != null) return "Closes soon · until " + clockFromMinutes(nowMin + until) + " · verify";
+      return "Closes soon · verify";
     }
     if (p.openStatus === "open") {
       const until = minutesUntilClose(raw, now);
       if (until != null) return "Tagged open until " + clockFromMinutes(nowMin + until) + " · verify";
       return "Tagged open · verify";
     }
-    if (p.openStatus === "closed") return "Closed";
+    if (p.openStatus === "closed") return "Closed · verify";
     return "";
   }
 
@@ -1530,7 +1529,7 @@
         return await fetchOne(urls[i]);
       } catch (err) {
         lastErr = err;
-        // empty on primary → try backup; empty on all → real empty list
+        // empty on this URL → try next in OVERPASS_URLS; empty on all → real empty list
       }
     }
     if (lastErr && /empty/i.test(String(lastErr.message || ""))) return [];
@@ -2366,9 +2365,9 @@
           ? `<span class="badge badge-sponsored">Sponsored</span>`
           : "";
         let openBadge = "";
-        if (p.hours && p.openStatus === "open" && p.closesSoon) openBadge = `<span class="badge badge-soon">Closes soon</span>`;
-        else if (p.hours && p.openStatus === "open") openBadge = `<span class="badge badge-open">Tagged open</span>`;
-        else if (p.hours && p.openStatus === "closed") openBadge = `<span class="badge badge-closed">Closed</span>`;
+        if (p.hours && p.openStatus === "open" && p.closesSoon) openBadge = `<span class="badge badge-soon">Closes soon · verify</span>`;
+        else if (p.hours && p.openStatus === "open") openBadge = `<span class="badge badge-open">Tagged open · verify</span>`;
+        else if (p.hours && p.openStatus === "closed") openBadge = `<span class="badge badge-closed">Closed · verify</span>`;
         else if (p.hours && p.opensSoon) openBadge = "";
         const kitchenBadge = p.kitchenClosedDoorsOpen
           ? `<span class="badge badge-kitchen">Kitchen closed · OSM</span>`
@@ -2639,7 +2638,7 @@
     if (place.changingTable) tagBits.push("Changing table");
     if (place.smokeFree) tagBits.push("No smoking");
     if (place.kidsArea) tagBits.push("Kids area");
-    if (place.hours && place.openStatus === "open" && place.closesSoon) tagBits.push("Closes soon · OSM hours");
+    if (place.hours && place.openStatus === "open" && place.closesSoon) tagBits.push("Closes soon · OSM hours · verify");
     const tagLine = tagBits.length
       ? `<div class="badge-row sheet-tags">${tagBits.map((b) => `<span class="badge badge-tag">${escapeHtml(b)}</span>`).join("")}</div>`
       : "";
