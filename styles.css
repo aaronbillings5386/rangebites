@@ -74,7 +74,7 @@ a { color: var(--accent-strong); }
 .header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .visit-count {
   display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
-  min-width: 2.4rem; padding: 4px 2px; text-decoration: none; line-height: 1.1;
+  min-width: 4.6rem; padding: 4px 2px; text-decoration: none; line-height: 1.1;
 }
 .visit-count-num {
   font-size: 0.92rem; font-weight: 800; letter-spacing: -0.03em;
@@ -2938,7 +2938,7 @@ html, body, .app {
   flex-direction: column;
   align-items: flex-end;
   justify-content: center;
-  min-width: 3.2rem;
+  min-width: 4.6rem;
   padding: 2px 4px 2px 8px;
   text-decoration: none;
   line-height: 1.05;

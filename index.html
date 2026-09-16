@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- rb-build 20260915d -->
+  <!-- rb-build 20260916a -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#14110e" />
@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="RangeBites" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260915d" />
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20260915d" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20260915d" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260916a" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20260916a" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20260916a" />
   <link rel="canonical" href="https://rangebites.com/" />
   <meta name="description" content="Find restaurants, cafes, and food nearby. Search any city. No account." />
   <title>RangeBites — find food nearby</title>
@@ -31,20 +31,20 @@
   <meta name="twitter:description" content="Find restaurants, cafes, and food nearby. Search any city." />
   <meta name="twitter:image" content="https://rangebites.com/icons/icon-512.png" />
   <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"RangeBites","url":"https://rangebites.com/","potentialAction":{"@type":"SearchAction","target":"https://rangebites.com/?q={search_term_string}","query-input":"required name=search_term_string"}},{"@type":"WebApplication","name":"RangeBites","url":"https://rangebites.com/","applicationCategory":"LifestyleApplication","operatingSystem":"Web","description":"Find restaurants, cafes, and food nearby. Search any city."}]}</script>
-    <link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=20260915d" />
-  <link rel="stylesheet" href="styles.css?v=20260915d" />
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=20260916a" />
+  <link rel="stylesheet" href="styles.css?v=20260916a" />
 </head>
 <body>
   <div class="app">
     <header class="header">
       <div class="brand">
-        <img class="brand-logo" src="icons/logo.png?v=20260915d" alt="" width="44" height="44">
+        <img class="brand-logo" src="icons/logo.png?v=20260916a" alt="" width="44" height="44">
         <h1>RangeBites</h1>
       </div>
       <div class="header-right">
-        <a class="visit-count" id="visitCount" href="#about" aria-label="Visits">
+        <a class="visit-count" id="visitCount" href="#about" aria-label="Page opens">
           <span class="visit-count-num" id="visitCountNum">–</span>
-          <span class="visit-count-label">Visits</span>
+          <span class="visit-count-label">Page opens</span>
         </a>
         <button type="button" class="about-btn" id="aboutBtn">About</button>
       </div>
@@ -274,6 +274,7 @@
       <p>Tap the heart to save or unheart a restaurant. Hearts on this device are OpenStreetMap id, name, and address — not a GPS trail. Heart a place again to unsave it. That list stays on this device only.</p>
       <p>To fetch restaurants, our host or proxy forwards the search to OpenStreetMap. The host sees that search and your IP. Map tiles come from OpenStreetMap.</p>
       <p>We do not track you. Amplitude is off. The app does not log taps. Hits, if any, never include GPS.</p>
+      <p>Page opens is a first-party page-open count (kind and time only). It is not unique visitors and may undercount.</p>
 
       <h3>Promo text</h3>
       <p>Promo text appears only if the listing already mentions a promo (e.g. description/note). We do not invent coupons. Copy listing text and confirm with the restaurant. It is not a live coupon feed and not a promise it will work at the register.</p>
@@ -302,9 +303,9 @@
     </div>
   </aside>
 
-  <script src="vendor/leaflet/leaflet.js?v=20260915d"></script>
-  <script src="metrics.js?v=20260915d"></script>
-  <script src="deals.js?v=20260915d"></script>
-  <script src="app.js?v=20260915d"></script>
+  <script src="vendor/leaflet/leaflet.js?v=20260916a"></script>
+  <script src="metrics.js?v=20260916a"></script>
+  <script src="deals.js?v=20260916a"></script>
+  <script src="app.js?v=20260916a"></script>
 </body>
 </html>
