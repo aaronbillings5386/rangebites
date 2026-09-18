@@ -1,5 +1,5 @@
 /* RangeBites SW: installability + icon cache. Never cache /api/. Network-first for pages. */
-const CACHE = "rb-static-v20260916a";
+const CACHE = "rb-static-v20260918b";
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
