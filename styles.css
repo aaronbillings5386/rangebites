@@ -2915,14 +2915,6 @@ html, body, .app {
   .search-first .find-row { align-items: flex-end !important; }
 }
 
-/* hide filters — live open only */
-#filtersBtn, .btn-filters, #openNowFirst, .first-open-now, #opensSoonStrip, .opens-soon-strip { display: none !important; }
-
-/* no filter buttons — live open list only */
-#filtersBtn, .btn-filters, #filtersSheet, #filtersBackdrop, #filtersDone, #filtersClear,
-#openNowFirst, .first-open-now, #openStrip, .open-strip, #dealRailWrap, .deal-rail-wrap,
-#nameSearchWrap { display: none !important; }
-
 .place-hours {
   font-size: 0.98rem;
   font-weight: 700;
