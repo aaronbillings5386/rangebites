@@ -248,16 +248,16 @@ t("stored acceptance matches TERMS_VERSION only", () => {
   assert.strictEqual(T.termsNoticePending("2026-09-01", "2026-10-03"), true);
   assert.strictEqual(T.termsNoticePending("2026-10-03", "2026-10-03"), false);
   const cfg = fs.readFileSync(path.join(__dirname, "..", "config.js"), "utf8");
-  assert.ok(/const PUBLISH_DATE = "2026-10-04"/.test(cfg));
+  assert.ok(/const PUBLISH_DATE = "2026-10-03"/.test(cfg));
   assert.ok(/TERMS_VERSION: PUBLISH_DATE/.test(cfg));
   assert.strictEqual(C.publishDateLabel("2026-10-03"), "October 3, 2026");
   assert.strictEqual(C.publishDateLabel("2026-10-04"), "October 4, 2026");
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-  assert.ok(html.includes("Terms updated <span data-publish-date>October 4, 2026</span>"));
+  assert.ok(html.includes("Terms updated <span data-publish-date>October 3, 2026</span>"));
   assert.ok(html.includes('href="/terms"'));
   assert.ok(/By using RangeBites you agree to the <a href="\/terms">Terms<\/a> and <a href="\/privacy">Privacy<\/a>/.test(html));
-  assert.strictEqual((cfg.match(/2026-10-04/g) || []).length, 1);
-  assert.strictEqual((cfg.match(/2026-10-03/g) || []).length, 0);
+  assert.strictEqual((cfg.match(/2026-10-03/g) || []).length, 1);
+  assert.strictEqual((cfg.match(/2026-10-04/g) || []).length, 0);
   for (const page of ["index.html", "about.html", "about/index.html", "privacy.html", "privacy/index.html"]) {
     const pageSrc = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
     const bits = pageSrc.split("rounded to 3 decimal places");
@@ -415,11 +415,11 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   const terms = fs.readFileSync(path.join(__dirname, "..", "terms.html"), "utf8");
   assert.ok(terms.includes("by tapping Continue, or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
-  assert.ok(terms.includes('src="/config.js?v=20261003c"'));
-  assert.ok(/Effective <span data-publish-date>October 4, 2026<\/span>/.test(terms));
+  assert.ok(terms.includes('src="/config.js?v=20261003h"'));
+  assert.ok(/Effective <span data-publish-date>October 3, 2026<\/span>/.test(terms));
   for (const legal of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"]) {
     const legalSrc = fs.readFileSync(path.join(__dirname, "..", legal), "utf8");
-    assert.ok(legalSrc.includes("Effective <span data-publish-date>October 4, 2026</span>"), legal);
+    assert.ok(legalSrc.includes("Effective <span data-publish-date>October 3, 2026</span>"), legal);
   }
   const privacy = fs.readFileSync(path.join(__dirname, "..", "privacy.html"), "utf8");
   assert.ok(privacy.includes("RangeBites (rangebites.com), contact:"));
