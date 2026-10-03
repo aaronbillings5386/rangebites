@@ -1,6 +1,7 @@
 /* RangeBites SW: installability + icon cache.
- * Cache writes are static icons only. Never cache /api/, /.herenow/, or a URL that carries coordinates. */
-const CACHE = "rb-static-v20261003f";
+ * Cache writes are static icons only. Never cache /api/, /.herenow/, or a URL that carries coordinates.
+ * data/ is not cached, so data/closed-places.json is always fetched from the network. */
+const CACHE = "rb-static-v20261003g";
 
 function mustNotCache(url) {
   if (url.pathname.indexOf("/api/") === 0) return true;

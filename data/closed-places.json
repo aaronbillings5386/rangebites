@@ -1,0 +1,15 @@
+[
+  {
+    "id": "way/580777677",
+    "name": "Wendy's",
+    "where": "Lebanon, VA",
+    "closed": "2026-01-01",
+    "note": "Permanently closed. OSM still tags opening_hours=07:00-22:00."
+  },
+  {
+    "id": "way/312160515",
+    "name": "Applebee's",
+    "closed": "2019",
+    "note": "Permanently closed."
+  }
+]

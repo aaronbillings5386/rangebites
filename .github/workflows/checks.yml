@@ -24,10 +24,12 @@ jobs:
       - name: JSON configs parse
         run: |
           set -e
-          for f in .herenow/data.json .herenow/proxy.json tools/overpass-proxy.headers.json manifest.webmanifest vercel.json; do
+          for f in .herenow/data.json .herenow/proxy.json tools/overpass-proxy.headers.json manifest.webmanifest vercel.json data/closed-places.json; do
             [ -f "$f" ] && node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" && echo "ok $f"
           done
       - name: Python tools compile
         run: python3 -m py_compile tools/*.py
       - name: Harness tests
-        run: node tests/app.test.js
+        run: |
+          node tests/app.test.js
+          node tests/t.js
