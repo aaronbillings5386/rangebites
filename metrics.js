@@ -20,8 +20,9 @@
    * returned ≥1 place. The record is {"kind":"found"} only. This device keeps the flag rb_helped_done so it
    * never sends again. Bots/crawlers, automation (webdriver), and QA runs (?qa=1, ?rbqa=1, rb_no_count=1) never count. */
   var HELPED_COLLECTIONS = { found: 1, found_selftest: 1 };
-  /* Historical count of the old "helped" collection. Those two records are removed on the live
-   * host. This base stays 2 so the public total still includes them. */
+  /* Added to the public "found" total. Set this to the real helped count at publish
+   * time. A new helped record has appeared since the earlier base, so confirm the
+   * live count before shipping. */
   var LEGACY_FOUND_BASE = 2;
   var DEVICE_KEY = "rb_device_id"; // legacy key: removed on boot, never sent
   var PENDING_KEY = "rb_found_pending_key";

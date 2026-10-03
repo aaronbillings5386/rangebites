@@ -5,9 +5,10 @@
  *   "current"    Continue sheet stays hidden.
  *   "browsewrap" Show the agree line under the search box.
  * PUBLISH_DATE is the effective date (YYYY-MM-DD). TERMS_VERSION and the
- * Terms-updated notice both come from it.
+ * Terms-updated notice both come from it. The same date is also plain text
+ * in the HTML (Terms, Privacy, and the home notice) so it shows without JS.
  */
-const PUBLISH_DATE = "2026-10-03";
+const PUBLISH_DATE = "2026-10-04";
 
 function publishDateLabel(iso) {
   const parts = String(iso || "").split("-");
