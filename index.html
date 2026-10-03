@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- rb-build 20261003b -->
+  <!-- rb-build 20261003c -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#14110e" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta name="referrer" content="origin" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.openstreetmap.org https://*.openstreetmap.de https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self' blob:; base-uri 'self'; form-action 'self';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="RangeBites" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20261003b" />
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20261003b" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20261003b" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20261003c" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20261003c" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20261003c" />
   <link rel="canonical" href="https://rangebites.com/" />
   <meta name="description" content="Find restaurants, cafes, and food nearby. Search any city. No account." />
   <title>RangeBites — find food nearby</title>
@@ -31,20 +32,20 @@
   <meta name="twitter:description" content="Find restaurants, cafes, and food nearby. Search any city." />
   <meta name="twitter:image" content="https://rangebites.com/icons/icon-512.png" />
   <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"RangeBites","url":"https://rangebites.com/","potentialAction":{"@type":"SearchAction","target":"https://rangebites.com/?q={search_term_string}","query-input":"required name=search_term_string"}},{"@type":"WebApplication","name":"RangeBites","url":"https://rangebites.com/","applicationCategory":"LifestyleApplication","operatingSystem":"Web","description":"Find restaurants, cafes, and food nearby. Search any city."}]}</script>
-    <link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=20261003b" />
-  <link rel="stylesheet" href="styles.css?v=20261003b" />
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=20261003c" />
+  <link rel="stylesheet" href="styles.css?v=20261003c" />
 </head>
 <body>
   <div class="app">
     <header class="header">
       <div class="brand">
-        <img class="brand-logo" src="icons/logo.png?v=20261003b" alt="" width="44" height="44">
+        <img class="brand-logo" src="icons/logo.png?v=20261003c" alt="" width="44" height="44">
         <h1>RangeBites</h1>
       </div>
       <div class="header-right">
-        <a class="visit-count" id="visitCount" href="#about" aria-label="People helped" hidden>
+        <a class="visit-count" id="visitCount" href="#about" aria-label="Devices that got food results (each counted once; approximate)" hidden>
           <span class="visit-count-num" id="visitCountNum">–</span>
-          <span class="visit-count-label">People helped</span>
+          <span class="visit-count-label">Devices that found food</span>
         </a>
         <button type="button" class="about-btn" id="aboutBtn">About</button>
       </div>
@@ -62,8 +63,7 @@
             <div class="place-search-field">
             <input id="placeSearch" name="place" type="search" inputmode="text"
               enterkeyhint="search" spellcheck="false" maxlength="80" autocomplete="off"
-              placeholder="Tokyo, London, or Osaka" aria-label="Search any city"
-              aria-autocomplete="list" aria-controls="placeSuggest" />
+              placeholder="City or ZIP" aria-label="Search any city" />
             <button type="button" class="place-search-clear" id="placeSearchClear" hidden aria-label="Clear city">×</button>
             <ul id="placeSuggest" class="place-suggest" hidden role="listbox"></ul>
             </div>
@@ -73,7 +73,9 @@
           <div class="last-place" id="lastPlaceWrap" hidden>
             <span class="last-place-label">Last city</span>
             <button type="button" class="last-place-btn" id="lastPlaceBtn"></button>
+            <button type="button" class="last-place-forget" id="lastPlaceForget" aria-label="Forget last city on this device">Forget</button>
           </div>
+          <p class="assent-line" id="assentLine" hidden>By using RangeBites you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>
         </form>
       </div>
       <div class="first-get-food">
@@ -93,6 +95,8 @@
       Locate Me needs a secure connection (https).
     </div>
     <div class="status-line" id="statusLine" aria-live="polite"></div>
+    <div class="near-line" id="nearLine" aria-live="polite" hidden></div>
+    <div class="place-alts" id="placeAlts" hidden></div>
 
     <div class="open-strip first-open" id="openStrip" hidden>
       <div class="open-strip-label">Tagged open (OSM — verify)</div>
@@ -100,7 +104,7 @@
     </div>
 
     <div class="stage">
-    <div class="map-wrap" aria-label="Map of nearby restaurants">
+    <div class="map-wrap" role="region" aria-label="Map of nearby restaurants">
       <div id="map"></div>
     </div>
 
@@ -120,7 +124,12 @@
         </div>
         <span id="resultCount"></span>
       </div>
-      <ul class="place-list" id="placeList"></ul>
+      <!-- Gavel layer 3 (MUST-HAVE): first-search notice. Non-modal, role=status, text from disclaimers.js -->
+      <div class="first-search-notice" id="firstSearchNotice" role="status" hidden>
+        <p id="firstSearchNoticeText"><strong>Quick heads-up:</strong> hours, deals and pantry details come from OpenStreetMap and other public data and can be out of date. Please call ahead before you make a trip. Using RangeBites means you agree to our <a href="/terms">Terms</a>.</p>
+        <button type="button" class="first-search-notice-ok" id="firstSearchNoticeOk">Got it</button>
+      </div>
+      <ul class="place-list" id="placeList" tabindex="-1"></ul>
       <p class="deal-note" id="dealNote" hidden>Promo text shows only if the listing already mentions a promo (e.g. description/note). Not a live coupon feed; confirm with the restaurant.</p>
     </section>
     </div>
@@ -134,12 +143,13 @@
         <a href="sitemap.html">Sitemap</a>
       </nav>
       <p class="site-footer-note">RangeBites finds any type of food. No account. Not a reservation. Not RangeBits.</p>
+      <p class="legal-foot">RangeBites is an independent food finder run by one person in Virginia, not affiliated with or endorsed by any business, pantry, or map service shown. Listings come from OpenStreetMap and may be wrong, so check with the place before you go · Map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
     </footer>
   </div>
 
   <!-- Filters: all options. Closed by default so first paint is locate + map. -->
   <div class="sheet-backdrop" id="filtersBackdrop" hidden></div>
-  <aside class="sheet filters-sheet" id="filtersSheet" role="dialog" aria-modal="true" aria-labelledby="filtersTitle" aria-hidden="true">
+  <aside class="sheet filters-sheet" id="filtersSheet" role="dialog" aria-modal="true" inert aria-labelledby="filtersTitle" aria-hidden="true">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="sheet-header">
       <h2 id="filtersTitle">Filters</h2>
@@ -180,10 +190,10 @@
       <div class="filter-group">
         <div class="section-label">Show</div>
         <div class="filters" aria-label="Saved and promo text">
-          <button type="button" class="filter-toggle" id="filterSaved">Saved</button>
+          <button type="button" class="filter-toggle" id="filterSaved" aria-pressed="false">Saved</button>
           <button type="button" class="filter-toggle" id="filterDeal">Promo text</button>
           <button type="button" class="filter-toggle" id="filterOpen">Tagged open</button>
-          <button type="button" class="filter-toggle" id="filterLateNight">Late night</button>
+          <button type="button" class="filter-toggle" id="filterLateNight" aria-pressed="false">Late night</button>
         </div>
       </div>
 
@@ -191,9 +201,9 @@
         <div class="section-label">OSM tags</div>
         <div class="filters filters-tags" aria-label="OpenStreetMap tags">
           <button type="button" class="filter-toggle" data-tag="takeaway">Takeaway</button>
-          <button type="button" class="filter-toggle" data-tag="delivery">Delivery</button>
+          <button type="button" class="filter-toggle" data-tag="delivery">Delivery (OSM tag)</button>
           <button type="button" class="filter-toggle" data-tag="driveThrough">Drive-through</button>
-          <button type="button" class="filter-toggle" data-tag="wheelchair">Wheelchair</button>
+          <button type="button" class="filter-toggle" data-tag="wheelchair">Wheelchair (OSM tag)</button>
           <button type="button" class="filter-toggle" data-tag="outdoorSeating">Outdoor seating</button>
           <button type="button" class="filter-toggle" data-tag="restroom" hidden>Restroom</button>
           <button type="button" class="filter-toggle" data-tag="dogsOk" hidden>Dogs OK</button>
@@ -216,7 +226,10 @@
 
       <div class="filter-group">
         <div class="section-label">Pantries</div>
-        <p class="free-food-links">In this search area, food banks and soup kitchens show only when OpenStreetMap tags amenity=food_bank or soup_kitchen. Listings may be wrong or stale; confirm before you go. US directories:
+        <div class="filters" aria-label="Pantries">
+          <button type="button" class="filter-toggle" id="filterPantries" aria-pressed="false">Pantries only (OSM tag)</button>
+        </div>
+        <p class="free-food-links">In this search area, food banks and soup kitchens show only when OpenStreetMap tags amenity=food_bank or soup_kitchen. Listings may be wrong or stale; confirm before you go. Outside directories (not affiliated with RangeBites):
           <a href="https://www.feedingamerica.org/" target="_blank" rel="noopener noreferrer">Feeding America</a>
           /
           <a href="https://www.211.org/" target="_blank" rel="noopener noreferrer">211</a>.
@@ -244,7 +257,7 @@
 
   <!-- First-open agreement (clickwrap). No IP log. Flag stays on this device only. -->
   <div class="sheet-backdrop" id="agreeBackdrop" hidden></div>
-  <aside class="sheet" id="agreeSheet" role="dialog" aria-modal="true" aria-labelledby="agreeTitle" aria-hidden="true">
+  <aside class="sheet" id="agreeSheet" role="dialog" aria-modal="true" inert aria-labelledby="agreeTitle" aria-hidden="true">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="sheet-header">
       <h2 id="agreeTitle">Before you use RangeBites</h2>
@@ -259,7 +272,7 @@
 
   <!-- About sheet -->
   <div class="sheet-backdrop" id="aboutBackdrop" hidden></div>
-  <aside class="sheet" id="aboutSheet" role="dialog" aria-modal="true" aria-labelledby="aboutTitle" aria-hidden="true">
+  <aside class="sheet" id="aboutSheet" role="dialog" aria-modal="true" inert aria-labelledby="aboutTitle" aria-hidden="true">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="sheet-header">
       <h2 id="aboutTitle">About &amp; privacy</h2>
@@ -268,14 +281,17 @@
     <div class="sheet-body">
       <h3>RangeBites</h3>
       <p>RangeBites helps you find food nearby. No account. Not a reservation. Not RangeBits. You must be 13 or older.</p>
-      <p>Tap Locate Me or search any city on earth. Listings and hours come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) and may be wrong or stale. Directions open in Apple Maps or Google Maps. Reviews open in Google Maps. We do not invent hours, star ratings, or coupons.</p>
+      <p>Tap Locate Me or search any city. Listings and hours come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) and may be wrong or stale. Directions open in Apple Maps or Google Maps. Reviews open in Google Maps. We do not invent hours, star ratings, or coupons.</p>
 
       <h3>Location</h3>
       <p>Locate Me keeps your coordinate in memory for this search only. We never persist lat/lng. We do not save a location history. We do not store GPS on this device or on our host. This device may remember range, distance units (mi or km as text), and last city as text — not coordinates.</p>
       <p>Tap the heart to save or unheart a restaurant. Hearts on this device are OpenStreetMap id, name, and address — not a GPS trail. Heart a place again to unsave it. That list stays on this device only.</p>
-      <p>To fetch restaurants, our host or proxy forwards the search to OpenStreetMap. The host sees that search and your IP. Map tiles come from OpenStreetMap.</p>
-      <p>We do not track you, apart from the one-time People helped code below. Amplitude is off. The app does not log taps. Opening the home page also sends a first-party page-open count, at most once per browser session: a kind label and a time. It does not include coordinates, name, or email. Hits, if any, never include GPS.</p>
-      <p>People helped counts each device once, the first time a search or Locate Me shows food results. To count a device only once, the site sends a random code made on this device (not your name, email, or location) along with the time. Test traffic is excluded. It is not an exact count of people.</p>
+      <p>To fetch restaurants, our host’s proxy sends the search to OpenStreetMap services: Overpass (run by OpenStreetMap France) and, for a city you type, Nominatim (run by the OpenStreetMap Foundation). With Locate Me, that search includes your coordinates rounded to about 100 m. The host and those services see the search and your IP. Map images come from tile.openstreetmap.de (FOSSGIS e.V.), which sees your IP and the map area you view.</p>
+      <p>We do not track you. Amplitude is off. The app does not log taps. Opening the home page also sends a first-party page-open count, at most once per browser session: a kind label and a time. It does not include coordinates, name, or email. Hits, if any, never include GPS.</p>
+      <p>Devices that found food counts each device once, the first time a search or Locate Me shows food results. The site sends one record with just the word “found” and the time, and this device remembers it was counted. No device code is sent. Anyone can add to that public list and clearing storage can count a device again, so it is approximate, not a count of people. Test traffic is excluded.</p>
+      <h3>Contact &amp; accessibility</h3>
+      <!-- PLACEHOLDER contact until Aaron confirms: rangebites@agentmail.to -->
+      <p>Questions, corrections, accessibility problems, or legal notices: <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>. We aim to meet WCAG 2.1 AA. If something doesn’t work for you, tell us at that address.</p>
 
       <h3>Promo text</h3>
       <p>Promo text appears only if the listing already mentions a promo (e.g. description/note). We do not invent coupons. Copy listing text and confirm with the restaurant. It is not a live coupon feed and not a promise it will work at the register.</p>
@@ -293,7 +309,7 @@
 
   <!-- Place / deal sheet -->
   <div class="sheet-backdrop" id="dealBackdrop" hidden></div>
-  <aside class="sheet" id="dealSheet" role="dialog" aria-modal="true" aria-labelledby="dealSheetTitle" aria-hidden="true">
+  <aside class="sheet" id="dealSheet" role="dialog" aria-modal="true" inert aria-labelledby="dealSheetTitle" aria-hidden="true">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="sheet-header">
       <h2 id="dealSheetTitle">Restaurant</h2>
@@ -304,9 +320,11 @@
     </div>
   </aside>
 
-  <script src="vendor/leaflet/leaflet.js?v=20261003b"></script>
-  <script src="metrics.js?v=20261003b"></script>
-  <script src="deals.js?v=20261003b"></script>
-  <script src="app.js?v=20261003b"></script>
+  <script src="config.js?v=20261003c"></script>
+  <script src="disclaimers.js?v=20261003c"></script>
+  <script src="vendor/leaflet/leaflet.js?v=20261003c"></script>
+  <script src="metrics.js?v=20261003c"></script>
+  <script src="deals.js?v=20261003c"></script>
+  <script src="app.js?v=20261003c"></script>
 </body>
 </html>

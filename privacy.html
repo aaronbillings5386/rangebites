@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.openstreetmap.org; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Privacy Policy — RangeBites</title>
-  <link rel="stylesheet" href="styles.css?v=20260901d" />
+  <link rel="stylesheet" href="styles.css?v=20261003c" />
   <style>
     body.legal-page { background: #14110e; color: #fff6ea; }
     .legal {
@@ -47,42 +47,40 @@
     }
     .legal-back { font-family: var(--font); font-size: 0.9rem; }
   </style>
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260901d" />
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20260901d" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20260901d" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20261003c" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20261003c" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20261003c" />
 </head>
 <body class="legal-page">
   <main class="legal">
     <p class="legal-back"><a href="/">← RangeBites</a></p>
     <p class="legal-kicker">Legal</p>
     <h1>Privacy Policy</h1>
-    <p class="meta">RangeBites · rangebites.com · Effective October 2, 2026</p>
+    <p class="meta">RangeBites · rangebites.com · Effective [ship date of this change, set at publish] <!-- PLACEHOLDER: PR date --></p>
     <p class="read-note">This Privacy Policy describes how the operator of RangeBites handles information. It is part of your agreement to use the Service, together with the Terms of Use.</p>
 
     <h2>1. Operator</h2>
-    <p>RangeBites is a non-tracking food information website, apart from the one-time People helped code described in section 6. The Operator does not build a profile of you and does not save GPS.</p>
-    <h2>1a. Non-tracking (apart from the one-time People helped code)</h2>
+    <p>RangeBites is a non-tracking food information website. It sends only the anonymous counts described in section 6. The Operator does not build a profile of you and does not save GPS.</p>
+    <h2>1a. Non-tracking</h2>
     <p>RangeBites is an information-only food app at rangebites.com, designed, published, and operated by an individual website developer (the “Operator”). No account is required. The Operator does not run a diner email list. RangeBites is not a reservation service, not legal, tax, or financial advice, and not RangeBits or any finance product.</p>
-
     <h2>2. Information we do not collect</h2>
     <p>The Operator does not create user accounts, does not collect diner email addresses, does not use advertising trackers, and does not store a location history. The Operator does not store your latitude or longitude in cookies, local storage, or on the host as a profile.</p>
 
     <h2>3. Locate Me and city search</h2>
     <p>If you choose Locate Me, your device may share a coordinate with the browser so the Service can request nearby restaurants. That coordinate is held in memory for the current search. It is not saved as a GPS trail. In-memory coordinates are cleared when you tap Clear location, or when the page fully unloads. They are not wiped on a brief page hide, the iOS location permission sheet, or switching apps.</p>
-    <p>If you search a city, that text is sent to look up the area. This device may remember range, filter choices, distance units (mi or km as text), and last city as text only, not coordinates.</p>
-
+    <p>If you search a city, that text is sent to look up the area only when you tap Search or press Enter. There is no search-as-you-type. The city is not added to the page address. This device may remember range, filter choices, distance units (mi or km as text), and last city as text only, not coordinates. It may also store a flag that you tapped “Got it” on the first-search notice, and the counter flags described in section 6.</p>
     <h2>4. Saved restaurants (hearts)</h2>
     <p>If you heart a listing, this device may store its OpenStreetMap identifier, name, and address. That list does not include latitude or longitude and is not a GPS trail. Hearts remain on this device. You may unheart a restaurant or clear saved restaurants in Filters.</p>
 
     <h2>5. What is transmitted to provide the Service</h2>
-    <p>To display listings, the host or a same-origin proxy forwards a search (a map area or a city) to OpenStreetMap Overpass and Nominatim. The host necessarily sees that search request and your IP address in order to fetch results and limit abuse. The host also sees your IP address on the counter requests (the page-open count and the People helped code and number). A secondary Overpass host may be used if the primary host fails. Map tiles are served by OpenStreetMap. The Operator does not claim that a location never leaves your device: the proxy, tile servers, and Overpass services receive what they need to return a map.</p>
+    <p>To show places near you, your search goes through our host’s proxy to two OpenStreetMap services: the Overpass API instance run by OpenStreetMap France (overpass.openstreetmap.fr), which finds places, and the Nominatim geocoder run by the OpenStreetMap Foundation (nominatim.openstreetmap.org), which looks up a city you type. If you use Locate Me, the place search includes the latitude and longitude your browser shared, rounded to 3 decimal places (accurate to about 100 m), which can still show roughly where you are. The host and those services also see your IP address. Map images load from a community OpenStreetMap tile server (tile.openstreetmap.de, run by FOSSGIS e.V. for OpenStreetMap Germany), which sees your IP address and the map area you view. We don’t save your coordinates or build a location history.</p>
+    <p>The host also sees your IP address on the counter requests (the page-open count and the Devices that found food count).</p>
     <p>Restaurants may optionally submit an offer and a contact email on the Specials page for review. That is restaurant contact, not a diner mailing list.</p>
     <p>The site is served over HTTPS. Files are hosted on here.now (Cloudflare).</p>
-
     <h2>6. Analytics and tracking</h2>
-    <p>The Operator does not use Amplitude or similar product-analytics services to track you. The application does not log Locate Me, search, or deal taps as a user profile. The home page sends a first-party page-open count at most once per browser session. If the host retains it, that record is a kind label and a time. It does not include coordinates, name, or email.</p>
-    <p>“People helped” count: the first time a search or Locate Me on this device shows food results, the Service sends one record with a random code generated on this device and stored in its local storage, plus the time. The code is used only so each device is counted once; it does not include coordinates, name, email, or search text. Clearing this site’s storage creates a new code.</p>
-
+    <p>The Operator does not use Amplitude or similar product-analytics services to track you. The application does not log Locate Me, search, or deal taps as a user profile. The home page sends a first-party page-open count at most once per browser session. If the host retains it, that record is a kind label and a time. It does not include coordinates, name, or email. Page-open records are stored with our host and are not publicly readable.</p>
+    <p>“Devices that found food” count: the first time a search or Locate Me on this device shows food results, the Service sends one record that contains only the word “found” and the time. This device remembers that it was counted with a flag in its local storage, so it is counted once. No device code is sent. These counter records (just that label plus a time) are stored with our host in a list that is publicly readable, so the number can be shown. They don’t include your name, email, location, or IP address. Anyone can add to that list, and clearing this site’s storage or using another browser can count a device again, so the number is approximate. Earlier versions of the site sent a random device code with this count; those older records are kept with our host and are no longer publicly readable.</p>
+    <p>We don’t track you across other websites, and we don’t let third parties do so through RangeBites, so we don’t change anything in response to browser Do Not Track signals.</p>
     <h2>7. Listings</h2>
     <p>Restaurant names, hours, and maps come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) as-is and may be wrong. There is no warranty that a listing is accurate, open, or still there.</p>
 
@@ -90,14 +88,12 @@
     <p>The Operator does not sell personal information, does not require an account to browse, does not store reservations, does not use advertising trackers, and does not collect diner emails.</p>
 
     <h2>9. Third parties</h2>
-    <p>Restaurant listings and hours come from OpenStreetMap contributors; some chain hours come from AllThePlaces (CC0), a public dataset built from chains’ own store locators. See the <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener noreferrer">OpenStreetMap Foundation Privacy Policy</a>. When you open Google Maps, Apple Maps, or a restaurant website, those services’ policies apply. RangeBites does not scrape those services or display their star ratings on our pages.</p>
-
+    <p>Restaurant listings and hours come from OpenStreetMap contributors; some chain hours come from AllThePlaces (CC0), a public dataset built from chains’ own store locators. See the <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener noreferrer">OpenStreetMap Foundation Privacy Policy</a> (Nominatim). Place searches are answered by OpenStreetMap France’s Overpass server, and map images by FOSSGIS e.V. (tile.openstreetmap.de); their own policies apply. When you open Google Maps, Apple Maps, or a restaurant website, those services’ policies apply. RangeBites does not scrape those services or display their star ratings on our pages.</p>
     <h2>10. Your choices</h2>
-    <p>You may deny location permission and still search any city. You may unheart restaurants or clear saved city and filters on this device. Tap Clear location to wipe the in-memory search, or fully unload the page. A brief page hide, the iOS location permission sheet, or switching apps does not clear it.</p>
-
+    <p>You may deny location permission and still search any city. You may unheart restaurants or clear saved restaurants in Filters, reset filters with Filters › Clear, and tap Forget next to “Last city” to remove the saved city on this device. Clearing this site’s data in your browser removes everything the site stored on this device. Tap Clear location to wipe the in-memory search, or fully unload the page. A brief page hide, the iOS location permission sheet, or switching apps does not clear it.</p>
     <h2>11. Contact</h2>
-    <p>The Service is operated at rangebites.com. The Operator does not collect diner emails and does not publish a consumer support inbox on the Service. Restaurant operators may use the Specials page for optional review contact.</p>
-
+    <!-- PLACEHOLDER contact until Aaron confirms: rangebites@agentmail.to -->
+    <p>Questions, corrections, accessibility problems, or legal notices: <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>. We don’t run a diner mailing list, and writing to us won’t add you to one.</p>
     <h2>12. Children</h2>
     <p>The Service is intended for persons 13 years of age and older. It is not directed to children under 13. The Operator does not knowingly collect personal information from children under 13.</p>
 
@@ -105,6 +101,8 @@
     <p>The Operator may update this Policy by posting a revised version with a new effective date. Continued use after an update constitutes acceptance of the revised Policy.</p>
 
     <p class="fine">Map data © OpenStreetMap contributors. This Policy is not legal advice to you.</p>
+    <p class="legal-foot">RangeBites is an independent food finder run by one person in Virginia, not affiliated with or endorsed by any business, pantry, or map service shown. Listings come from OpenStreetMap and may be wrong, so check with the place before you go · Map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
+
   </main>
   <footer class="site-footer">
     <nav class="site-footer-nav" aria-label="Site">

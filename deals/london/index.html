@@ -6,7 +6,7 @@
   <title>London food near you | RangeBites</title>
   <meta name="description" content="London restaurants in your radius. Locate Me. No invented coupons. Location for this search only. Not a GPS trail." />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.openstreetmap.org; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests" />
   <style>
 :root{--bg:#12151a;--surface:#1c2129;--text:#f2f3f5;--muted:#8a93a5;--deal:#ffc43a;--border:rgba(255,255,255,.08);--font:-apple-system,BlinkMacSystemFont,"SF Pro Text",Segoe UI,Roboto,Helvetica,Arial,sans-serif}
 *{box-sizing:border-box}body{margin:0;font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.45}
@@ -41,5 +41,6 @@ a{color:#c5d0e0}
     </div>
     <p class="fine">Map data © OpenStreetMap contributors. See <a href="../">all cities</a>.</p>
   </main>
+  <footer class="site-footer"><p class="legal-foot">RangeBites is an independent food finder run by one person in Virginia, not affiliated with or endorsed by any business, pantry, or map service shown. Listings come from OpenStreetMap and may be wrong, so check with the place before you go · Map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p></footer>
 </body>
 </html>

@@ -13,6 +13,19 @@
 (function () {
   "use strict";
 
+  /* forge 20261003 (Bolt): here.now cannot send X-Frame-Options / CSP frame-ancestors headers and
+   * <meta> frame-ancestors is ignored, so refuse to run inside someone else's frame. */
+  try {
+    if (window.top !== window.self) {
+      document.documentElement.style.display = "none";
+      window.top.location = window.self.location.href;
+      return;
+    }
+  } catch (_) {
+    document.documentElement.style.display = "none";
+    return;
+  }
+
   /** Neutral map view until Locate Me — not a fake city of places */
   const MAP_DEFAULT = { lat: 20, lng: 0, zoom: 2 };
   const MAX_RESULTS = 120;
@@ -344,10 +357,8 @@
       openFirst.classList.toggle("active", state.filters.openNow);
       openFirst.setAttribute("aria-pressed", state.filters.openNow ? "true" : "false");
     }
-    const savedBtn = $("#filterSaved");
-    if (savedBtn) savedBtn.classList.toggle("active", state.filters.saved);
-    const lateBtn = $("#filterLateNight");
-    if (lateBtn) lateBtn.classList.toggle("active", !!state.filters.lateNight);
+    setToggleState($("#filterSaved"), state.filters.saved);
+    setToggleState($("#filterLateNight"), !!state.filters.lateNight);
     const typeSel = $("#filterType");
     if (typeSel) typeSel.value = state.filters.type;
     renderFoodCategoryChips();
@@ -487,7 +498,48 @@
   }
 
   function cuisineLabel(token) {
-    return String(token || "").replace(/_/g, " ");
+    return prettyOsmValue(token);
+  }
+
+  /* forge 20261003: readable OSM values. coffee_shop -> "Coffee shop"; small map for common cuisines. */
+  const OSM_VALUE_LABELS = {
+    bbq: "BBQ", barbecue: "Barbecue", burger: "Burgers", pizza: "Pizza", sandwich: "Sandwiches",
+    chicken: "Chicken", fried_chicken: "Fried chicken", coffee_shop: "Coffee shop", ice_cream: "Ice cream",
+    donut: "Doughnuts", sushi: "Sushi", tex_mex: "Tex-Mex", american: "American", mexican: "Mexican",
+    italian: "Italian", chinese: "Chinese", japanese: "Japanese", thai: "Thai", indian: "Indian",
+    vietnamese: "Vietnamese", korean: "Korean", greek: "Greek", seafood: "Seafood", steak_house: "Steakhouse",
+    breakfast: "Breakfast", brunch: "Brunch", kebab: "Kebab", noodle: "Noodles", ramen: "Ramen",
+    hot_dog: "Hot dogs", bagel: "Bagels", juice: "Juice", bubble_tea: "Bubble tea", tea: "Tea",
+    regional: "Regional", diner: "Diner", southern: "Southern", soul_food: "Soul food", cajun: "Cajun",
+    mediterranean: "Mediterranean", middle_eastern: "Middle Eastern", french: "French", german: "German",
+  };
+  function prettyOsmValue(v) {
+    const raw = String(v == null ? "" : v).trim();
+    if (!raw) return "";
+    const key = raw.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(OSM_VALUE_LABELS, key)) return OSM_VALUE_LABELS[key];
+    const spaced = raw.replace(/_/g, " ").replace(/\s+/g, " ").trim();
+    // Only capitalize all-lowercase OSM tokens; keep names someone typed with their own casing.
+    if (spaced !== spaced.toLowerCase()) return spaced;
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  }
+  function prettyCuisineList(c) {
+    const seen = {};
+    return String(c || "").split(/[;,]/).map((t) => prettyOsmValue(t)).filter((t) => {
+      if (!t || seen[t.toLowerCase()]) return false;
+      seen[t.toLowerCase()] = 1; return true;
+    }).join(", ");
+  }
+  /** Display-only phone formatting. The tel: href is built separately from the raw digits. */
+  function formatPhoneDisplay(phone) {
+    const raw = String(phone || "").split(/[;,]/)[0].trim();
+    if (!raw) return "";
+    const d = raw.replace(/\D/g, "");
+    const nanp = d.length === 11 && d.charAt(0) === "1" ? d.slice(1) : (d.length === 10 && !/^\+/.test(raw) ? d : "");
+    if (nanp && /^[2-9]\d{2}[2-9]\d{6}$/.test(nanp)) {
+      return "(" + nanp.slice(0, 3) + ") " + nanp.slice(3, 6) + "-" + nanp.slice(6);
+    }
+    return raw.replace(/\s+/g, " ");
   }
 
   function cuisineIconSvg(token) {
@@ -1004,11 +1056,14 @@
     const r = ohEval(hours, now, lat, lng);
     return r && !r.open ? r.untilOpen : null;
   }
-  /** Late night = some parsed span ends after 21:00 (or crosses midnight). Unreadable hours → false. */
-  function isLateNightHours(hours) {
+  /** Late night = TODAY's tagged hours run past 21:00 (or cross midnight). Unreadable hours → false.
+   * forge 20261003 (Gate G5): was "any day of the week"; now reuses ohDaySpans for today only. */
+  function isLateNightHours(hours, now, lat, lng) {
     const rules = ohParse(hours);
     if (!rules) return false;
-    return rules.some((r) => !r.off && r.spans.some(([s, e]) => e > 21 * 60 || s >= 21 * 60));
+    now = now || placeNow(lng != null ? lng : state.lng);
+    const today = ohDaySpans(rules, new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12), lat, lng).spans;
+    return today.some(([s, e]) => e > 21 * 60 || s >= 21 * 60);
   }
 
   function clockFromMinutes(min) {
@@ -1108,6 +1163,16 @@
     const city = [tags["addr:city"], tags["addr:state"], tags["addr:postcode"]].filter(Boolean).join(", ");
     const out = [line1, city].filter(Boolean).join(", ");
     return out.slice(0, 160);
+  }
+
+  /** forge 20261003 (Gate G6): card street line from addr:housenumber + addr:street (+ addr:city). "" without a street. */
+  function osmStreetLine(tags) {
+    if (!tags) return "";
+    const street = String(tags["addr:street"] || "").trim();
+    if (!street) return "";
+    const line = [String(tags["addr:housenumber"] || "").trim(), street].filter(Boolean).join(" ");
+    const city = String(tags["addr:city"] || "").trim();
+    return (city ? line + ", " + city : line).slice(0, 120);
   }
 
   function readSaved() {
@@ -1264,6 +1329,13 @@
     if (el) el.hidden = true;
   }
 
+  /** forge 20261003 (Gate G4): toggle buttons carry aria-pressed in sync with their .active class. */
+  function setToggleState(el, on) {
+    if (!el) return;
+    el.classList.toggle("active", !!on);
+    el.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+
   function filtersAreOpen() {
     const sheet = $("#filtersSheet");
     return !!(sheet && sheet.classList.contains("open"));
@@ -1298,6 +1370,30 @@
     btn.classList.toggle("is-active", nonDefault);
   }
 
+  /* forge 20261003 (Lens/QA): closed sheets are inert + aria-hidden; focus goes back to the opener first. */
+  const sheetOpener = new WeakMap();
+  function setSheetHidden(sheet, hidden) {
+    if (!sheet) return;
+    if (hidden) {
+      const active = document.activeElement;
+      if (active && sheet.contains(active)) {
+        const back = sheetOpener.get(sheet);
+        const target = back && document.contains(back) && !back.closest("[inert]") ? back : $("#placeSearch");
+        try { target && target.focus({ preventScroll: true }); } catch (_) {}
+        if (sheet.contains(document.activeElement)) { try { active.blur(); } catch (_) {} }
+      }
+      sheet.setAttribute("inert", "");
+      sheet.setAttribute("aria-hidden", "true");
+    } else {
+      const active = document.activeElement;
+      if (active && active !== document.body && !sheet.contains(active)) sheetOpener.set(sheet, active);
+      sheet.removeAttribute("inert");
+      sheet.setAttribute("aria-hidden", "false");
+      const closeBtn = sheet.querySelector(".sheet-close, button");
+      setTimeout(() => { try { closeBtn && closeBtn.focus({ preventScroll: true }); } catch (_) {} }, 30);
+    }
+  }
+
   function openFilters() {
     const sheet = $("#filtersSheet");
     const back = $("#filtersBackdrop");
@@ -1307,7 +1403,7 @@
       back.classList.add("open");
     }
     sheet.classList.add("open");
-    sheet.setAttribute("aria-hidden", "false");
+    setSheetHidden(sheet, false);
     const btn = $("#filtersBtn");
     if (btn) btn.setAttribute("aria-expanded", "true");
     const phone = window.matchMedia && window.matchMedia("(max-width: 767px)").matches;
@@ -1321,7 +1417,7 @@
     const back = $("#filtersBackdrop");
     if (sheet) {
       sheet.classList.remove("open");
-      sheet.setAttribute("aria-hidden", "true");
+      setSheetHidden(sheet, true);
     }
     if (back) {
       back.classList.remove("open");
@@ -1380,7 +1476,9 @@
 
     L.tileLayer("https://tile.openstreetmap.de/{z}/{x}/{y}.png", {
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer">OpenStreetMap</a>',
+        'Data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a> (ODbL)' +
+        ' · Tiles <a href="https://creativecommons.org/licenses/by-sa/2.0/" target="_blank" rel="noopener noreferrer">CC-BY-SA 2.0</a> OSM Deutschland/FOSSGIS' +
+        ' · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener noreferrer">Report a map error</a>',
       maxZoom: 18,
       updateWhenIdle: true,
       updateWhenZooming: false,
@@ -1490,23 +1588,26 @@
       const isDeal = !!p.deal;
       const isSponsored = !!p.sponsored;
       const size = isDeal ? 16 : 12;
-      const iconW = isSponsored ? 76 : size;
-      const iconH = isSponsored ? size + 14 : size;
+      // forge 20261003 (Lens): 32px invisible hit box around the same small visual dot.
+      const HIT = 32;
+      const iconW = isSponsored ? 76 : HIT;
+      const iconH = isSponsored ? size + 14 : HIT;
       const pinClass = `radar-marker${isDeal ? " deal" : ""}${isSponsored ? " sponsored" : ""}`;
-      const pinHtml = `<div class="${pinClass}"></div>` +
-        (isSponsored ? `<span class="pin-sponsored">Sponsored</span>` : "");
+      const pinHtml = isSponsored
+        ? `<div class="${pinClass}"></div><span class="pin-sponsored">Sponsored</span>`
+        : `<div class="pin-hit"><div class="${pinClass}"></div></div>`;
       const icon = L.divIcon({
-        className: isSponsored ? "sponsored-pin-icon" : "",
+        className: isSponsored ? "sponsored-pin-icon" : "pin-hit-icon",
         html: pinHtml,
         iconSize: [iconW, iconH],
-        iconAnchor: [iconW / 2, size / 2],
+        iconAnchor: isSponsored ? [iconW / 2, size / 2] : [HIT / 2, HIT / 2],
       });
       const m = L.marker([p.lat, p.lng], { icon });
       const sponsoredPopup = isSponsored
         ? `<br><span class="popup-sponsored">Sponsored</span>`
         : "";
       m.bindPopup(
-        `<strong>${escapeHtml(p.name)}</strong><br>${formatMiles(p.miles)} · ${escapeHtml(amenityLabel(p.amenity))}` +
+        `<strong>${escapeHtml(p.name)}</strong><br>${formatMiles(p.miles)} · ${escapeHtml(p.cuisine ? prettyCuisineList(p.cuisine) : amenityLabel(p.amenity))}` +
           (p.deal ? `<br><span class="popup-deal">${escapeHtml(p.deal.label)}</span>` : "") +
           sponsoredPopup
       );
@@ -1521,10 +1622,17 @@
 
   /* ---------- Overpass ---------- */
 
+  /** forge 20261003 (Shade): coordinates sent to Overpass are rounded to 3 decimals (about 110 m). */
+  function roundCoord3(v) {
+    return Math.round(Number(v) * 1000) / 1000;
+  }
+
   function buildOverpassQuery(lat, lng, radiusM, mode) {
-    const r = Math.round(radiusM);
+    // +120 m pad so rounding the centre never drops a place near the edge; distances and the
+    // radius cut-off still use the full-precision origin on this device (normalizeElements).
+    const r = Math.round(radiusM) + 120;
     const t = mode === "fast" ? OVERPASS_FAST_TIMEOUT_S : OVERPASS_TIMEOUT_S;
-    const around = `(around:${r},${lat},${lng})`;
+    const around = `(around:${r},${roundCoord3(lat).toFixed(3)},${roundCoord3(lng).toFixed(3)})`;
     const named = '["name"]';
     // Lean query — same food types, fewer unions so phones finish before timeout.
     // Pantries: amenity=food_bank|soup_kitchen only. Copy must not claim social_facility/office/worldwide.
@@ -1671,6 +1779,93 @@
     return best;
   }
 
+  /* forge 20261003 (Snitch): at most 1 Nominatim request per second from this page. The here.now proxy
+   * only supports per-IP hourly limits, so a global 1 req/s cap cannot be set at the proxy. */
+  const NOMINATIM_MIN_GAP_MS = 1100;
+  let nominatimLastAt = 0;
+  /* forge 20261003 (Gate G1): a 429/503 from the city lookup fails fast with a "busy" message, and further
+   * lookups wait out a short cooldown (Retry-After, capped at 60 s) without calling Nominatim again. */
+  const NOMINATIM_BUSY_MAX_MS = 60000;
+  let nominatimBusyUntil = 0;
+  function nominatimBusyError() {
+    const e = new Error("Nominatim HTTP 429");
+    e.busy = true;
+    return e;
+  }
+  function noteNominatimBusy(res) {
+    const ra = parseInt((res && res.headers && res.headers.get && res.headers.get("Retry-After")) || "", 10);
+    const ms = Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, NOMINATIM_BUSY_MAX_MS) : 15000;
+    nominatimBusyUntil = Date.now() + ms;
+  }
+  async function nominatimFetch(url, init) {
+    const wait = nominatimLastAt + NOMINATIM_MIN_GAP_MS - Date.now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    nominatimLastAt = Date.now();
+    return fetch(url, init);
+  }
+
+  function geocodeHitToPlace(hit, fallback) {
+    const lat = parseFloat(hit && hit.lat);
+    const lng = parseFloat(hit && hit.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return {
+      lat,
+      lng,
+      label: hit.display_name || fallback,
+      display_name: hit.display_name || fallback,
+      country_code: (hit.address && hit.address.country_code) || "",
+      address: hit.address || null,
+      name: hit.name || "",
+      importance: typeof hit.importance === "number" ? hit.importance : null,
+    };
+  }
+
+  /** Short label for a geocoder hit: "Bristol, TN" in the US, "Bristol, United Kingdom" elsewhere. */
+  function geocodeShortLabel(h) {
+    const a = (h && h.address) || {};
+    const name = String((h && h.name) || String((h && h.display_name) || "").split(",")[0] || "").trim();
+    if (!name) return "";
+    const cc = String(a.country_code || "").toLowerCase();
+    const iso = String(a["ISO3166-2-lvl4"] || "");
+    if (cc === "us") {
+      const st = /^US-([A-Z]{2})$/.test(iso) ? iso.slice(3) : String(a.state || "").trim();
+      return st ? name + ", " + st : name;
+    }
+    const where = String(a.country || "").trim();
+    return where ? name + ", " + where : name;
+  }
+
+  /** forge 20261003 (Gate G2): same-name settlements from one geocoder response, deduped, US first.
+   * Counties/states/regions are dropped; duplicates (same label, or same state and within 5 mi) are dropped. No network. */
+  function geocodeAlternates(data, chosen, max) {
+    if (!Array.isArray(data) || !chosen) return [];
+    max = max || 5;
+    const settle = /^(city|town|village|municipality|hamlet|suburb)$/;
+    const chosenName = normWord(chosen.name || String(chosen.display_name || "").split(",")[0]);
+    const region = (h) => { const a = (h && h.address) || {}; return String(a.country_code || "") + "|" + String(a["ISO3166-2-lvl4"] || a.state || ""); };
+    const seen = [{ label: geocodeShortLabel(chosen).toLowerCase(), region: region(chosen), lat: parseFloat(chosen.lat), lng: parseFloat(chosen.lon) }];
+    const picks = [];
+    data.forEach((h, i) => {
+      if (!h || h === chosen) return;
+      const t = String(h.addresstype || h.type || "").toLowerCase();
+      if (!settle.test(t)) return;
+      if (normWord(h.name || String(h.display_name || "").split(",")[0]) !== chosenName) return;
+      const label = geocodeShortLabel(h);
+      const lat = parseFloat(h.lat), lng = parseFloat(h.lon);
+      if (!label || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const key = label.toLowerCase();
+      const reg = region(h);
+      // Same label, or same state/region and within 5 mi, is a duplicate. Twin towns across a state line
+      // (Bristol VA / Bristol TN) are both kept.
+      if (seen.some((x) => x.label === key || (x.region === reg && haversineMiles(x.lat, x.lng, lat, lng) < 5))) return;
+      seen.push({ label: key, region: reg, lat, lng });
+      const cc = String((h.address && h.address.country_code) || "").toLowerCase();
+      picks.push({ i, us: cc === "us", hit: h, label });
+    });
+    picks.sort((a, b) => (a.us === b.us ? a.i - b.i : a.us ? -1 : 1));
+    return picks.slice(0, max).map((x) => Object.assign(geocodeHitToPlace(x.hit, x.label), { shortLabel: x.label }));
+  }
+
   async function geocodePlace(q) {
     const t = String(q || "").trim();
     if (!t) return null;
@@ -1689,14 +1884,17 @@
     params.set("addressdetails", "1");
     if (!looksLikePostal(lookup)) params.set("featureType", "settlement");
     params.set("q", lookup);
+    if (Date.now() < nominatimBusyUntil) throw nominatimBusyError();
     const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), 20000);
+    // forge 20261003 (Chip): 10 s lookup budget (was 20 s) so a dead geocoder fails sooner.
+    const timer = setTimeout(() => ac.abort(), 10000);
     try {
-      const res = await fetch(NOMINATIM_URL + "?" + params.toString(), {
+      const res = await nominatimFetch(NOMINATIM_URL + "?" + params.toString(), {
         headers: { Accept: "application/json" },
         referrerPolicy: "origin",
         signal: ac.signal,
       });
+      if (res.status === 429 || res.status === 503) { noteNominatimBusy(res); throw nominatimBusyError(); }
       if (!res.ok) throw new Error("Nominatim HTTP " + res.status);
       let data = await res.json();
       if ((!data || !data.length) && !looksLikePostal(lookup)) {
@@ -1705,27 +1903,22 @@
         p2.set("limit", "8");
         p2.set("addressdetails", "1");
         p2.set("q", lookup);
-        const res2 = await fetch(NOMINATIM_URL + "?" + p2.toString(), {
+        const res2 = await nominatimFetch(NOMINATIM_URL + "?" + p2.toString(), {
           headers: { Accept: "application/json" },
           referrerPolicy: "origin",
           signal: ac.signal,
         });
+        if (res2.status === 429 || res2.status === 503) { noteNominatimBusy(res2); throw nominatimBusyError(); }
         if (res2.ok) data = await res2.json();
       }
       if (!data || !data.length) return null;
       const hit = pickGeocodeHit(data);
       if (!hit) return null;
-      const lat = parseFloat(hit.lat);
-      const lng = parseFloat(hit.lon);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-      return {
-        lat,
-        lng,
-        label: hit.display_name || t,
-        display_name: hit.display_name || t,
-        country_code: (hit.address && hit.address.country_code) || "",
-        address: hit.address || null,
-      };
+      const out = geocodeHitToPlace(hit, t);
+      if (!out) return null;
+      // forge 20261003 (Gate G2): other places with the same name, from this same response (no extra call).
+      out.alternates = looksLikePostal(lookup) ? [] : geocodeAlternates(data, hit);
+      return out;
     } finally {
       clearTimeout(timer);
     }
@@ -1750,6 +1943,7 @@
         const kt = k.tags || {};
         const klat = k.lat != null ? k.lat : k.center && k.center.lat;
         const klng = k.lon != null ? k.lon : k.center && k.center.lon;
+        if (k.type === "node" && el.type === "node") return false; // two POI nodes = two places
         return klat != null && norm(kt.name) === key && haversineMiles(klat, klng, lat, lng) < 0.08;
       });
       if (!prev) { kept.push(el); continue; }
@@ -1823,6 +2017,7 @@
         menuUrl: tags["website:menu"] || tags.menu || tags["contact:menu"] || "",
         osmRating: parseOsmRating(tags),
         address: osmAddress(tags),
+        street: osmStreetLine(tags),
         city: String(tags["addr:city"] || tags["addr:town"] || tags["addr:suburb"] || "").trim(),
         takeout: osmTagYes(tags.takeaway),
         delivery: osmTagYes(tags.delivery),
@@ -1835,7 +2030,7 @@
         changingTable: osmTagYes(tags.changing_table),
         smokeFree: osmTagNo(tags.smoking),
         kidsArea: osmTagYes(tags.kids_area),
-        lateNight: isLateNightHours(hours),
+        lateNight: isLateNightHours(hours, atPlace, lat, lng),
         dietVegan,
         dietVegetarian,
         dietGlutenFree,
@@ -1951,7 +2146,8 @@
     if (state.filters.changingTable) list = list.filter((p) => !!p.changingTable);
     if (state.filters.smokeFree) list = list.filter((p) => !!p.smokeFree);
     if (state.filters.kidsArea) list = list.filter((p) => !!p.kidsArea);
-    if (state.filters.lateNight) list = list.filter((p) => !!p.lateNight);
+    // forge 20261003 (Gate G5): evaluated at filter time so it follows today's hours (incl. past midnight).
+    if (state.filters.lateNight) list = list.filter((p) => isLateNightHours(p.hours, placeNow(p.lng), p.lat, p.lng));
     const d = state.filters.diet || {};
     if (d.vegan) list = list.filter((p) => !!p.dietVegan);
     if (d.vegetarian) list = list.filter((p) => !!p.dietVegetarian);
@@ -2058,7 +2254,8 @@
   }
 
   function telHref(phone) {
-    const raw = String(phone || "").trim();
+    const raw = String(phone || "").split(/[;,]/)[0].trim(); // OSM may list several numbers
+
     if (!raw) return "";
     const digits = raw.replace(/[^\d+]/g, "");
     if (!digits || digits.replace(/\D/g, "").length < 7) return "";
@@ -2070,7 +2267,9 @@
    * Hide entirely when none.
    */
   function isFakeDemoPhone(phone) {
-    return /555/.test(String(phone || "").replace(/\D/g, ""));
+    // Only the reserved fictional range NXX-555-0100..0199. Real numbers can contain 555.
+    const d = String(phone || "").replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+    return /^\d{3}55501\d{2}$/.test(d);
   }
 
   function contactBlockHtml(p) {
@@ -2078,7 +2277,7 @@
     const tel = isFakeDemoPhone(p.phone) ? "" : telHref(p.phone);
     if (tel) {
       rows.push(
-        `<a class="contact-link" href="${escapeHtml(tel)}">Call <span class="contact-value">${escapeHtml(p.phone)}</span></a>`
+        `<a class="contact-link" href="${escapeHtml(tel)}">Call <span class="contact-value">${escapeHtml(formatPhoneDisplay(p.phone))}</span></a>`
       );
     }
     const menu = /example\.com/i.test(p.menuUrl || "") ? "" : absoluteUrl(p.menuUrl);
@@ -2090,7 +2289,7 @@
     const web = /example\.com/i.test(p.website || "") ? "" : absoluteUrl(p.website);
     if (web) {
       rows.push(
-        `<a class="contact-link" href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer">Website</a>`
+        `<a class="contact-link" href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer" title="Link from the OpenStreetMap listing">Website</a>`
       );
     }
     if (p.hours) {
@@ -2314,6 +2513,14 @@
       if (p.dietHalal) present.halal++;
     });
     const keys = Object.keys(UI_PREFS_DIET_OSM).filter((k) => present[k] > 0);
+    // forge 20261003: an active diet filter whose chip is not shown can't be turned off; clear it.
+    if (state.places && state.places.length && state.filters.diet) {
+      let cleared = false;
+      Object.keys(state.filters.diet).forEach((k) => {
+        if (state.filters.diet[k] && !present[k]) { state.filters.diet[k] = false; cleared = true; }
+      });
+      if (cleared) persistUiPrefs();
+    }
     if (!keys.length) {
       wrap.hidden = true;
       wrap.innerHTML = "";
@@ -2400,6 +2607,11 @@
     CUISINE_CANON.forEach((c) => {
       if (counts[c]) keys.push(c);
     });
+    // forge 20261003: same for a cuisine filter with no chip in this area.
+    if (state.filters.cuisine && !counts[canonCuisine(state.filters.cuisine)]) {
+      state.filters.cuisine = null;
+      persistUiPrefs();
+    }
     Object.keys(counts)
       .sort()
       .forEach((c) => {
@@ -2558,9 +2770,9 @@
           ? `<span class="badge badge-kitchen">Kitchen closed · OSM</span>`
           : "";
         const outdoorBadge = p.outdoorSeating ? `<span class="badge badge-tag">Outdoor seating</span>` : "";
-        const wheelchairBadge = p.wheelchair ? `<span class="badge badge-tag">Wheelchair</span>` : "";
+        const wheelchairBadge = p.wheelchair ? `<span class="badge badge-tag">Wheelchair access · OSM tag · call to confirm</span>` : "";
         const takeoutBadge = p.takeout ? `<span class="badge badge-tag">Takeout</span>` : "";
-        const deliveryBadge = p.delivery ? `<span class="badge badge-tag">Delivery</span>` : "";
+        const deliveryBadge = p.delivery ? `<span class="badge badge-tag">Delivery · OSM tag · verify</span>` : "";
         const driveBadge = p.driveThru ? `<span class="badge badge-tag">Drive-thru</span>` : "";
         const restroomBadge = p.restroom ? `<span class="badge badge-tag">${escapeHtml("Restroom")}</span>` : "";
         const dogsBadge = p.dogsOk ? `<span class="badge badge-tag">${escapeHtml("Dogs OK")}</span>` : "";
@@ -2569,7 +2781,7 @@
         const smokeBadge = p.smokeFree ? `<span class="badge badge-tag">${escapeHtml("No smoking")}</span>` : "";
         const kidsBadge = p.kidsArea ? `<span class="badge badge-tag">${escapeHtml("Kids area")}</span>` : "";
         const cuisine = p.cuisine
-          ? escapeHtml(p.cuisine.replace(/;/g, ", "))
+          ? escapeHtml(prettyCuisineList(p.cuisine) || amenityLabel(p.amenity))
           : escapeHtml(amenityLabel(p.amenity));
         const cardClass = p.deal ? "place-card has-deal" : "place-card";
         const dealCallout = p.deal
@@ -2598,18 +2810,7 @@
         const stagger = `style="--i:${Math.min(idx, 8)}"`;
         const contactHtml = contactBlockHtml(p);
         const reviewsHtml = reviewsBlockHtml(p);
-        const tel = isFakeDemoPhone(p.phone) ? "" : telHref(p.phone);
-        const callCta = tel
-          ? `<a class="nav-btn" href="${escapeHtml(tel)}">Call</a>`
-          : "";
-        const menuHref = /example\.com/i.test(p.menuUrl || "") ? "" : absoluteUrl(p.menuUrl);
-        const menuCta = menuHref
-          ? `<a class="nav-btn" href="${escapeHtml(menuHref)}" target="_blank" rel="noopener noreferrer">Menu</a>`
-          : "";
-        const webHref = /example\.com/i.test(p.website || "") ? "" : absoluteUrl(p.website);
-        const webCta = webHref
-          ? `<a class="nav-btn" href="${escapeHtml(webHref)}" target="_blank" rel="noopener noreferrer">Website</a>`
-          : "";
+        // forge 20261003 (Lens): Call / Menu / Website live once, in contactBlockHtml (no duplicate nav buttons).
         const addrCta = (p.address && String(p.address).trim())
           ? `<button type="button" class="nav-btn" data-copy-addr="${pid}">Copy address</button>`
           : "";
@@ -2633,6 +2834,7 @@
     <div class="place-main">
       <h3 class="place-name">${escapeHtml(p.name)}</h3>
       <div class="place-meta">${cuisine}</div>
+      ${p.street ? `<div class="place-addr">${escapeHtml(p.street)}</div>` : ""}
       ${hoursLine}
       <div class="badge-row">${dealBadge}${sponsoredBadge}${typeBadge}${openBadge}${kitchenBadge}${outdoorBadge}${wheelchairBadge}${takeoutBadge}${deliveryBadge}${driveBadge}${restroomBadge}${dogsBadge}${acBadge}${changingBadge}${smokeBadge}${kidsBadge}</div>
     </div>
@@ -2642,13 +2844,11 @@
     </div>
   </div>
   ${dealCallout}
+  ${disclaimerLinesHtml(p)}
   ${contactHtml}
   <div class="nav-row">
     ${primaryCta}
     ${secondaryCta}
-    ${callCta}
-    ${menuCta}
-    ${webCta}
     ${addrCta}
     <button type="button" class="nav-btn" data-share="${pid}">Share</button>
   </div>
@@ -2819,9 +3019,9 @@
     if (place.hours && place.opensSoon) tagBits.push("Opens soon · OSM hours");
     if (place.kitchenClosedDoorsOpen) tagBits.push("Kitchen closed · OSM");
     if (place.outdoorSeating) tagBits.push("Outdoor seating");
-    if (place.wheelchair) tagBits.push("Wheelchair");
+    if (place.wheelchair) tagBits.push("Wheelchair access · OSM tag · call to confirm");
     if (place.takeout) tagBits.push("Takeaway");
-    if (place.delivery) tagBits.push("Delivery");
+    if (place.delivery) tagBits.push("Delivery · OSM tag · verify");
     if (place.driveThru) tagBits.push("Drive-through");
     if (place.restroom) tagBits.push("Restroom");
     if (place.dogsOk) tagBits.push("Dogs OK");
@@ -2846,18 +3046,94 @@
     $("#dealBackdrop").hidden = false;
     $("#dealBackdrop").classList.add("open");
     $("#dealSheet").classList.add("open");
-    $("#dealSheet").setAttribute("aria-hidden", "false");
+    setSheetHidden($("#dealSheet"), false);
     document.body.style.overflow = "hidden";
   }
 
   function closeDealSheet() {
     $("#dealBackdrop").classList.remove("open");
     $("#dealSheet").classList.remove("open");
-    $("#dealSheet").setAttribute("aria-hidden", "true");
+    setSheetHidden($("#dealSheet"), true);
     $("#dealBackdrop").hidden = true;
     if (!$("#aboutSheet").classList.contains("open")) {
       document.body.style.overflow = "";
     }
+  }
+
+  /* ---------- forge 20261003: Gavel disclaimer slots (text lives in disclaimers.js) ---------- */
+
+  function disclaimerText(key, fallback) {
+    const d = window.RB_DISCLAIMERS;
+    const v = d && typeof d[key] === "string" ? d[key].trim() : "";
+    return v || fallback || "";
+  }
+
+  function disclaimerLinesHtml(p) {
+    const lines = [];
+    if (p && p.freeFood) {
+      lines.push(`<div class="card-disclaimer pantry-caveat">${escapeHtml(disclaimerText("pantryCard", "Hours, eligibility & supply vary · call the pantry first"))}</div>`);
+    } else if (p && p.deal) {
+      lines.push(`<div class="card-disclaimer">${escapeHtml(disclaimerText("dealCard", "Promo from the listing · confirm before you order"))}</div>`);
+    } else {
+      const t = disclaimerText("placeCard", "");
+      if (t) lines.push(`<div class="card-disclaimer">${escapeHtml(t)}</div>`);
+    }
+    return lines.join("");
+  }
+
+  const NOTICE_KEY = "rb_notice_seen";
+  function maybeShowFirstSearchNotice() {
+    const el = $("#firstSearchNotice");
+    if (!el) return;
+    let seen = false;
+    try { seen = localStorage.getItem(NOTICE_KEY) === "1"; } catch (_) {}
+    if (seen) { el.hidden = true; return; }
+    const txt = $("#firstSearchNoticeText");
+    if (txt && window.RB_DISCLAIMERS && window.RB_DISCLAIMERS.firstSearchNoticeHtml) {
+      txt.innerHTML = window.RB_DISCLAIMERS.firstSearchNoticeHtml; // static string from our own file, not data
+    }
+    el.hidden = false;
+  }
+  function dismissFirstSearchNotice() {
+    const el = $("#firstSearchNotice");
+    if (el) el.hidden = true;
+    try { localStorage.setItem(NOTICE_KEY, "1"); } catch (_) {}
+    const list = $("#placeList");
+    if (list) { try { list.focus({ preventScroll: true }); } catch (_) {} }
+  }
+
+  /* ---------- forge 20261003: resolved-place line (shows what the geocoder picked) ---------- */
+
+  function normWord(s) {
+    return String(s || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  }
+  /** True when the geocoder's place name does not match what was typed (likely a typo or wrong match). No network. */
+  function geocodeLooksDifferent(typed, hit) {
+    const t = normWord(String(typed || "").split(",")[0]);
+    const name = normWord(hit && (hit.name || String(hit.display_name || "").split(",")[0]));
+    if (!t || !name || looksLikePostal(typed)) return false;
+    const tFirst = t.replace(/\b(va|virginia|usa|us)\b/g, "").trim();
+    if (!tFirst) return false;
+    return !(name === tFirst || name.indexOf(tFirst) === 0 || tFirst.indexOf(name) === 0);
+  }
+  function setNearLine(text, warn) {
+    const el = $("#nearLine");
+    if (!el) return;
+    if (!text) { el.hidden = true; el.textContent = ""; el.classList.remove("is-warn"); return; }
+    el.textContent = text;
+    el.classList.toggle("is-warn", !!warn);
+    el.hidden = false;
+  }
+
+  /** forge 20261003 (QA #1): a new area starts with no food/cuisine/diet chip carried over. */
+  function resetFoodChipsForNewArea() {
+    let changed = false;
+    if (state.filters.foodCategory) { state.filters.foodCategory = null; changed = true; }
+    if (state.filters.cuisine) { state.filters.cuisine = null; changed = true; }
+    const d = state.filters.diet || {};
+    Object.keys(d).forEach((k) => { if (d[k]) { d[k] = false; changed = true; } });
+    if (changed) persistUiPrefs();
+    return changed;
   }
 
   /* ---------- Search / locate ---------- */
@@ -2875,7 +3151,7 @@
       });
     }
     if (live && state.places.length) {
-      // "People helped": once per device, only after real results. Sends a random on-device code (no coords).
+      // "Devices that found food": once per device, only after real results. Sends {"kind":"found"} only (no code, no coords).
       try { if (window.RangeBitesMetrics && window.RangeBitesMetrics.markHelped) window.RangeBitesMetrics.markHelped(); } catch (_) {}
     }
     state.loading = false;
@@ -2885,6 +3161,7 @@
     } catch (_) {}
     maybeShowA2hs();
     hideHeroTip(true);
+    if (live && state.places.length) maybeShowFirstSearchNotice();
     // Paint list immediately. Map tiles/pins are independent and must not delay cards.
     renderList();
     const shown = filteredPlaces().length;
@@ -2906,7 +3183,7 @@
       } else {
         setStatus(
           shown + (state.filters.openNow ? " tagged open" : " nearby") +
-            (places.length >= MAX_RESULTS ? " · top " + MAX_RESULTS : "") +
+            (places.length >= MAX_RESULTS ? " · nearest " + MAX_RESULTS : "") +
             dealsHint
         );
       }
@@ -2977,26 +3254,30 @@
       state.searchError = "OpenStreetMap timed out. Try again.";
       setStatus(state.searchError);
       renderList();
-    }, OVERPASS_FAST_ABORT_MS + OVERPASS_CLIENT_ABORT_MS + 4000);
+    }, OVERPASS_CLIENT_ABORT_MS + 4000); // fast and full now run in parallel
 
     const fetchMi = state.radiusMiles;
 
     try {
-      // Progressive: inner ring first so cards paint fast, then full radius.
-      // Fast pass failure/empty is not fatal — the full pass still runs; fast cards stay if full fails.
+      // Progressive: inner ring and full radius start together (forge 20261003, Chip). The inner ring
+      // usually lands first and paints cards; the full pass replaces it. Worst case is one full abort
+      // (~22 s) instead of fast abort + full abort in series (~34 s). Same two POSTs per search.
+      let fullSettled = false;
+      let fastP = Promise.resolve([]);
       if (fetchMi > FAST_RING_MILES) {
-        try {
-          const near = await fetchPlaces(lat, lng, FAST_RING_MILES, { mode: "fast" });
-          if (!stillActiveSearch(gen, lat, lng)) return;
-          if (near.length) {
-            applyPlaces(near, { live: true, fetchedRadius: FAST_RING_MILES });
-            setStatus(filteredPlaces().length + " nearby · widening to " + fetchMi + " mi…");
-          }
-        } catch (_) {
-          if (!stillActiveSearch(gen, lat, lng)) return;
-        }
+        fastP = fetchPlaces(lat, lng, FAST_RING_MILES, { mode: "fast" }).catch(() => []);
+        fastP.then((near) => {
+          if (fullSettled || !stillActiveSearch(gen, lat, lng) || !near.length) return;
+          applyPlaces(near, { live: true, fetchedRadius: FAST_RING_MILES });
+          setStatus(filteredPlaces().length + " nearby · widening to " + formatRadiusChipLabel(fetchMi) + "…");
+        });
       }
-      const places = await fetchPlaces(lat, lng, fetchMi, { mode: "full" });
+      let places;
+      try {
+        places = await fetchPlaces(lat, lng, fetchMi, { mode: "full" });
+      } finally {
+        fullSettled = true;
+      }
       if (!stillActiveSearch(gen, lat, lng)) return;
       state.searchError = null;
       state.fetchedRadiusMiles = fetchMi;
@@ -3016,9 +3297,17 @@
       applyPlaces(places, { live: true, fetchedRadius: fetchMi });
     } catch (err) {
       if (!stillActiveSearch(gen, lat, lng)) return;
+      // Full pass failed. If the inner ring is still in flight, give it its own (<= 12 s) chance.
+      if (!(state.places && state.places.length)) {
+        const near = await fastP;
+        if (!stillActiveSearch(gen, lat, lng)) return;
+        if (near && near.length) applyPlaces(near, { live: true, fetchedRadius: FAST_RING_MILES });
+      }
       if (state.places && state.places.length) {
         state.loading = false;
-        setStatus(filteredPlaces().length + " nearby · showing closest first");
+        state.fetchedRadiusMiles = FAST_RING_MILES;
+        setStatus(filteredPlaces().length + " within " + formatRadiusChipLabel(FAST_RING_MILES) +
+          " · couldn’t load the full " + formatRadiusChipLabel(fetchMi) + ". Try again.");
         return;
       }
       const why = overpassErrorMessage(err);
@@ -3039,6 +3328,7 @@
     }
   }
 
+  let cityInFlight = null; // forge 20261003: ignore a repeat submit of the same text while it runs
   async function searchCityOrZip(raw) {
     cancelPlaceSuggest();
     const q = sanitizePlaceQuery(raw);
@@ -3046,7 +3336,10 @@
       setStatus("Type any city.");
       return;
     }
+    if (cityInFlight && cityInFlight.q.toLowerCase() === q.toLowerCase() && cityInFlight.gen === state.searchGen) return;
     const gen = ++state.searchGen;
+    cityInFlight = { q, gen };
+    // forge 20261003 (Gate G1): chips, the near line and the map stay as they are until the lookup succeeds.
     metricsHit("place-search");
     state.loading = true;
     state.searchError = null;
@@ -3057,6 +3350,7 @@
       const hit = await geocodePlace(q);
       if (gen !== state.searchGen) return;
       if (!hit) {
+        cityInFlight = null;
         state.loading = false;
         state.searchError = "No match for that city.";
         setLocateBusy(null);
@@ -3064,33 +3358,84 @@
         renderList();
         return;
       }
+      resetFoodChipsForNewArea();
       applyUnitsFromGeocode(hit);
-      const near = shortPlaceLabel(hit.label || hit.display_name, q);
+      const near = hit.alternates && hit.alternates.length
+        ? geocodeShortLabel(hit)
+        : shortPlaceLabel(hit.label || hit.display_name, q);
       uiPrefs.lastPlaceQuery = q;
       persistUiPrefs();
       syncLastPlaceControl();
-      rememberCityInUrl(q);
+      // forge 20261003 (Shade): the city is no longer written into the address bar (?q=).
+      // Inbound shared links with ?q= still work; Share still builds its own link.
+      const off = geocodeLooksDifferent(q, hit);
+      setNearLine(off
+        ? "Showing results near " + near + " · not what you meant? Check the spelling or add the state."
+        : "Showing results near " + near, off);
+      renderPlaceAlternates(hit.alternates, Object.assign({}, hit, { shortLabel: near }));
       setStatus("Searching near " + near + "…");
+      cityInFlight = null;
       await runSearch(hit.lat, hit.lng, { glow: false, placeLabel: near });
     } catch (err) {
+      cityInFlight = null;
       if (gen !== state.searchGen) return;
       state.loading = false;
-      const why =
-        err && err.name === "AbortError"
-          ? "City lookup timed out. Try again."
-          : "Couldn’t look up that city. Try again.";
-      state.searchError = why;
+      const why = cityLookupErrorMessage(err);
+      // forge 20261003 (Gate G1): keep the current map and cards. Only show the error in the list when
+      // there is nothing else to show.
+      state.searchError = state.places && state.places.length ? null : why;
       setLocateBusy(null);
       setStatus(why);
       renderList();
     }
   }
 
+  function cityLookupErrorMessage(err) {
+    if (err && err.busy) return "OpenStreetMap is busy. Try again in a moment.";
+    if (err && err.name === "AbortError") return "OpenStreetMap is busy (city lookup timed out). Try again in a moment.";
+    return "Couldn’t look up that city. Try again.";
+  }
+
+  /** forge 20261003 (Gate G2): "Also: Bristol, TN · …" buttons. Picking one searches its coordinates
+   * directly from the earlier response, so it makes no Nominatim call. */
+  let placeAlternates = [];
+  let placeAltCurrent = null; // the place the alternates were offered against, so it can be picked back
+  function renderPlaceAlternates(list, current) {
+    placeAltCurrent = current || null;
+    placeAlternates = Array.isArray(list) ? list.slice() : [];
+    const el = $("#placeAlts");
+    if (!el) return;
+    if (!placeAlternates.length) { el.hidden = true; el.innerHTML = ""; return; }
+    el.innerHTML = `<span class="place-alts-label">Other places with this name:</span> ` + placeAlternates
+      .map((a, i) => `<button type="button" class="place-alt" data-alt="${i}">${escapeHtml(a.shortLabel || a.label)}</button>`)
+      .join(" ");
+    el.hidden = false;
+  }
+  function pickPlaceAlternate(i) {
+    const alt = placeAlternates[i];
+    if (!alt) return;
+    const rest = placeAlternates.filter((_, k) => k !== i);
+    if (placeAltCurrent) rest.unshift(placeAltCurrent);
+    state.searchGen++;
+    resetFoodChipsForNewArea();
+    applyUnitsFromGeocode(alt);
+    const near = alt.shortLabel || shortPlaceLabel(alt.label, "");
+    uiPrefs.lastPlaceQuery = near;
+    persistUiPrefs();
+    syncLastPlaceControl();
+    const input = $("#placeSearch");
+    if (input) input.value = near;
+    setNearLine("Showing results near " + near, false);
+    renderPlaceAlternates(rest, alt);
+    setStatus("Searching near " + near + "…");
+    runSearch(alt.lat, alt.lng, { glow: false, placeLabel: near });
+  }
+
   function geoErrorMessage(err) {
     const code = err && err.code;
-    if (code === 1) return "Couldn’t get your location. Try again, or search any city.";
-    if (code === 2) return "Couldn’t get your location. Try again, or search any city.";
-    if (code === 3) return "Couldn’t get your location. Try again, or search any city.";
+    if (code === 1) return "Location is blocked for this site. Allow it in your browser or phone settings, or search any city.";
+    if (code === 2) return "Your device couldn’t find a location right now. Try again, or search any city.";
+    if (code === 3) return "Location timed out. Try again, or search any city.";
     return "Couldn’t get your location. Try again, or search any city.";
   }
 
@@ -3142,15 +3487,29 @@
     }
 
     const locateGen = ++state.searchGen;
+    resetFoodChipsForNewArea();
+    setNearLine("");
+    renderPlaceAlternates([]);
     setStatus("Asking for location (when-in-use only)…");
     const locateSlow = setTimeout(() => {
-      setStatus("Location is taking a moment…");
+      if (locateGen === state.searchGen) setStatus("Location is taking a moment…");
     }, 4000);
+    // forge 20261003: an unanswered permission prompt never calls back; don't leave the button stuck.
+    const locateFailsafe = setTimeout(() => {
+      if (locateGen !== state.searchGen || !state.loading) return;
+      state.searchGen += 1; // ignore a late callback
+      setStatus("No answer from location yet. Tap Locate Me again, or search any city.");
+      setLocateBusy(null);
+      state.loading = false;
+      renderList();
+    }, 30000);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         if (locateGen !== state.searchGen) return;
         clearTimeout(locateSlow);
+        clearTimeout(locateFailsafe);
+        setNearLine("Showing results near your location");
         const aOk = analytics();
         if (aOk) aOk.locateMeResult("granted");
         try {
@@ -3166,6 +3525,7 @@
       (err) => {
         if (locateGen !== state.searchGen) return;
         clearTimeout(locateSlow);
+        clearTimeout(locateFailsafe);
         // Do not log position details that might include coords
         console.warn("Geolocation unavailable", err && err.code);
         const aFail = analytics();
@@ -3215,6 +3575,8 @@
         /* map may already be gone */
       }
     }
+    setNearLine("");
+    renderPlaceAlternates([]);
     setStatus("Cleared · tap Locate Me");
   }
 
@@ -3224,14 +3586,14 @@
     $("#aboutBackdrop").hidden = false;
     $("#aboutBackdrop").classList.add("open");
     $("#aboutSheet").classList.add("open");
-    $("#aboutSheet").setAttribute("aria-hidden", "false");
+    setSheetHidden($("#aboutSheet"), false);
     document.body.style.overflow = "hidden";
   }
 
   function closeAbout() {
     $("#aboutBackdrop").classList.remove("open");
     $("#aboutSheet").classList.remove("open");
-    $("#aboutSheet").setAttribute("aria-hidden", "true");
+    setSheetHidden($("#aboutSheet"), true);
     $("#aboutBackdrop").hidden = true;
     if (!$("#dealSheet").classList.contains("open")) {
       document.body.style.overflow = "";
@@ -3283,12 +3645,16 @@
       pool[i] = pool[k];
       pool[k] = tmp;
     }
-    return pool[0] + ", " + pool[1] + ", or " + pool[2];
+    // forge 20261003 (Lens): one short hint so it fits the phone field (was three cities, cut off).
+    return "City or ZIP, e.g. " + pool[0];
   }
 
   function applyPlaceHint() {
     const input = document.getElementById("placeSearch");
-    if (input) input.placeholder = pickPlaceHint();
+    if (!input) return;
+    const hint = pickPlaceHint();
+    // Very narrow fields get the shortest hint.
+    input.placeholder = input.clientWidth && input.clientWidth < 200 ? "City or ZIP" : hint;
   }
 
   function hidePlaceSuggest() {
@@ -3384,12 +3750,10 @@
       clearTimeout(suggestTimer);
       suggestTimer = null;
     }
-    const t = String(q || "").trim();
-    if (t.length < 3) {
-      hidePlaceSuggest();
-      return;
-    }
-    suggestTimer = setTimeout(() => fetchPlaceSuggest(t), 280);
+    // forge 20261003 (Snitch/Shade): no Nominatim autocomplete. The OSMF usage policy forbids
+    // search-as-you-type, so the geocoder is called only on Search / Enter. fetchPlaceSuggest is unused.
+    void q;
+    hidePlaceSuggest();
   }
 
   function syncPlaceClear() {
@@ -3407,6 +3771,17 @@
     }
     hidePlaceSuggest();
     syncPlaceClear();
+  }
+
+  function bindPlaceAlternates() {
+    const el = $("#placeAlts");
+    if (!el || el.dataset.bound) return;
+    el.dataset.bound = "1";
+    el.addEventListener("click", (e) => {
+      const b = e.target.closest(".place-alt");
+      if (!b) return;
+      pickPlaceAlternate(parseInt(b.getAttribute("data-alt"), 10));
+    });
   }
 
   function bindPlaceSuggest() {
@@ -3459,6 +3834,7 @@
       locateMe();
     });
     bindPlaceSuggest();
+    bindPlaceAlternates();
 
 
     const placeForm = $("#placeSearchForm");
@@ -3573,7 +3949,7 @@
     if (savedBtn) {
       savedBtn.addEventListener("click", () => {
         state.filters.saved = !state.filters.saved;
-        savedBtn.classList.toggle("active", state.filters.saved);
+        setToggleState(savedBtn, state.filters.saved);
         persistUiPrefs();
         renderList();
         setStatus(
@@ -3604,12 +3980,39 @@
     if (filtersClose) filtersClose.addEventListener("click", closeFilters);
     const filtersDone = $("#filtersDone");
     if (filtersDone) filtersDone.addEventListener("click", closeFilters);
+    const forgetBtn = $("#lastPlaceForget");
+    if (forgetBtn) {
+      forgetBtn.addEventListener("click", () => {
+        uiPrefs.lastPlaceQuery = "";
+        persistUiPrefs();
+        syncLastPlaceControl();
+        setStatus("Last city forgotten on this device.");
+        const input = $("#placeSearch");
+        if (input) { try { input.focus({ preventScroll: true }); } catch (_) {} }
+      });
+    }
+    const pantryBtn = $("#filterPantries");
+    if (pantryBtn) {
+      pantryBtn.addEventListener("click", () => {
+        state.dietaryFilter = state.dietaryFilter === "freefood" ? null : "freefood";
+        const on = state.dietaryFilter === "freefood";
+        pantryBtn.classList.toggle("active", on);
+        pantryBtn.setAttribute("aria-pressed", on ? "true" : "false");
+        renderList();
+        if (typeof syncFiltersLaunch === "function") syncFiltersLaunch();
+      });
+    }
+    const noticeBtn = $("#firstSearchNoticeOk");
+    if (noticeBtn) noticeBtn.addEventListener("click", dismissFirstSearchNotice);
+
     const filtersClear = $("#filtersClear");
     if (filtersClear) {
       filtersClear.addEventListener("click", () => {
         state.walkMinutes = null;
         state.radiusMiles = 10;
         state.dietaryFilter = null;
+        const pBtn = $("#filterPantries");
+        if (pBtn) { pBtn.classList.remove("active"); pBtn.setAttribute("aria-pressed", "false"); }
         state.filters.openNow = false;
         state.filters.hasDeal = false;
         state.filters.saved = false;
@@ -3644,10 +4047,8 @@
           openFirst.classList.add("active");
           openFirst.setAttribute("aria-pressed", "true");
         }
-        const savedBtn = $("#filterSaved");
-        if (savedBtn) savedBtn.classList.remove("active");
-        const lateBtn = $("#filterLateNight");
-        if (lateBtn) lateBtn.classList.remove("active");
+        setToggleState($("#filterSaved"), false);
+        setToggleState($("#filterLateNight"), false);
         const typeSel = $("#filterType");
         if (typeSel) typeSel.value = "all";
         $$("[data-tag]").forEach((btn) => btn.classList.remove("active"));
@@ -3664,7 +4065,7 @@
     if (lateBtn) {
       lateBtn.addEventListener("click", () => {
         state.filters.lateNight = !state.filters.lateNight;
-        lateBtn.classList.toggle("active", state.filters.lateNight);
+        setToggleState(lateBtn, state.filters.lateNight);
         persistUiPrefs();
         renderList();
         setStatus(filteredPlaces().length + " restaurants after filters");
@@ -3920,7 +4321,7 @@
     const back = $("#agreeBackdrop");
     if (!sheet) return;
     sheet.classList.add("open");
-    sheet.setAttribute("aria-hidden", "false");
+    setSheetHidden(sheet, false);
     if (back) {
       back.hidden = false;
       back.classList.add("open");
@@ -3932,7 +4333,7 @@
     const back = $("#agreeBackdrop");
     if (sheet) {
       sheet.classList.remove("open");
-      sheet.setAttribute("aria-hidden", "true");
+      setSheetHidden(sheet, true);
     }
     if (back) {
       back.hidden = true;
@@ -3940,7 +4341,23 @@
     }
   }
 
+  /* forge 20261003 (Snitch): one switch in config.js -> window.RB_CONFIG.ASSENT_MODE
+   *   "current"    (default) today's behaviour: Continue sheet stays hidden, no extra line.
+   *   "continue"   show the existing Continue sheet once per device until tapped.
+   *   "browsewrap" show "By using RangeBites you agree to the Terms and Privacy Policy" under search. */
+  function assentMode() {
+    const m = window.RB_CONFIG && window.RB_CONFIG.ASSENT_MODE;
+    return m === "continue" || m === "browsewrap" ? m : "current";
+  }
+
   function maybeShowAgree() {
+    const mode = assentMode();
+    const line = $("#assentLine");
+    if (line) line.hidden = mode !== "browsewrap";
+    if (mode === "continue" && !uiPrefs.termsAccepted) {
+      openAgree();
+      return;
+    }
     // First screen is Locate / search. Terms stay in the footer and About.
     hideAgree();
   }

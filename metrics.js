@@ -3,36 +3,41 @@
  * Page-open hits: body is {"kind": "view"|"locate"|"demo"|"deal"}; the app only sends "view",
  * at most once per browser session, from the home page (skipped entirely if sessionStorage is unavailable).
  * No location, email, cookies, or user-agent in the body.
- * "People helped": body is {"kind":"helped","device":<code>}. The code is a one-time random device code
- * (crypto.randomUUID, or a Math.random UUID fallback) made on this device and kept in localStorage
- * ("rb_device_id"). It is sent once, after the first search or Locate Me that returns ≥1 place (retried only
- * if that send fails), and is also the Idempotency-Key ("helped-<code>"). It is used only to count distinct
- * devices for the "People helped" number. Clearing this site's storage makes a new code.
+ * "Devices that found food" (forge 20261003, Shade/Gavel H2): body is {"kind":"found"} only. No device code.
+ * Sent once per device, after the first search or Locate Me that returns ≥1 place; this device remembers it
+ * already counted with the flag "rb_helped_done" in localStorage. A one-off random Idempotency-Key makes a
+ * retried send safe; it is kept only until the send succeeds and is never in the record body.
+ * The public number = LEGACY_FOUND_BASE + the number of "found" records. Page-open "hits" and the old
+ * "helped" device-code records are owner-read only (.herenow/data.json); only "found" is publicly readable.
  * The host also sees the requester's IP address on these requests.
  */
 (function () {
   "use strict";
 
   var HITS_URL = "./.herenow/data/hits";
-  /* "People helped": each device counted at most once, ever, only after a search or Locate Me
-   * returned ≥1 place. The record is {"kind":"helped","device":<random UUID>}: an anonymous ID
-   * made on this device (no name, location, IP, or user agent). The count is the number of
-   * DISTINCT device IDs, so retries, double taps, and second tabs never double count.
-   * Bots/crawlers, automation (webdriver), and QA runs (?qa=1, ?rbqa=1, rb_no_count=1) never count. */
-  var HELPED_COLLECTIONS = { helped: 1, helped_selftest: 1 };
-  var DEVICE_KEY = "rb_device_id";
+  /* "Devices that found food": each device counted at most once, only after a search or Locate Me
+   * returned ≥1 place. The record is {"kind":"found"} only. This device keeps the flag rb_helped_done so it
+   * never sends again. Bots/crawlers, automation (webdriver), and QA runs (?qa=1, ?rbqa=1, rb_no_count=1) never count. */
+  var HELPED_COLLECTIONS = { found: 1, found_selftest: 1 };
+  /* Devices counted under the old "helped" collection before 20261003. Those devices already have
+   * rb_helped_done=1, so they are never counted again in "found". PUBLISH STEP: set this to the owner-side
+   * count of distinct devices in "helped" at publish time (it was 2 on 2026-10-03 ~1:30 PM ET). */
+  var LEGACY_FOUND_BASE = 2;
+  var DEVICE_KEY = "rb_device_id"; // legacy key: removed on boot, never sent
+  var PENDING_KEY = "rb_found_pending_key";
   var HELPED_DONE_KEY = "rb_helped_done";
   var NO_COUNT_KEY = "rb_no_count";
-  var TARGET_KEY = "rb_count_target"; // "helped_selftest" = count-test bucket only (never the public number)
+  var TARGET_KEY = "rb_count_target"; // "found_selftest" (or legacy "helped_selftest") = count-test bucket only
   var BOT_UA = /bot|crawl|spider|slurp|scrap|headless|lighthouse|pagespeed|preview|facebookexternalhit|embedly|whatsapp|telegram|discord|curl|wget|python|httpclient|java\/|go-http|phantom|puppeteer|playwright|selenium|axios|node-fetch/i;
   var MAX_PAGES = 260; // collection max is 25,000 records at 100 per page
 
   function countTarget() {
     var t = lsGet(TARGET_KEY);
-    return HELPED_COLLECTIONS[t] ? t : "helped";
+    if (t === "helped_selftest") t = "found_selftest";
+    return HELPED_COLLECTIONS[t] ? t : "found";
   }
   function helpedUrl() { return "./.herenow/data/" + countTarget(); }
-  function isSelfTest() { return countTarget() === "helped_selftest"; }
+  function isSelfTest() { return countTarget() === "found_selftest"; }
   var KINDS = { view: true, locate: true, demo: true, deal: true };
   var CAP = 500;
   var PAGE = 100;
@@ -126,12 +131,10 @@
 
   function formatOpens(n) {
     var v = Number(n) || 0;
-    if (v === 1) return "1 person helped";
-    return v + " people helped";
+    return v + (v === 1 ? " device" : " devices") + " got food results";
   }
 
-  /* Header counter: last good count cached on-device as a number ("rb_helped_count"). The People helped
-   * device code is stored separately ("rb_device_id"; see the top of this file).
+  /* Header counter: last good count cached on-device as a number ("rb_helped_count").
    * One POST + one count fetch per browser session; after 429/failure back off and never show 0. */
   var COUNT_KEY = "rb_helped_count";
   var BACKOFF_KEY = "rb_hits_backoff_until";        // reads (count fetch)
@@ -147,7 +150,7 @@
   function ssSet(k, v) { try { window.sessionStorage.setItem(k, v); } catch (_) {} }
 
   function cachedCount() {
-    if ((lsGet(COUNT_KEY + "_target") || "helped") !== countTarget()) return 0;
+    if ((lsGet(COUNT_KEY + "_target") || "") !== countTarget()) return 0;
     var v = parseInt(lsGet(COUNT_KEY) || "", 10);
     return v > 0 ? v : 0;
   }
@@ -157,9 +160,9 @@
   }
   function startBackoff(key, ms) { lsSet(key || BACKOFF_KEY, String(Date.now() + (ms || BACKOFF_MS))); }
 
-  /** Exact: page through every record, count distinct device IDs. Partial reads never paint. */
+  /** Page through every "found" record and count them. Partial reads never paint.
+   * Approximate: anyone can add a record (rate-limited per IP), and one device can count again after clearing storage. */
   function countDistinctDevices() {
-    var seen = Object.create(null);
     var n = 0;
     var pages = 0;
     function next(cursor) {
@@ -168,12 +171,10 @@
       return fetchHitsPage(cursor, helpedUrl()).then(function (body) {
         var recs = (body && body.records) || [];
         for (var i = 0; i < recs.length; i++) {
-          var d = recs[i] && recs[i].data ? recs[i].data : recs[i];
-          var id = d && typeof d.device === "string" ? d.device : "";
-          if (id && !seen[id]) { seen[id] = 1; n += 1; }
+          if (recordKind(recs[i]) === "found") n += 1;
         }
         if (body && body.nextCursor) return next(body.nextCursor);
-        return n;
+        return n + (isSelfTest() ? 0 : LEGACY_FOUND_BASE);
       });
     }
     return next(null);
@@ -195,7 +196,7 @@
     lsSet(COUNT_KEY + "_target", countTarget());
     num.textContent = String(v);
     if (wrap) {
-      wrap.setAttribute("aria-label", formatOpens(v) + " (devices that got food results, counted once each)");
+      wrap.setAttribute("aria-label", "Devices that got food results (each counted once; approximate): " + v);
       wrap.hidden = false;
     }
   }
@@ -248,13 +249,14 @@
     return false;
   }
 
-  function deviceId() {
-    var id = lsGet(DEVICE_KEY);
-    if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
-      id = uuid();
-      lsSet(DEVICE_KEY, id);
+  /** One-off retry key for the single "found" send. Not a device ID: removed once the send succeeds. */
+  function pendingKey() {
+    var k = lsGet(PENDING_KEY);
+    if (!k || !/^[0-9a-f-]{36}$/i.test(k)) {
+      k = uuid();
+      lsSet(PENDING_KEY, k);
     }
-    return id;
+    return k;
   }
 
   var helpedInFlight = false;
@@ -265,18 +267,19 @@
     if (helpedInFlight || lsGet(doneKey) === "1" || isTestTraffic() || inBackoff(WRITE_BACKOFF_KEY)) {
       return Promise.resolve(false);
     }
-    var id = deviceId();
-    if (!lsGet(DEVICE_KEY)) return Promise.resolve(false); // storage blocked: cannot promise once-ever, skip
+    var key = pendingKey();
+    if (!lsGet(PENDING_KEY)) return Promise.resolve(false); // storage blocked: cannot promise once-ever, skip
     helpedInFlight = true;
     return fetch(helpedUrl(), {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Idempotency-Key": "helped-" + id },
-      body: JSON.stringify({ kind: "helped", device: id }),
+      headers: { "Content-Type": "application/json", "Idempotency-Key": "found-" + key },
+      body: JSON.stringify({ kind: "found" }),
       keepalive: true,
     }).then(function (res) {
       helpedInFlight = false;
       if (res && res.ok) {
         lsSet(doneKey, "1");
+        try { localStorage.removeItem(PENDING_KEY); } catch (_) {}
         if (lastExact != null) {
           lastExact += 1; // our new, never-before-counted device ID
           paintVisitCount(lastExact, { exact: true });
@@ -308,6 +311,7 @@
       path = "index.html";
     }
     try { localStorage.removeItem("rb_visit_count"); localStorage.removeItem("rb_visit_count_more"); } catch (_) {}
+    try { localStorage.removeItem(DEVICE_KEY); } catch (_) {} // old device code: no longer used or sent
     var home = !path || path === "index.html" || path === "";
     var wait = home ? hitViewOncePerSession() : Promise.resolve(false);
     wait.then(function () {

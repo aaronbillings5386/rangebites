@@ -177,7 +177,7 @@
       "Amplitude is enabled. Session events (locate, radius, deals, nav) may go to Amplitude. Never lat/lng. We do not persist GPS.";
     const unkeyedAbout =
       "Optional product analytics. No Amplitude key — events stay in a memory queue only (nothing sent).";
-    const noTrack = "We do not track you, apart from the one-time People helped code. Location is used for this search only and is not saved.";
+    const noTrack = "We do not track you. Location is used for this search only and is not saved.";
     if (bannerNote) bannerNote.textContent = noTrack;
     if (about) about.textContent = noTrack;
   }

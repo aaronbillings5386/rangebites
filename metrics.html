@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#161a21" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.amplitude.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.openstreetmap.org; connect-src 'self' https://maps.mail.ru https://lz4.overpass-api.de https://overpass.private.coffee https://nominatim.openstreetmap.org https://api2.amplitude.com https://cdn.amplitude.com; font-src 'self' data:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-vqf/U/HgdcpfkJQb7SLvno+o3oo84CyMDwpj8dPDdRM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests" />
   <title>RangeBites stats</title>
   <link rel="stylesheet" href="styles.css?v=20260830m" />
   <style>
@@ -55,9 +55,10 @@
       <a href="specials.html">Specials</a>
       <a href="sitemap.html">Sitemap</a>
     </nav>
+    <p class="legal-foot">RangeBites is an independent food finder run by one person in Virginia, not affiliated with or endorsed by any business, pantry, or map service shown. Listings come from OpenStreetMap and may be wrong, so check with the place before you go · Map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
     <p class="site-footer-note">RangeBites helps you find food nearby. Nearby restaurants and listed deals. No account. Not a reservation. Not legal, tax, or finance advice. Not RangeBits.</p>
   </footer>
-  <script src="metrics.js?v=20261003b"></script>
+  <script src="metrics.js?v=20261003c"></script>
   <script>
     (function () {
       function set(id, n) {

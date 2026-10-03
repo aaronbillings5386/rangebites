@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#14110e" />
   <title>About — RangeBites</title>
   <link rel="canonical" href="https://rangebites.com/about" />
   <meta name="description" content="About RangeBites, an information-only food finder. No account. Listings from OpenStreetMap." />
-  <link rel="stylesheet" href="/styles.css?v=20260901d" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png?v=20260901d" />
+  <link rel="stylesheet" href="/styles.css?v=20261003c" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png?v=20261003c" />
   <style>
     body.legal-page { background: #14110e; color: #fff6ea; }
     .legal { max-width: 44rem; margin: 0 auto; padding: calc(28px + env(safe-area-inset-top,0px)) 22px calc(48px + env(safe-area-inset-bottom,0px)); }
@@ -35,13 +36,18 @@
     <p>Tap Locate Me or search any city. Listings and hours come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) and may be wrong or stale. Directions open in Apple Maps or Google Maps. Reviews open in Google Maps. RangeBites does not invent hours, star ratings, or coupons.</p>
     <h2>Location</h2>
     <p>Locate Me keeps your coordinate in memory for this search only. We never persist lat/lng. We do not save a location history. This device may remember range, distance units, and last city as text — not coordinates.</p>
-    <p>We do not track you, apart from the one-time People helped code described here. Amplitude is off. The app does not log taps. Opening the home page also sends a first-party page-open count, at most once per browser session: a kind label and a time. It does not include coordinates, name, or email. People helped counts each device once, the first time a search or Locate Me shows food results. To count a device only once, the site sends a random code made on this device (not your name, email, or location) along with the time. Test traffic is excluded. It is not an exact count of people.</p>
+    <p>To fetch restaurants, our host’s proxy sends the search to OpenStreetMap services: Overpass (run by OpenStreetMap France) and, for a city you type, Nominatim (run by the OpenStreetMap Foundation). With Locate Me, that search includes your coordinates rounded to about 100 m. The host and those services see the search and your IP. Map images come from tile.openstreetmap.de (FOSSGIS e.V.), which sees your IP and the map area you view.</p>
+    <p>We do not track you. Amplitude is off. The app does not log taps. Opening the home page also sends a first-party page-open count, at most once per browser session: a kind label and a time. It does not include coordinates, name, or email. Devices that found food counts each device once, the first time a search or Locate Me shows food results. The site sends one record with just the word “found” and the time, and this device remembers it was counted. No device code is sent. Anyone can add to that public list and clearing storage can count a device again, so it is approximate, not a count of people. Test traffic is excluded.</p>
     <p>Tap the heart to save a restaurant name and address on this device. That list is not a GPS trail.</p>
     <h2>Operator</h2>
     <p>RangeBites is designed, published, and operated by an individual website developer in Virginia, USA (the “Operator”), not a restaurant. By using RangeBites you agree to the <a href="/terms">Terms of Use</a> and <a href="/privacy">Privacy Policy</a>.</p>
+    <h2>Contact &amp; accessibility</h2>
+    <!-- PLACEHOLDER contact until Aaron confirms: rangebites@agentmail.to -->
+    <p>Questions, corrections, accessibility problems, or legal notices: <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>. We aim to meet WCAG 2.1 AA. If something doesn’t work for you, tell us at that address.</p>
     <h2>Disclaimer</h2>
     <p>THE SERVICE IS PROVIDED AS IS, WITHOUT WARRANTY. Listings, hours, and maps come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) and may be inaccurate or stale. The Operator is not liable for a closed restaurant, an incorrect pin, food you consume, travel you undertake, or third-party maps you open. RangeBites is not a safety or emergency service. Full terms are in the Terms of Use.</p>
     <p class="fine">Map data © OpenStreetMap contributors.</p>
+    <p class="legal-foot">RangeBites is an independent food finder run by one person in Virginia, not affiliated with or endorsed by any business, pantry, or map service shown. Listings come from OpenStreetMap and may be wrong, so check with the place before you go · Map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
   </main>
   <footer class="site-footer">
     <nav class="site-footer-nav" aria-label="Site">
