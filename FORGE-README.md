@@ -5,7 +5,7 @@ This file describes what is on the review branch, not a publish. Nothing here is
 GitHub `main` (`188a0e7`) is behind live build `20261003b`. Open PR #8 was not used as a base. This branch starts at `main`, then:
 
 1. Sync the repo root to live `20261003b`. The tarball’s `food-radar-app/` tree is this site at the repo root. File lists already matched, so no README or LICENSE was removed.
-2. Hours fix: Eastern-time clock, today’s hours on cards, tagged open / closed / 24-hour verify labels, AllThePlaces CC0 hours in `data/atp-hours.json`, `tools/build-atp-hours.py`.
+2. Hours fix: today’s hours on cards, tagged open / closed / 24-hour verify labels, AllThePlaces CC0 hours in `data/atp-hours.json`, `tools/build-atp-hours.py`. Open/closed uses America/New_York or America/Chicago only inside the eastern and central US box. Elsewhere it uses the browser timezone when the search is near the device, and otherwise shows "Hours tagged · verify" with no open/closed state.
 3. Legal wording, accessibility, and Gate fixes from the forge patch (44 files, including the Leaflet license and five image files).
 4. Follow-up: remove the unused `place.lateNight` field, and drop the homepage URL from `data/atp-hours.json`.
 5. Legal-review follow-up: 3-decimal rounding is described as rounding that still places you within about 100 m.
@@ -27,7 +27,7 @@ GitHub `main` (`188a0e7`) is behind live build `20261003b`. Open PR #8 was not u
 
 ## Checks on this branch
 
-`node --check` passes on the JS files. `node tests/app.test.js` passes 19 tests, including the geocoder-busy, place-alternate, CSP, aria-pressed, late-night, and street-line cases.
+`node --check` passes on the JS files. `node tests/app.test.js` passes 21 tests, including the US-box clock, geocoder-busy, place-alternate, CSP, aria-pressed, late-night, and street-line cases.
 
 ## Still needs a real device
 

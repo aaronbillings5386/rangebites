@@ -11,6 +11,7 @@ const A = load("app.js", [
   "haversineMiles", "roundCoord3", "buildOverpassQuery", "mergeDuplicateElements", "sortNearestFirst",
   "isFakeDemoPhone", "telHref", "formatPhoneDisplay", "prettyOsmValue", "prettyCuisineList",
   "geoErrorMessage", "normWord", "geocodeLooksDifferent", "looksLikePostal", "milesToMeters",
+  "hoursTimeZone", "placeNow", "friendlyHoursLine", "hoursOriginLabel",
 ], ["OVERPASS_TIMEOUT_S", "OVERPASS_FAST_TIMEOUT_S", "OSM_VALUE_LABELS"]);
 
 t("haversine: 1 deg latitude ~ 69.1 mi; zero distance", () => {
@@ -71,6 +72,42 @@ t("Locate Me: separate messages for denied / unavailable / timeout", () => {
   const m = [1, 2, 3].map((code) => A.geoErrorMessage({ code }));
   assert.strictEqual(new Set(m).size, 3);
   assert.ok(/blocked/i.test(m[0]) && /couldn.t find/i.test(m[1]) && /timed out/i.test(m[2]));
+});
+t("open/closed clock: New York or Chicago only inside the US box", () => {
+  assert.strictEqual(A.hoursTimeZone(37.27, -81.22), "America/New_York");
+  assert.strictEqual(A.hoursTimeZone(36.17, -86.78), "America/New_York");
+  assert.strictEqual(A.hoursTimeZone(41.88, -87.63), "America/Chicago");
+  assert.strictEqual(A.hoursTimeZone(32.78, -96.8), "America/Chicago");
+  const abroad = [[51.5, -0.12, "London"], [48.86, 2.35, "Paris"], [35.68, 139.65, "Tokyo"], [22.3, 114.2, "Hong Kong"]];
+  for (const [lat, lng, name] of abroad) {
+    const zone = A.hoursTimeZone(lat, lng);
+    assert.ok(zone !== "America/New_York" && zone !== "America/Chicago", name + " got " + zone);
+  }
+  const nyHour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hourCycle: "h23", hour: "numeric" }).format(new Date()));
+  const chiHour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hourCycle: "h23", hour: "numeric" }).format(new Date()));
+  assert.strictEqual(A.placeNow(-81.22, 37.27).getHours(), nyHour);
+  assert.strictEqual(A.placeNow(-87.63, 41.88).getHours(), chiHour);
+  const tokyoZone = A.hoursTimeZone(35.68, 139.65);
+  const tokyoNow = A.placeNow(139.65, 35.68);
+  if (tokyoZone === "") {
+    assert.strictEqual(tokyoNow, null);
+    assert.strictEqual(A.friendlyHoursLine({ hours: "Mo-Su 09:00-17:00", lat: 35.68, lng: 139.65 }), "Hours tagged · verify");
+  } else {
+    assert.strictEqual(tokyoZone, "device");
+    assert.notStrictEqual(tokyoNow.getHours(), nyHour);
+  }
+  assert.strictEqual(A.friendlyHoursLine({ hours: "Mo-Su 09:00-17:00", lat: 48.86, lng: 2.35 }, null), "Hours tagged · verify");
+});
+t("hours labels name AllThePlaces when that is the source", () => {
+  assert.strictEqual(A.hoursOriginLabel("atp"), "Chain hours (AllThePlaces)");
+  assert.strictEqual(A.hoursOriginLabel("osm"), "OSM hours");
+  assert.strictEqual(A.hoursOriginLabel(""), "OSM hours");
+  const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  assert.ok(html.includes("Tagged open · verify"));
+  assert.ok(!html.includes("Tagged open (OSM"));
+  const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  assert.ok(!src.includes("Opens soon · OSM hours"));
+  assert.ok(!src.includes("Closes soon · OSM hours"));
 });
 t("geocoder mismatch warning (no network)", () => {
   assert.strictEqual(A.geocodeLooksDifferent("Lebannon VA", { name: "Lebanon Church", display_name: "Lebanon Church, Virginia" }), true);

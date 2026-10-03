@@ -841,25 +841,40 @@
 
 
 
-  /** Wall clock for open-now math. Eastern band (VA/WV/KY/TN east of ~87.6°W) uses
-   * America/New_York via Intl (DST-correct, independent of the device's own zone).
-   * Elsewhere falls back to nowAtLng. Returns a Date whose local getters read that wall clock. */
-  const HOURS_TZ = "America/New_York";
-  let hoursTzFmt = null;
-  function placeNow(lng) {
-    const n = Number(lng);
-    if (Number.isFinite(n) && n < -87.6) return nowAtLng(n);
+  /** Which clock may drive open/closed. America/New_York or America/Chicago only inside
+   * the continental eastern/central US box (lon -104.5..-66.5, lat 24..49.5, split at -87.6).
+   * Outside that box: "device" when the search longitude is within an hour of this browser's
+   * zone (the search is near the user), otherwise "" so callers must not claim open or closed.
+   * Returns "America/New_York" | "America/Chicago" | "device" | "". */
+  function hoursTimeZone(lat, lng) {
+    const la = Number(lat);
+    const ln = Number(lng);
+    if (Number.isFinite(la) && Number.isFinite(ln) && la >= 24 && la <= 49.5 && ln >= -104.5 && ln <= -66.5) {
+      return ln < -87.6 ? "America/Chicago" : "America/New_York";
+    }
+    if (!Number.isFinite(ln)) return "device";
+    const crudeHours = Math.round(ln / 15);
+    const deviceHours = -Math.round(new Date().getTimezoneOffset() / 60);
+    if (Math.abs(crudeHours - deviceHours) <= 1) return "device";
+    return "";
+  }
+  /** Wall clock for open-now math, or null when the zone is unknown (show hours, don't say open/closed).
+   * A returned Date's local getters read that wall clock. */
+  function placeNow(lng, lat) {
+    const zone = hoursTimeZone(lat, lng);
+    if (zone === "") return null;
+    if (zone === "device") return new Date();
     try {
-      hoursTzFmt = hoursTzFmt || new Intl.DateTimeFormat("en-US", {
-        timeZone: HOURS_TZ, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric",
+      const fmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: zone, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric",
         hour: "numeric", minute: "numeric", second: "numeric",
       });
       const parts = {};
-      for (const x of hoursTzFmt.formatToParts(new Date())) parts[x.type] = x.value;
+      for (const x of fmt.formatToParts(new Date())) parts[x.type] = x.value;
       const d = new Date(+parts.year, +parts.month - 1, +parts.day, +parts.hour % 24, +parts.minute, +parts.second);
-      return Number.isFinite(d.getTime()) ? d : nowAtLng(lng);
+      return Number.isFinite(d.getTime()) ? d : null;
     } catch (_) {
-      return nowAtLng(lng);
+      return null;
     }
   }
 
@@ -869,7 +884,7 @@
    * ";" rules override earlier rules for the days they name; ", Sa ..." additional rules add to them;
    * days not named by any rule are closed. Anything else (months, dates, weeks, SH, sunrise, comments,
    * "||", open-ended "+", "open"/"unknown") → null so the card says "Hours not listed" — never "Open".
-   * Time is the device's local clock (nowAtLng for far-away searches). Cross-checked vs opening_hours.js. */
+   * Open/closed uses placeNow (US eastern/central zones, or the browser clock when the search is near the user). Cross-checked vs opening_hours.js. */
   const OH_DAY_IDX = { Su: 0, Mo: 1, Tu: 2, We: 3, Th: 4, Fr: 5, Sa: 6 };
   const ohCache = new Map();
   let hoursCountry = ""; // ISO country from the last geocode; "" when unknown (Locate Me)
@@ -1061,7 +1076,8 @@
   function isLateNightHours(hours, now, lat, lng) {
     const rules = ohParse(hours);
     if (!rules) return false;
-    now = now || placeNow(lng != null ? lng : state.lng);
+    if (now == null) now = placeNow(lng != null ? lng : state.lng, lat != null ? lat : state.lat);
+    if (!now) return false;
     const today = ohDaySpans(rules, new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12), lat, lng).spans;
     return today.some(([s, e]) => e > 21 * 60 || s >= 21 * 60);
   }
@@ -1098,13 +1114,17 @@
   function friendlyHoursLine(p, now) {
     const raw = String(p.hours || "").trim();
     if (!raw) return "";
-    now = now || placeNow(p.lng != null ? p.lng : state.lng);
+    if (now === undefined) now = placeNow(p.lng != null ? p.lng : state.lng, p.lat != null ? p.lat : state.lat);
+    if (!now) return "Hours tagged · verify";
     const nowMin = now.getHours() * 60 + now.getMinutes();
     const r = ohEval(raw, now, p.lat, p.lng);
     if (!r) return "Hours (OSM): " + raw + " · verify";
     return friendlyHoursCore(p, r, now, nowMin) + hoursSourceNote(p) + " · verify";
   }
-  /** Where the hours came from. OSM check dates older than 2 years are called out. */
+  /** Short label for where a place's hours came from. OSM check dates older than 2 years are called out below. */
+  function hoursOriginLabel(source) {
+    return source === "atp" ? "Chain hours (AllThePlaces)" : "OSM hours";
+  }
   function hoursSourceNote(p) {
     if (p.hoursSource === "atp") return " · chain store locator";
     const y = /^(\d{4})/.exec(String(p.hoursChecked || ""));
@@ -1988,9 +2008,9 @@
 
       const hours = tags.opening_hours || "";
       const kitchenHours = tags["opening_hours:kitchen"] || "";
-      const atPlace = placeNow(originLng);
-      const openStatus = parseOpeningHours(hours, atPlace, lat, lng);
-      const kitchenStatus = kitchenHours ? parseOpeningHours(kitchenHours, atPlace, lat, lng) : null;
+      const atPlace = placeNow(originLng, originLat);
+      const openStatus = atPlace ? parseOpeningHours(hours, atPlace, lat, lng) : null;
+      const kitchenStatus = atPlace && kitchenHours ? parseOpeningHours(kitchenHours, atPlace, lat, lng) : null;
       const untilClose = openStatus === "open" ? minutesUntilClose(hours, atPlace, lat, lng) : null;
       const untilOpen = openStatus === "closed" ? minutesUntilOpen(hours, atPlace, lat, lng) : null;
       const cuisineRaw = tags.cuisine || "";
@@ -2080,7 +2100,14 @@
   }
   /** Recompute open/closed fields from p.hours. Never invents: unreadable → null. */
   function setHoursState(p, now) {
-    const at = now || placeNow(p.lng);
+    const at = now === undefined ? placeNow(p.lng, p.lat) : now;
+    if (!at) {
+      p.openStatus = null;
+      p.closesSoon = false;
+      p.opensSoon = false;
+      p.untilOpen = null;
+      return;
+    }
     const st = p.hours ? parseOpeningHours(p.hours, at, p.lat, p.lng) : null;
     const untilClose = st === "open" ? minutesUntilClose(p.hours, at, p.lat, p.lng) : null;
     const untilOpen = st === "closed" ? minutesUntilOpen(p.hours, at, p.lat, p.lng) : null;
@@ -2107,7 +2134,8 @@
       const fill = !p.hours && bestM <= ATP_FILL_M;
       const override = p.hours && bestM <= ATP_OVERRIDE_M && String(best[3]).trim() !== String(p.hours).trim();
       if (!fill && !override) continue;
-      if (parseOpeningHours(best[3], placeNow(p.lng), p.lat, p.lng) == null) continue; // only readable chain hours
+      const atpAt = placeNow(p.lng, p.lat);
+      if (atpAt ? parseOpeningHours(best[3], atpAt, p.lat, p.lng) == null : ohParse(best[3]) == null) continue; // only readable chain hours
       if (override) p.osmHours = p.hours;
       p.hours = String(best[3]).trim();
       p.hoursSource = "atp";
@@ -2145,7 +2173,7 @@
     if (state.filters.smokeFree) list = list.filter((p) => !!p.smokeFree);
     if (state.filters.kidsArea) list = list.filter((p) => !!p.kidsArea);
     // forge 20261003 (Gate G5): evaluated at filter time so it follows today's hours (incl. past midnight).
-    if (state.filters.lateNight) list = list.filter((p) => isLateNightHours(p.hours, placeNow(p.lng), p.lat, p.lng));
+    if (state.filters.lateNight) list = list.filter((p) => isLateNightHours(p.hours, null, p.lat, p.lng));
     const d = state.filters.diet || {};
     if (d.vegan) list = list.filter((p) => !!p.dietVegan);
     if (d.vegetarian) list = list.filter((p) => !!p.dietVegetarian);
@@ -2424,7 +2452,7 @@
       .slice(0, 24)
       .map(
         (p) =>
-          `<button type="button" class="open-pill" role="listitem" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">${p.hoursSource === "atp" ? "Chain hours" : "OSM hours"}</span></button>`
+          `<button type="button" class="open-pill" role="listitem" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">${hoursOriginLabel(p.hoursSource)}</span></button>`
       )
       .join("");
   }
@@ -2459,7 +2487,7 @@
       .slice(0, 24)
       .map(
         (p) =>
-          `<button type="button" class="open-pill opens-soon-pill" role="listitem" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">Opens soon · OSM hours</span></button>`
+          `<button type="button" class="open-pill opens-soon-pill" role="listitem" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">Opens soon · ${hoursOriginLabel(p.hoursSource)}</span></button>`
       )
       .join("");
   }
@@ -3014,7 +3042,7 @@
       : sponsored;
 
     const tagBits = [];
-    if (place.hours && place.opensSoon) tagBits.push("Opens soon · OSM hours");
+    if (place.hours && place.opensSoon) tagBits.push("Opens soon · " + hoursOriginLabel(place.hoursSource));
     if (place.kitchenClosedDoorsOpen) tagBits.push("Kitchen closed · OSM");
     if (place.outdoorSeating) tagBits.push("Outdoor seating");
     if (place.wheelchair) tagBits.push("Wheelchair access · OSM tag · call to confirm");
@@ -3027,7 +3055,7 @@
     if (place.changingTable) tagBits.push("Changing table");
     if (place.smokeFree) tagBits.push("No smoking");
     if (place.kidsArea) tagBits.push("Kids area");
-    if (place.hours && place.openStatus === "open" && place.closesSoon) tagBits.push("Closes soon · OSM hours · verify");
+    if (place.hours && place.openStatus === "open" && place.closesSoon) tagBits.push("Closes soon · " + hoursOriginLabel(place.hoursSource) + " · verify");
     const tagLine = tagBits.length
       ? `<div class="badge-row sheet-tags">${tagBits.map((b) => `<span class="badge badge-tag">${escapeHtml(b)}</span>`).join("")}</div>`
       : "";
@@ -4363,12 +4391,12 @@
 
   function refreshOpenStatuses() {
     if (!state.places || !state.places.length) return;
-    const at = placeNow(state.lng);
     let changed = false;
     for (let i = 0; i < state.places.length; i++) {
       const p = state.places[i];
       if (!p.hours) continue;
-      const next = parseOpeningHours(p.hours, at, p.lat, p.lng);
+      const at = placeNow(p.lng, p.lat);
+      const next = at ? parseOpeningHours(p.hours, at, p.lat, p.lng) : null;
       const untilClose = next === "open" ? minutesUntilClose(p.hours, at, p.lat, p.lng) : null;
       const untilOpen = next === "closed" ? minutesUntilOpen(p.hours, at, p.lat, p.lng) : null;
       const closesSoon = next === "open" && untilClose != null && untilClose <= 60;

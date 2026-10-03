@@ -61,6 +61,6 @@ function load(file, fns, consts, extra) {
   const src = fs.readFileSync(path.join(__dirname, "..", file), "utf8");
   const code = (extra || "") + "\n" + (consts || []).map((c) => constDecl(src, c)).join("\n") + "\n" +
     fns.map((f) => fn(src, f)).join("\n") + "\n;({" + fns.join(",") + "})";
-  return vm.runInNewContext(code, { console, Math, Number, String, Object, Array, RegExp, JSON, Date });
+  return vm.runInNewContext(code, { console, Math, Number, String, Object, Array, RegExp, JSON, Date, Intl });
 }
 module.exports = { load };
