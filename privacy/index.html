@@ -56,12 +56,12 @@
     <p class="legal-back"><a href="/">← RangeBites</a></p>
     <p class="legal-kicker">Legal</p>
     <h1>Privacy Policy</h1>
-    <p class="meta">RangeBites · rangebites.com · Effective September 1, 2026</p>
+    <p class="meta">RangeBites · rangebites.com · Effective October 2, 2026</p>
     <p class="read-note">This Privacy Policy describes how the operator of RangeBites handles information. It is part of your agreement to use the Service, together with the Terms of Use.</p>
 
     <h2>1. Operator</h2>
-    <p>RangeBites is a non-tracking food information website. The Operator does not build a profile of you and does not save GPS.</p>
-    <h2>1a. Non-tracking</h2>
+    <p>RangeBites is a non-tracking food information website, apart from the one-time People helped code described in section 6. The Operator does not build a profile of you and does not save GPS.</p>
+    <h2>1a. Non-tracking (apart from the one-time People helped code)</h2>
     <p>RangeBites is an information-only food app at rangebites.com, designed, published, and operated by an individual website developer (the “Operator”). No account is required. The Operator does not run a diner email list. RangeBites is not a reservation service, not legal, tax, or financial advice, and not RangeBits or any finance product.</p>
 
     <h2>2. Information we do not collect</h2>
@@ -75,12 +75,13 @@
     <p>If you heart a listing, this device may store its OpenStreetMap identifier, name, and address. That list does not include latitude or longitude and is not a GPS trail. Hearts remain on this device. You may unheart a restaurant or clear saved restaurants in Filters.</p>
 
     <h2>5. What is transmitted to provide the Service</h2>
-    <p>To display listings, the host or a same-origin proxy forwards a search (a map area or a city) to OpenStreetMap Overpass and Nominatim. The host necessarily sees that search request and your IP address in order to fetch results and limit abuse. A secondary Overpass host may be used if the primary host fails. Map tiles are served by OpenStreetMap. The Operator does not claim that a location never leaves your device: the proxy, tile servers, and Overpass services receive what they need to return a map.</p>
+    <p>To display listings, the host or a same-origin proxy forwards a search (a map area or a city) to OpenStreetMap Overpass and Nominatim. The host necessarily sees that search request and your IP address in order to fetch results and limit abuse. The host also sees your IP address on the counter requests (the page-open count and the People helped code and number). A secondary Overpass host may be used if the primary host fails. Map tiles are served by OpenStreetMap. The Operator does not claim that a location never leaves your device: the proxy, tile servers, and Overpass services receive what they need to return a map.</p>
     <p>Restaurants may optionally submit an offer and a contact email on the Specials page for review. That is restaurant contact, not a diner mailing list.</p>
     <p>The site is served over HTTPS. Files are hosted on here.now (Cloudflare).</p>
 
     <h2>6. Analytics and tracking</h2>
-    <p>The Operator does not use Amplitude or similar product-analytics services to track you. The application does not log Locate Me, search, or deal taps as a user profile. If the host retains a first-party page-open count, that record is a kind label and a time. It does not include coordinates, name, or email.</p>
+    <p>The Operator does not use Amplitude or similar product-analytics services to track you. The application does not log Locate Me, search, or deal taps as a user profile. The home page sends a first-party page-open count at most once per browser session. If the host retains it, that record is a kind label and a time. It does not include coordinates, name, or email.</p>
+    <p>“People helped” count: the first time a search or Locate Me on this device shows food results, the Service sends one record with a random code generated on this device and stored in its local storage, plus the time. The code is used only so each device is counted once; it does not include coordinates, name, email, or search text. Clearing this site’s storage creates a new code.</p>
 
     <h2>7. Listings</h2>
     <p>Restaurant names, hours, and maps come from OpenStreetMap as-is and may be wrong. There is no warranty that a listing is accurate, open, or still there.</p>

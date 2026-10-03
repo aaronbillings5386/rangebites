@@ -22,7 +22,12 @@
   ];
   /** Server-side Overpass [timeout:N]; client abort is a little longer. */
   const OVERPASS_TIMEOUT_S = 25;
-  const OVERPASS_CLIENT_ABORT_MS = 35000;
+  const OVERPASS_FAST_TIMEOUT_S = 10;
+  /** Client abort: ~22s full radius, ~12s fast inner ring. Do not cut to 6-8s (slow mobile + busy Overpass). */
+  const OVERPASS_CLIENT_ABORT_MS = 22000;
+  const OVERPASS_FAST_ABORT_MS = 12000;
+  /** Progressive search: inner ring first (cards paint fast), then full radius. */
+  const FAST_RING_MILES = 3;
   /** Status ping only — button stays Searching until Overpass finishes */
   const OVERPASS_SLOW_MS = 1800;
   const NOMINATIM_URL = "/api/nominatim";
@@ -448,17 +453,15 @@
   }
 
   function applyUnitsFromGeocode(hit) {
+    try {
+      hoursCountry = String((hit && hit.address && hit.address.country_code) || (hit && hit.country_code) || "").toLowerCase();
+    } catch (_) { hoursCountry = ""; }
     setDistanceUnits(milesCountryFromHit(hit) ? "mi" : "km", { persist: true, rerender: false });
   }
 
-  /** Deals first, then nearer. Quiet Precision: savings surface before distance. */
-  function sortDealsFirst(list) {
-    return list.slice().sort((a, b) => {
-      const da = a.deal ? 0 : 1;
-      const db = b.deal ? 0 : 1;
-      if (da !== db) return da - db;
-      return a.miles - b.miles;
-    });
+  /** Nearest first (straight-line haversine from the search center or GPS). Ties by name. */
+  function sortNearestFirst(list) {
+    return list.slice().sort((a, b) => (a.miles - b.miles) || String(a.name).localeCompare(String(b.name)));
   }
 
   function osmDietTagged(tags, key) {
@@ -627,34 +630,7 @@
     setStatus(cat ? n + " " + cat.label.toLowerCase() + " places" : n + " restaurants after filters");
   }
 
-  function isLateNightHours(hours) {
-    if (!hours || typeof hours !== "string") return false;
-    const h = hours.trim();
-    if (!h) return false;
-    if (/^24\/7$/i.test(h)) return true;
-    const NINE = 21 * 60;
-    const rules = h.split(";").map((r) => r.trim()).filter(Boolean);
-    for (const rule of rules) {
-      if (/^(PH|SH)\b/i.test(rule)) continue;
-      if (/^.+?\s+off$/i.test(rule)) continue;
-      const m = rule.match(/^((?:[A-Za-z]{2}(?:-[A-Za-z]{2})?(?:\s*,\s*[A-Za-z]{2}(?:-[A-Za-z]{2})?)*)\s+)?(.+)$/);
-      if (!m) continue;
-      const timeSpec = m[2].trim();
-      for (const span of timeSpec.split(",")) {
-        const tm = span.trim().match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
-        if (!tm) continue;
-        const start = parseMinutes(tm[1]);
-        const end = parseMinutes(tm[2]);
-        if (start == null || end == null) continue;
-        if (end > start) {
-          if (end > NINE || start >= NINE) return true;
-        } else if (end !== start) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
+
 
   function syncTrustStrip() {
     const el = $("#trustStrip");
@@ -722,14 +698,9 @@
   /** OSM tags only. Never invent a pantry from a restaurant name. */
   function isTaggedFreeFood(tags) {
     if (!tags) return false;
-    const sf = String(tags.social_facility || "").toLowerCase();
+    // Only amenity=food_bank|soup_kitchen (what the Overpass query asks for). No social_facility/office relabels.
     const amenity = String(tags.amenity || "").toLowerCase();
-    const office = String(tags.office || "").toLowerCase();
-    const foodSf = { food_bank: 1, soup_kitchen: 1, food_pantry: 1 };
-    if (foodSf[sf]) return true;
-    if (amenity === "food_bank" || amenity === "soup_kitchen" || amenity === "food_pantry") return true;
-    if (office === "food_bank") return true;
-    return false;
+    return amenity === "food_bank" || amenity === "soup_kitchen";
   }
 
   const OSM_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -741,9 +712,11 @@
     const oh = String(tags.opening_hours || "").trim().toLowerCase();
     if (oh === "closed") return true;
     const yes = (v) => String(v || "").toLowerCase() === "yes";
-    if (yes(tags.disused) || yes(tags.abandoned) || yes(tags.closed) || yes(tags.permanently_closed)) return true;
+    if (yes(tags.disused) || yes(tags.abandoned) || yes(tags.closed) || yes(tags.permanently_closed) || yes(tags.demolished)) return true;
+    if (String(tags.shop || "").toLowerCase() === "vacant") return true;
     for (const k of Object.keys(tags)) {
-      if (/^(disused|abandoned|razed|demolished|destroyed):/i.test(k)) return true;
+      // Lifecycle prefixes: disused:amenity, was:amenity, abandoned:shop, closed:*, removed:* …
+      if (/^(disused|abandoned|was|closed|removed|razed|demolished|destroyed|former):/i.test(k)) return true;
     }
     return false;
   }
@@ -806,64 +779,206 @@
     return new Date(utcMs + offsetMs + new Date().getTimezoneOffset() * 60000);
   }
 
-  /** OSM opening_hours when tagged. Returns "open" | "closed" | null. Never invents. */
-  function parseOpeningHours(hours, now) {
-    if (!hours || typeof hours !== "string") return null;
-    const h = hours.trim();
-    if (!h) return null;
-    if (/^24\/7$/i.test(h)) return "open";
-    now = now || new Date();
-    const day = OSM_DAYS[now.getDay()];
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const rules = h.split(";").map((r) => r.trim()).filter(Boolean);
-    if (!rules.length) return null;
-    let parsedAny = false;
-    let matched = false;
-    let isOpen = false;
-    for (const rule of rules) {
-      if (/^(PH|SH)\b/i.test(rule)) {
-        continue;
-      }
-      const off = rule.match(/^(.+?)\s+off$/i);
-      if (off) {
-        const days = expandOsmDays(off[1]);
-        if (!days.size) continue;
-        parsedAny = true;
-        if (days.has(day)) {
-          matched = true;
-          isOpen = false;
-        }
-        continue;
-      }
-      const m = rule.match(/^((?:[A-Za-z]{2}(?:-[A-Za-z]{2})?(?:\s*,\s*[A-Za-z]{2}(?:-[A-Za-z]{2})?)*)\s+)?(.+)$/);
-      if (!m) continue;
-      const daySpec = (m[1] || "").trim();
-      const timeSpec = m[2].trim();
-      const days = daySpec ? expandOsmDays(daySpec) : /^\d/.test(timeSpec) ? new Set(OSM_DAYS) : new Set();
-      if (!days.size) continue;
-      parsedAny = true;
-      if (!days.has(day)) continue;
-      const spans = timeSpec.split(",").map((s) => s.trim()).filter(Boolean);
-      let timesOk = false;
-      let dayOpen = false;
-      for (const span of spans) {
-        const tm = span.match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
-        if (!tm) continue;
-        const start = parseMinutes(tm[1]);
-        const end = parseMinutes(tm[2]);
-        if (start == null || end == null) continue;
-        timesOk = true;
-        if (minutesInSpan(nowMin, start, end)) dayOpen = true;
-      }
-      if (timesOk) {
-        matched = true;
-        isOpen = dayOpen;
-      }
-    }
-    if (!parsedAny || !matched) return null;
-    return isOpen ? "open" : "closed";
+
+
+
+  /* ---------- OSM opening_hours (strict subset, OSM rule semantics) ----------
+   * Supports: 24/7; weekday lists/ranges (Mo-Fr,Su); PH (US federal holidays, computed); "off"/"closed";
+   * multiple time spans; overnight spans (18:00-02:00, 22:00-26:00) spilling into the next day;
+   * ";" rules override earlier rules for the days they name; ", Sa ..." additional rules add to them;
+   * days not named by any rule are closed. Anything else (months, dates, weeks, SH, sunrise, comments,
+   * "||", open-ended "+", "open"/"unknown") → null so the card says "Hours not listed" — never "Open".
+   * Time is the device's local clock (nowAtLng for far-away searches). Cross-checked vs opening_hours.js. */
+  const OH_DAY_IDX = { Su: 0, Mo: 1, Tu: 2, We: 3, Th: 4, Fr: 5, Sa: 6 };
+  const ohCache = new Map();
+  let hoursCountry = ""; // ISO country from the last geocode; "" when unknown (Locate Me)
+
+  function ohParseTime(s) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(s);
+    if (!m) return null;
+    const h = +m[1], mm = +m[2];
+    if (mm > 59 || h > 48 || (h === 48 && mm)) return null;
+    return h * 60 + mm;
   }
 
+  /** Parse one rule body into { days:Set<0-6>, ph:boolean, spans:[[s,e]], off:boolean } or null. */
+  function ohParseSelectorAndTimes(body) {
+    let rest = body.trim();
+    const days = new Set();
+    let ph = false;
+    let hadSelector = false;
+    const selM = /^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\s*-\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?)(?:\s*,\s*(?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\s*-\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?))*)(?=\s|$|:)/.exec(rest);
+    if (selM) {
+      hadSelector = true;
+      for (const piece of selM[1].split(",")) {
+        const p = piece.trim();
+        if (p === "PH") { ph = true; continue; }
+        const r = /^(Mo|Tu|We|Th|Fr|Sa|Su)(?:\s*-\s*(Mo|Tu|We|Th|Fr|Sa|Su))?$/.exec(p);
+        if (!r) return null;
+        const a = OH_DAY_IDX[r[1]];
+        const b = r[2] ? OH_DAY_IDX[r[2]] : a;
+        for (let i = a, n = 0; n < 7; n++, i = (i + 1) % 7) { days.add(i); if (i === b) break; }
+      }
+      rest = rest.slice(selM[0].length).trim();
+      if (rest.startsWith(":")) rest = rest.slice(1).trim(); // "Mo-Fr: 09:00-17:00"
+    }
+    if (!hadSelector) for (let i = 0; i < 7; i++) days.add(i);
+    if (/^(off|closed)$/i.test(rest)) return { days, ph, spans: [], off: true };
+    if (!rest) return null; // "Mo-Fr" with no times: not supported
+    const spans = [];
+    for (const piece of rest.split(",")) {
+      const t = /^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/.exec(piece.trim());
+      if (!t) return null;
+      const s = ohParseTime(t[1]);
+      let e = ohParseTime(t[2]);
+      if (s == null || e == null || s >= 1440) return null;
+      if (e <= s) e += 1440; // overnight
+      if (e - s > 1440) return null;
+      spans.push([s, e]);
+    }
+    return { days, ph, spans, off: false };
+  }
+
+  /** Parse full opening_hours → array of rules, or null if any part is unsupported. Cached. */
+  function ohParse(hours) {
+    const raw = String(hours || "").trim();
+    if (!raw) return null;
+    if (ohCache.has(raw)) return ohCache.get(raw);
+    let rules = [];
+    let ok = true;
+    const normal = raw.split(";").map((r) => r.trim()).filter(Boolean);
+    if (!normal.length || /\|\||"|\+|\[|\]/.test(raw)) ok = false;
+    for (const part of ok ? normal : []) {
+      if (/^24\/7$/.test(part)) {
+        rules.push({ additional: false, days: new Set([0, 1, 2, 3, 4, 5, 6]), ph: false, spans: [[0, 1440]], off: false, allDays: true });
+        continue;
+      }
+      // Split "Mo-Fr 08:00-17:00, Sa 09:00-12:00" into additional rules at ", <weekday|PH>"
+      const chunks = part.split(/,\s*(?=(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)\b)/);
+      // Re-join chunks that were day lists ("Mo,We 10:00-12:00" split into "Mo" + "We 10:00-12:00")
+      const merged = [];
+      for (const c of chunks) {
+        if (merged.length && /^(?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\s*-\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?\s*,?\s*)+$/.test(merged[merged.length - 1])) {
+          merged[merged.length - 1] += "," + c;
+        } else merged.push(c);
+      }
+      for (let i = 0; i < merged.length; i++) {
+        const r = ohParseSelectorAndTimes(merged[i]);
+        if (!r) { ok = false; break; }
+        r.additional = i > 0;
+        rules.push(r);
+      }
+      if (!ok) break;
+    }
+    const out = ok && rules.length ? rules : null;
+    ohCache.set(raw, out);
+    return out;
+  }
+
+  function nthWeekday(y, m, wd, n) { // n>=1 nth, n=-1 last
+    if (n > 0) { const d = new Date(y, m, 1); return 1 + ((wd - d.getDay() + 7) % 7) + (n - 1) * 7; }
+    const last = new Date(y, m + 1, 0); return last.getDate() - ((last.getDay() - wd + 7) % 7);
+  }
+  /** US federal holidays (observed dates), computed — no data file. */
+  function isUsFederalHoliday(date) {
+    const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
+    const fixed = [[0, 1], [5, 19], [6, 4], [10, 11], [11, 25]];
+    for (const [fm, fd] of fixed) {
+      for (const yy of [y - 1, y, y + 1]) {
+        const h = new Date(yy, fm, fd); const wd = h.getDay();
+        if (yy === y && fm === m && fd === d) return true; // the holiday itself
+        const obs = new Date(yy, fm, fd + (wd === 6 ? -1 : wd === 0 ? 1 : 0)); // observed weekday
+        if (obs.getFullYear() === y && obs.getMonth() === m && obs.getDate() === d) return true;
+      }
+    }
+    const floating = [[0, 1, 3], [1, 1, 3], [4, 1, -1], [8, 1, 1], [9, 1, 2], [10, 4, 4]];
+    for (const [fm, wd, n] of floating) if (m === fm && d === nthWeekday(y, fm, wd, n)) return true;
+    return false;
+  }
+  function ohIsHoliday(date, lat, lng) {
+    const cc = String(hoursCountry || "").toLowerCase();
+    const inUs = cc ? cc === "us" : (Number(lat) > 18 && Number(lat) < 72 && Number(lng) < -64 && Number(lng) > -180);
+    return inUs && isUsFederalHoliday(date);
+  }
+
+  /** Spans for one calendar day (minutes from that day's 00:00; may exceed 1440). */
+  function ohDaySpans(rules, date, lat, lng) {
+    const wd = date.getDay();
+    const hol = rules.some((r) => r.ph) && ohIsHoliday(date, lat, lng);
+    let spans = [];
+    let idx = -1;
+    rules.forEach((r, i) => {
+      const hits = (r.ph && hol) || r.days.has(wd);
+      if (!hits) return;
+      idx = i;
+      if (r.off) { spans = []; return; }
+      spans = r.additional ? spans.concat(r.spans) : r.spans.slice();
+    });
+    return { spans, idx };
+  }
+
+  /** Open intervals as absolute minutes relative to `now`'s local midnight, covering yesterday..+7 days. */
+  function ohIntervals(rules, now, lat, lng) {
+    const out = [];
+    const days = [];
+    for (let off = -1; off <= 8; off++) {
+      days.push(ohDaySpans(rules, new Date(now.getFullYear(), now.getMonth(), now.getDate() + off, 12), lat, lng));
+    }
+    for (let k = 0; k < days.length - 1; k++) {
+      const off = k - 1;
+      // Past-midnight part spills into the next day unless a later rule re-defined that next day.
+      const spillOk = days[k].idx >= days[k + 1].idx;
+      for (const [s, e] of days[k].spans) {
+        out.push([off * 1440 + s, off * 1440 + (spillOk ? e : Math.min(e, 1440))]);
+      }
+    }
+    out.sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const iv of out) {
+      const last = merged[merged.length - 1];
+      if (last && iv[0] <= last[1]) last[1] = Math.max(last[1], iv[1]);
+      else merged.push(iv.slice());
+    }
+    return merged;
+  }
+
+  function ohEval(hours, now, lat, lng) {
+    const rules = ohParse(hours);
+    if (!rules) return null;
+    now = now || new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const ivs = ohIntervals(rules, now, lat, lng);
+    const cur = ivs.find((iv) => iv[0] <= nowMin && nowMin < iv[1]);
+    const next = ivs.find((iv) => iv[0] > nowMin);
+    return {
+      open: !!cur,
+      untilClose: cur ? (cur[1] >= 8 * 1440 ? null : cur[1] - nowMin) : null,
+      untilOpen: !cur && next ? next[0] - nowMin : null,
+      allDay: !!cur && cur[0] <= -1440 && cur[1] >= 8 * 1440,
+    };
+  }
+
+  /** OSM opening_hours when tagged. Returns "open" | "closed" | null (missing/unreadable). Never invents. */
+  function parseOpeningHours(hours, now, lat, lng) {
+    const r = ohEval(hours, now, lat, lng);
+    return r ? (r.open ? "open" : "closed") : null;
+  }
+  /** Minutes until the current open span ends. Null if closed, unknown, or open around the clock. */
+  function minutesUntilClose(hours, now, lat, lng) {
+    const r = ohEval(hours, now, lat, lng);
+    return r && r.open ? r.untilClose : null;
+  }
+  /** Minutes until the next open span starts (within 7 days). Null if open or unknown. */
+  function minutesUntilOpen(hours, now, lat, lng) {
+    const r = ohEval(hours, now, lat, lng);
+    return r && !r.open ? r.untilOpen : null;
+  }
+  /** Late night = some parsed span ends after 21:00 (or crosses midnight). Unreadable hours → false. */
+  function isLateNightHours(hours) {
+    const rules = ohParse(hours);
+    if (!rules) return false;
+    return rules.some((r) => !r.off && r.spans.some(([s, e]) => e > 21 * 60 || s >= 21 * 60));
+  }
 
   function clockFromMinutes(min) {
     let m = ((min % (24 * 60)) + 24 * 60) % (24 * 60);
@@ -878,18 +993,17 @@
   function friendlyHoursLine(p, now) {
     const raw = String(p.hours || "").trim();
     if (!raw) return "";
-    if (/^24\/7$/i.test(raw)) return "Open all day";
     now = now || nowAtLng(state.lng);
     const nowMin = now.getHours() * 60 + now.getMinutes();
     if (p.openStatus === "open" && p.closesSoon && p.untilOpen == null) {
-      const until = minutesUntilClose(raw, now);
+      const until = minutesUntilClose(raw, now, p.lat, p.lng);
       if (until != null) return "Closes soon · until " + clockFromMinutes(nowMin + until) + " · verify";
       return "Closes soon · verify";
     }
     if (p.openStatus === "open") {
-      const until = minutesUntilClose(raw, now);
+      const until = minutesUntilClose(raw, now, p.lat, p.lng);
       if (until != null) return "Tagged open until " + clockFromMinutes(nowMin + until) + " · verify";
-      return "Tagged open · verify";
+      return "Open 24 hours · verify";
     }
     if (p.openStatus === "closed") return "Closed · verify";
     return "";
@@ -899,96 +1013,9 @@
     return parseOpeningHours(hours);
   }
 
-  /** Minutes until the current OSM span ends. Null if unknown or 24/7. Never invents. */
-  function minutesUntilClose(hours, now) {
-    if (!hours || typeof hours !== "string") return null;
-    const h = hours.trim();
-    if (!h || /^24\/7$/i.test(h)) return null;
-    now = now || new Date();
-    const day = OSM_DAYS[now.getDay()];
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const rules = h.split(";").map((r) => r.trim()).filter(Boolean);
-    let closeMin = null;
-    for (const rule of rules) {
-      if (/^(PH|SH)\b/i.test(rule)) continue;
-      if (/^.+?\s+off$/i.test(rule)) continue;
-      const m = rule.match(/^((?:[A-Za-z]{2}(?:-[A-Za-z]{2})?(?:\s*,\s*[A-Za-z]{2}(?:-[A-Za-z]{2})?)*)\s+)?(.+)$/);
-      if (!m) continue;
-      const daySpec = (m[1] || "").trim();
-      const timeSpec = m[2].trim();
-      const days = daySpec ? expandOsmDays(daySpec) : /^\d/.test(timeSpec) ? new Set(OSM_DAYS) : new Set();
-      if (!days.size || !days.has(day)) continue;
-      for (const span of timeSpec.split(",")) {
-        const tm = span.trim().match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
-        if (!tm) continue;
-        const start = parseMinutes(tm[1]);
-        const end = parseMinutes(tm[2]);
-        if (start == null || end == null) continue;
-        if (!minutesInSpan(nowMin, start, end)) continue;
-        let until;
-        if (end > start) until = end - nowMin;
-        else if (nowMin >= start) until = 24 * 60 - nowMin + end;
-        else until = end - nowMin;
-        if (until > 0 && (closeMin == null || until < closeMin)) closeMin = until;
-      }
-    }
-    return closeMin;
-  }
 
-  /** Minutes until the next OSM span starts. Null if open, 24/7, or unknown. Never invents. */
-  function minutesUntilOpen(hours, now) {
-    if (!hours || typeof hours !== "string") return null;
-    const h = hours.trim();
-    if (!h || /^24\/7$/i.test(h)) return null;
-    now = now || new Date();
-    const nowDayIdx = now.getDay();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const rules = h.split(";").map((r) => r.trim()).filter(Boolean);
 
-    function spansForDay(dayName) {
-      const spans = [];
-      let off = false;
-      for (const rule of rules) {
-        if (/^(PH|SH)\b/i.test(rule)) continue;
-        const offM = rule.match(/^(.+?)\s+off$/i);
-        if (offM) {
-          const days = expandOsmDays(offM[1]);
-          if (days.has(dayName)) off = true;
-          continue;
-        }
-        const m = rule.match(/^((?:[A-Za-z]{2}(?:-[A-Za-z]{2})?(?:\s*,\s*[A-Za-z]{2}(?:-[A-Za-z]{2})?)*)\s+)?(.+)$/);
-        if (!m) continue;
-        const daySpec = (m[1] || "").trim();
-        const timeSpec = m[2].trim();
-        const days = daySpec ? expandOsmDays(daySpec) : /^\d/.test(timeSpec) ? new Set(OSM_DAYS) : new Set();
-        if (!days.size || !days.has(dayName)) continue;
-        for (const span of timeSpec.split(",")) {
-          const tm = span.trim().match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
-          if (!tm) continue;
-          const start = parseMinutes(tm[1]);
-          const end = parseMinutes(tm[2]);
-          if (start == null || end == null || start === end) continue;
-          spans.push({ start, end });
-        }
-      }
-      if (off) return [];
-      return spans;
-    }
 
-    const today = OSM_DAYS[nowDayIdx];
-    for (const span of spansForDay(today)) {
-      if (minutesInSpan(nowMin, span.start, span.end)) return null;
-    }
-    let best = null;
-    for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
-      const dayName = OSM_DAYS[(nowDayIdx + dayOffset) % 7];
-      for (const span of spansForDay(dayName)) {
-        const until = dayOffset * 24 * 60 + span.start - nowMin;
-        if (until > 0 && (best == null || until < best)) best = until;
-      }
-    }
-    return best;
-  }
 
   function walkMinutesApprox(miles) {
     const mi = Number(miles);
@@ -1432,7 +1459,7 @@
 
   function buildOverpassQuery(lat, lng, radiusM, mode) {
     const r = Math.round(radiusM);
-    const t = OVERPASS_TIMEOUT_S;
+    const t = mode === "fast" ? OVERPASS_FAST_TIMEOUT_S : OVERPASS_TIMEOUT_S;
     const around = `(around:${r},${lat},${lng})`;
     const named = '["name"]';
     // Lean query — same food types, fewer unions so phones finish before timeout.
@@ -1441,6 +1468,7 @@
     return `[out:json][timeout:${t}];(` +
       `node["amenity"~"^(` + food + `)$"]${named}${around};` +
       `way["amenity"~"^(` + food + `)$"]${named}${around};` +
+      `relation["amenity"~"^(` + food + `)$"]${named}${around};` +
       `node["shop"~"^(bakery|deli)$"]${named}${around};` +
       `way["shop"~"^(bakery|deli)$"]${named}${around};` +
       `);out center;`;
@@ -1478,7 +1506,7 @@
     opts = opts || {};
     const mode = opts.mode || "full";
     const urls = OVERPASS_URLS.slice();
-    const abortMs = OVERPASS_CLIENT_ABORT_MS;
+    const abortMs = mode === "fast" ? OVERPASS_FAST_ABORT_MS : OVERPASS_CLIENT_ABORT_MS;
     const radiusM = milesToMeters(radiusMiles);
     const query = buildOverpassQuery(lat, lng, radiusM, mode);
     const body = "data=" + encodeURIComponent(query);
@@ -1639,14 +1667,41 @@
     }
   }
 
+  /** Same place mapped twice (node + building way/relation): same normalized name within ~130 m.
+   * Keep one: node coords (the POI itself) over way/relation center; fill missing tags from the other. */
+  function mergeDuplicateElements(elements) {
+    const norm = (n) => String(n || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[’'`]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const rank = { node: 0, way: 1, relation: 2 };
+    const kept = [];
+    const rk = (t) => (Object.prototype.hasOwnProperty.call(rank, t) ? rank[t] : 3); // node is 0 — do not use || (0 is falsy)
+    const sorted = elements.slice().sort((a, b) => rk(a.type) - rk(b.type));
+    for (const el of sorted) {
+      const tags = el.tags || {};
+      const name = String(tags.name || "").trim();
+      const lat = el.lat != null ? el.lat : el.center && el.center.lat;
+      const lng = el.lon != null ? el.lon : el.center && el.center.lon;
+      if (!name || lat == null || lng == null) { kept.push(el); continue; }
+      const key = norm(name);
+      const prev = kept.find((k) => {
+        const kt = k.tags || {};
+        const klat = k.lat != null ? k.lat : k.center && k.center.lat;
+        const klng = k.lon != null ? k.lon : k.center && k.center.lon;
+        return klat != null && norm(kt.name) === key && haversineMiles(klat, klng, lat, lng) < 0.08;
+      });
+      if (!prev) { kept.push(el); continue; }
+      const merged = Object.assign({}, tags, prev.tags || {}); // keeper's tags win; fill gaps
+      prev.tags = merged;
+    }
+    return kept;
+  }
+
   function normalizeElements(elements, originLat, originLng) {
-    const seen = new Set();
     const places = [];
 
-    for (const el of elements) {
+    for (const el of mergeDuplicateElements(elements || [])) {
       const tags = el.tags || {};
-      const name = tags.name;
-      if (!name) continue;
+      const name = String(tags.name || "").replace(/\s+/g, " ").trim();
+      if (!name) continue; // never show a blank name
       if (isPermanentlyClosed(tags)) continue;
 
       let lat = el.lat;
@@ -1655,18 +1710,7 @@
         lat = el.center.lat;
         lng = el.center.lon;
       }
-      if (lat == null || lng == null) continue;
-
-      const key = `${name.toLowerCase()}|${lat.toFixed(4)}|${lng.toFixed(4)}`;
-      if (seen.has(key)) continue;
-      let dup = false;
-      for (let i = 0; i < places.length; i++) {
-        const prev = places[i];
-        if (prev.name.toLowerCase() !== name.toLowerCase()) continue;
-        if (haversineMiles(prev.lat, prev.lng, lat, lng) < 0.08) { dup = true; break; }
-      }
-      if (dup) continue;
-      seen.add(key);
+      if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
 
       const freeFood = isTaggedFreeFood(tags);
       let amenity = tags.amenity || tags.shop || "restaurant";
@@ -1687,10 +1731,10 @@
       const hours = tags.opening_hours || "";
       const kitchenHours = tags["opening_hours:kitchen"] || "";
       const atPlace = nowAtLng(originLng);
-      const openStatus = parseOpeningHours(hours, atPlace);
-      const kitchenStatus = kitchenHours ? parseOpeningHours(kitchenHours, atPlace) : null;
-      const untilClose = openStatus === "open" ? minutesUntilClose(hours, atPlace) : null;
-      const untilOpen = openStatus === "closed" ? minutesUntilOpen(hours, atPlace) : null;
+      const openStatus = parseOpeningHours(hours, atPlace, lat, lng);
+      const kitchenStatus = kitchenHours ? parseOpeningHours(kitchenHours, atPlace, lat, lng) : null;
+      const untilClose = openStatus === "open" ? minutesUntilClose(hours, atPlace, lat, lng) : null;
+      const untilOpen = openStatus === "closed" ? minutesUntilOpen(hours, atPlace, lat, lng) : null;
       const cuisineRaw = tags.cuisine || "";
       const cuisineCanon = cuisineTokens({ cuisine: cuisineRaw }).map(canonCuisine);
       const dietVegan = osmDietTagged(tags, "vegan") || cuisineCanon.indexOf("vegan") >= 0;
@@ -1740,7 +1784,7 @@
       });
     }
 
-    return sortDealsFirst(places).slice(0, 400);
+    return sortNearestFirst(places).slice(0, 400);
   }
 
   function cuisineTokens(p) {
@@ -1784,7 +1828,7 @@
     if (cat) list = list.filter((p) => placeMatchesFoodCategory(p, cat));
     const nq = String(state.nameQuery || "").trim().toLowerCase();
     if (nq) list = list.filter((p) => String(p.name || "").toLowerCase().includes(nq));
-    list = sortDealsFirst(list).slice(0, MAX_RESULTS);
+    list = sortNearestFirst(list).slice(0, MAX_RESULTS);
 
     return list;
   }
@@ -1930,7 +1974,7 @@
     if (!gHref) return "";
     return `<div class="reviews-block">
   <div class="nav-row reviews-row"><a class="nav-btn reviews-cta" href="${gHref}" target="_blank" rel="noopener noreferrer">Reviews</a></div>
-  <p class="reviews-note">Live reviews on Maps</p>
+  <p class="reviews-note">Reviews open in Google Maps</p>
 </div>`;
   }
 
@@ -2434,6 +2478,9 @@
         } else if (p.hours && p.openStatus === "closed") {
           const closedLine = friendlyHoursLine(p);
           if (closedLine) hoursLine = `<div class="place-hours is-closed">${escapeHtml(closedLine)}</div>`;
+        } else {
+          // Missing or unreadable OSM hours: never guess open/closed.
+          hoursLine = `<div class="place-hours is-unknown">Hours not listed</div>`;
         }
 
         return `
@@ -2673,6 +2720,10 @@
 
   function applyPlaces(places, { live, statusMsg, fetchedRadius } = {}) {
     state.places = places || [];
+    if (live && state.places.length) {
+      // "People helped": once per device, only after real results. Sends a random on-device code (no coords).
+      try { if (window.RangeBitesMetrics && window.RangeBitesMetrics.markHelped) window.RangeBitesMetrics.markHelped(); } catch (_) {}
+    }
     state.loading = false;
     if (fetchedRadius != null) state.fetchedRadiusMiles = fetchedRadius;
     try {
@@ -2772,12 +2823,25 @@
       state.searchError = "OpenStreetMap timed out. Try again.";
       setStatus(state.searchError);
       renderList();
-    }, OVERPASS_CLIENT_ABORT_MS + 4000);
+    }, OVERPASS_FAST_ABORT_MS + OVERPASS_CLIENT_ABORT_MS + 4000);
 
     const fetchMi = state.radiusMiles;
 
     try {
-      // One Overpass only — fast-then-full doubled wait on flaky mobile and left Finding food… hanging.
+      // Progressive: inner ring first so cards paint fast, then full radius.
+      // Fast pass failure/empty is not fatal — the full pass still runs; fast cards stay if full fails.
+      if (fetchMi > FAST_RING_MILES) {
+        try {
+          const near = await fetchPlaces(lat, lng, FAST_RING_MILES, { mode: "fast" });
+          if (!stillActiveSearch(gen, lat, lng)) return;
+          if (near.length) {
+            applyPlaces(near, { live: true, fetchedRadius: FAST_RING_MILES });
+            setStatus(filteredPlaces().length + " nearby · widening to " + fetchMi + " mi…");
+          }
+        } catch (_) {
+          if (!stillActiveSearch(gen, lat, lng)) return;
+        }
+      }
       const places = await fetchPlaces(lat, lng, fetchMi, { mode: "full" });
       if (!stillActiveSearch(gen, lat, lng)) return;
       state.searchError = null;
@@ -2822,6 +2886,7 @@
   }
 
   async function searchCityOrZip(raw) {
+    cancelPlaceSuggest();
     const q = sanitizePlaceQuery(raw);
     if (!q) {
       setStatus("Type any city.");
@@ -3079,6 +3144,19 @@
     ul.innerHTML = "";
   }
 
+  /** Search submitted: drop pending/in-flight suggestions so the dropdown never reopens over results. */
+  function cancelPlaceSuggest() {
+    if (suggestTimer) {
+      clearTimeout(suggestTimer);
+      suggestTimer = null;
+    }
+    if (suggestAbort) {
+      try { suggestAbort.abort(); } catch (_) {}
+      suggestAbort = null;
+    }
+    hidePlaceSuggest();
+  }
+
   function shortenSuggestName(displayName) {
     const parts = String(displayName || "")
       .split(",")
@@ -3223,7 +3301,7 @@
 
   function bindUI() {
     $("#locateBtn").addEventListener("click", () => {
-      hidePlaceSuggest();
+      cancelPlaceSuggest();
       locateMe();
     });
     bindPlaceSuggest();
@@ -3720,11 +3798,11 @@
     let changed = false;
     for (let i = 0; i < state.places.length; i++) {
       const p = state.places[i];
-      const next = parseOpeningHours(p.hours, at);
+      const next = parseOpeningHours(p.hours, at, p.lat, p.lng);
       if (next !== p.openStatus) {
         p.openStatus = next;
-        const untilClose = next === "open" ? minutesUntilClose(p.hours, at) : null;
-        const untilOpen = next === "closed" ? minutesUntilOpen(p.hours, at) : null;
+        const untilClose = next === "open" ? minutesUntilClose(p.hours, at, p.lat, p.lng) : null;
+        const untilOpen = next === "closed" ? minutesUntilOpen(p.hours, at, p.lat, p.lng) : null;
         p.closesSoon = next === "open" && untilClose != null && untilClose <= 60;
         p.opensSoon = next === "closed" && untilOpen != null && untilOpen > 0 && untilOpen <= 90;
         p.untilOpen = untilOpen;

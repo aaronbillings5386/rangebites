@@ -2915,14 +2915,6 @@ html, body, .app {
   .search-first .find-row { align-items: flex-end !important; }
 }
 
-/* hide filters — live open only */
-#filtersBtn, .btn-filters, #openNowFirst, .first-open-now, #opensSoonStrip, .opens-soon-strip { display: none !important; }
-
-/* no filter buttons — live open list only */
-#filtersBtn, .btn-filters, #filtersSheet, #filtersBackdrop, #filtersDone, #filtersClear,
-#openNowFirst, .first-open-now, #openStrip, .open-strip, #dealRailWrap, .deal-rail-wrap,
-#nameSearchWrap { display: none !important; }
-
 .place-hours {
   font-size: 0.98rem;
   font-weight: 700;
@@ -2969,3 +2961,10 @@ html, body, .app {
 .leaflet-control-attribution .leaflet-attribution-flag,
 .leaflet-control-attribution svg[aria-label*="Ukrain"],
 .leaflet-attribution-flag { display: none !important; }
+
+/* Tap targets: 44px minimum on touch (page-open counter link, open-now pills). */
+.header .visit-count { min-height: 44px; }
+.open-pill { min-height: 44px; align-items: center; }
+
+/* Counter hidden until a real count (or cached last-good count) is known. */
+.visit-count[hidden], .header .visit-count[hidden] { display: none !important; }
