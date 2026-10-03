@@ -15,11 +15,10 @@ GitHub `main` (`188a0e7`) is behind live build `20261003b`. Open PR #8 was not u
 ## What the code says
 
 - Locate Me coordinates sent to Overpass are rounded to 3 decimal places, which still places you within about 100 m. That sentence is on the Privacy page (`privacy.html` and `privacy/index.html`, §5) and in the UI (`index.html`, `about.html`, `about/index.html`). It is not called approximate or anonymous. `roundCoord3` in `app.js` does the rounding. The query radius is padded by 120 m. Distances still use the full-precision origin on the device.
-- `ASSENT_MODE` in `config.js` is `"current"`. The Continue screen stays hidden. Terms §1 still says “by tapping Continue on first use.” `TERMS_VERSION` is `2026-10-03`. In `continue` mode, acceptance is that string; an older string or a bare true does not count. `?shot=1` does not store acceptance.
-- `LEGACY_FOUND_BASE` in `metrics.js` is `2`. Set it to the real old `helped` count before publish.
-- Terms and Privacy say Effective October 3, 2026, the same day as the Terms-updated notice. If the ship date is later, change that line together with `TERMS_VERSION` and the notice before publish.
-- Contact on the public pages is `rangebites@agentmail.to`. Confirm that address before publish.
-- The operator legal-name / “doing business as” line is not in the Terms. Current §12 is the privacy clause.
+- `ASSENT_MODE` in `config.js` is `"continue"`. The Continue sheet shows until `termsAccepted` equals `TERMS_VERSION`. Terms §1 says “by tapping Continue, or by using the site.” The home footer agree line stays. `?shot=1` does not store acceptance.
+- `PUBLISH_DATE` in `config.js` is `2026-10-03`. `TERMS_VERSION` and the Terms-updated notice both use that one constant. Terms and Privacy fill “Effective” from it.
+- `LEGACY_FOUND_BASE` in `metrics.js` is `2`, the historical count of the old `helped` records. Those two records are deleted on the live host, not in this repo.
+- Contact is RangeBites (rangebites.com), `rangebites@agentmail.to`. Terms §12 states that. `security.txt` keeps `Contact: mailto:rangebites@agentmail.to`. No personal name is added.
 - Late night means today’s tagged hours run past 9 pm or cross midnight. `filteredPlaces` calls `isLateNightHours(p.hours, placeNow(p.lng), p.lat, p.lng)`. The place object does not store `lateNight`.
 - `data/atp-hours.json` rows are brand id, coordinates, opening hours, and spider name. The file has no URLs.
 - Nominatim is submit-only. `schedulePlaceSuggest` is a no-op.
@@ -27,7 +26,7 @@ GitHub `main` (`188a0e7`) is behind live build `20261003b`. Open PR #8 was not u
 
 ## Checks on this branch
 
-`node --check` passes on the JS files. `node tests/app.test.js` passes 24 tests, including the US-box clock, screenshot bypass, terms version, found-count retry key, geocoder-busy, place-alternate, CSP, aria-pressed, late-night, and street-line cases.
+`node --check` passes on the JS files. `node tests/app.test.js` passes 25 tests, including the US-box clock, screenshot bypass, terms version, continue-mode sheet, found-count retry key, geocoder-busy, place-alternate, CSP, aria-pressed, late-night, and street-line cases.
 
 The Overpass proxy must send `Referer: https://rangebites.com` and `User-Agent: RangeBites/1.0 (+https://rangebites.com; rangebites@agentmail.to)`. Those values are in `tools/overpass-proxy.headers.json` and `overpassUpstreamHeaders()` in `app.js`. `herenow.patch` / `.herenow/proxy.json` must match. The browser fetch uses `referrerPolicy: "origin"` and cannot set User-Agent.
 

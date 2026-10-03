@@ -4416,24 +4416,26 @@
     }
   }
 
-  /* forge 20261003 (Snitch): one switch in config.js -> window.RB_CONFIG.ASSENT_MODE
-   *   "current"    (default) today's behaviour: Continue sheet stays hidden, no extra line.
-   *   "continue"   show the existing Continue sheet once per device until tapped.
-   *   "browsewrap" show "By using RangeBites you agree to the Terms and Privacy Policy" under search. */
+  /* ASSENT_MODE in config.js. "continue" opens the Continue sheet until TERMS_VERSION is stored. */
   function assentMode() {
     const m = window.RB_CONFIG && window.RB_CONFIG.ASSENT_MODE;
     return m === "continue" || m === "browsewrap" ? m : "current";
+  }
+
+  /** Continue mode shows the sheet until the stored flag equals TERMS_VERSION. Other modes do not. */
+  function shouldShowContinueSheet(mode, stored, version) {
+    const m = mode === "continue" || mode === "browsewrap" ? mode : "current";
+    return m === "continue" && !termsAcceptedForVersion(stored, version);
   }
 
   function maybeShowAgree() {
     const mode = assentMode();
     const line = $("#assentLine");
     if (line) line.hidden = mode !== "browsewrap";
-    if (mode === "continue" && !termsAcceptedForVersion(uiPrefs.termsAcceptedVersion, currentTermsVersion())) {
+    if (shouldShowContinueSheet(mode, uiPrefs.termsAcceptedVersion, currentTermsVersion())) {
       openAgree();
       return;
     }
-    // First screen is Locate / search. Terms stay in the footer and About.
     hideAgree();
   }
 

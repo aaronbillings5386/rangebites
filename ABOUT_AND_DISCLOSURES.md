@@ -1,6 +1,6 @@
 # About & Disclosures — tightened copy
 **App working name:** RangeBites  
-*Draft for the **web** app UI. Aligned with `privacy.html`, `terms.html`, and `index.html` About (August 26, 2026 — no `[DATE]` placeholder). Tiles are OpenStreetMap, not CARTO. Wipe = leave/close the page, not iOS delete-app. Support address pending. Not legal advice — have a lawyer review before launch.*
+*Draft for the **web** app UI. Aligned with `privacy.html`, `terms.html`, and `index.html` About (August 26, 2026 — no `[DATE]` placeholder). Tiles are OpenStreetMap, not CARTO. Wipe = leave/close the page, not iOS delete-app. Support address: RangeBites (rangebites.com), rangebites@agentmail.to. Not legal advice — have a lawyer review before launch.*
 
 ---
 

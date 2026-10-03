@@ -215,7 +215,9 @@ t("metrics.js: no device code in the counter body", () => {
 });
 const T = load("app.js", [
   "termsAcceptedForVersion", "termsNoticePending", "screenshotBypassPrefs", "overpassUpstreamHeaders",
+  "shouldShowContinueSheet",
 ]);
+const C = load("config.js", ["publishDateLabel"]);
 t("shot=1 does not store terms acceptance", () => {
   const out = T.screenshotBypassPrefs({ termsAcceptedVersion: "", onboardDismissed: false });
   assert.strictEqual(out.onboardDismissed, true);
@@ -242,11 +244,14 @@ t("stored acceptance matches TERMS_VERSION only", () => {
   assert.strictEqual(T.termsNoticePending("2026-09-01", "2026-10-03"), true);
   assert.strictEqual(T.termsNoticePending("2026-10-03", "2026-10-03"), false);
   const cfg = fs.readFileSync(path.join(__dirname, "..", "config.js"), "utf8");
-  assert.ok(/TERMS_VERSION:\s*"2026-10-03"/.test(cfg));
+  assert.ok(/const PUBLISH_DATE = "2026-10-03"/.test(cfg));
+  assert.ok(/TERMS_VERSION: PUBLISH_DATE/.test(cfg));
+  assert.strictEqual(C.publishDateLabel("2026-10-03"), "October 3, 2026");
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-  assert.ok(html.includes("Terms updated October 3, 2026"));
+  assert.ok(html.includes("Terms updated <span data-publish-date></span>"));
   assert.ok(html.includes('href="/terms"'));
   assert.ok(/By using RangeBites you agree to the <a href="\/terms">Terms<\/a> and <a href="\/privacy">Privacy<\/a>/.test(html));
+  assert.strictEqual((cfg.match(/2026-10-03/g) || []).length, 1);
   for (const page of ["index.html", "about.html", "about/index.html", "privacy.html", "privacy/index.html"]) {
     const pageSrc = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
     const bits = pageSrc.split("rounded to 3 decimal places");
@@ -284,6 +289,33 @@ t("found retry key is per event, not a stored device id", () => {
   assert.strictEqual(headers["User-Agent"], file["User-Agent"]);
   assert.strictEqual(headers.Referer, file.Referer);
   assert.ok(/rangebites@agentmail\.to/.test(headers["User-Agent"]));
+});
+t("continue is the default and opens until this TERMS_VERSION", () => {
+  assert.strictEqual(T.shouldShowContinueSheet("continue", "", "2026-10-03"), true);
+  assert.strictEqual(T.shouldShowContinueSheet("continue", true, "2026-10-03"), true);
+  assert.strictEqual(T.shouldShowContinueSheet("continue", "2026-01-01", "2026-10-03"), true);
+  assert.strictEqual(T.shouldShowContinueSheet("continue", "2026-10-03", "2026-10-03"), false);
+  assert.strictEqual(T.shouldShowContinueSheet("current", "", "2026-10-03"), false);
+  assert.strictEqual(T.shouldShowContinueSheet("browsewrap", "", "2026-10-03"), false);
+  const cfg = fs.readFileSync(path.join(__dirname, "..", "config.js"), "utf8");
+  assert.ok(/ASSENT_MODE:\s*"continue"/.test(cfg));
+  const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  const fn = /function maybeShowAgree\(\) \{[\s\S]*?\n  \}/.exec(src);
+  assert.ok(fn, "maybeShowAgree");
+  assert.ok(/shouldShowContinueSheet\(/.test(fn[0]));
+  assert.ok(/openAgree\(\)/.test(fn[0]));
+  assert.ok(fn[0].indexOf("openAgree()") < fn[0].indexOf("hideAgree()"));
+  const terms = fs.readFileSync(path.join(__dirname, "..", "terms.html"), "utf8");
+  assert.ok(terms.includes("by tapping Continue, or by using the site"));
+  assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
+  assert.ok(terms.includes('src="/config.js?v=20261003c"'));
+  assert.ok(/Effective <span data-publish-date><\/span>/.test(terms));
+  const privacy = fs.readFileSync(path.join(__dirname, "..", "privacy.html"), "utf8");
+  assert.ok(privacy.includes("RangeBites (rangebites.com), contact:"));
+  const about = fs.readFileSync(path.join(__dirname, "..", "about.html"), "utf8");
+  assert.ok(about.includes("RangeBites (rangebites.com), contact:"));
+  const sec = fs.readFileSync(path.join(__dirname, "..", ".well-known", "security.txt"), "utf8");
+  assert.ok(/^Contact: mailto:rangebites@agentmail\.to$/m.test(sec));
 });
 t("data.json: device-code + page-open lists are owner-read; found is kind-only", () => {
   const p = path.join(__dirname, "..", ".herenow", "data.json");
