@@ -1622,7 +1622,7 @@
 
   /* ---------- Overpass ---------- */
 
-  /** forge 20261003 (Shade): coordinates sent to Overpass are rounded to 3 decimals (about 110 m). */
+  /** Coordinates sent to Overpass are rounded to 3 decimal places, which still places you within about 100 m. */
   function roundCoord3(v) {
     return Math.round(Number(v) * 1000) / 1000;
   }

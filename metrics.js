@@ -21,7 +21,7 @@
   var HELPED_COLLECTIONS = { found: 1, found_selftest: 1 };
   /* Devices counted under the old "helped" collection before 20261003. Those devices already have
    * rb_helped_done=1, so they are never counted again in "found". PUBLISH STEP: set this to the owner-side
-   * count of distinct devices in "helped" at publish time (it was 2 on 2026-10-03 ~1:30 PM ET). */
+   * count of distinct devices in "helped" at publish time. The 2 below is a placeholder until that count is confirmed. */
   var LEGACY_FOUND_BASE = 2;
   var DEVICE_KEY = "rb_device_id"; // legacy key: removed on boot, never sent
   var PENDING_KEY = "rb_found_pending_key";
