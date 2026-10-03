@@ -23,7 +23,7 @@ Outbound **Apple Maps / Google Maps / merchant website** links open in a new tab
   - place lists or location history
   - deal clicks / views
   - user identity
-- **`localStorage`** may hold **UI prefs only** (one JSON key `rb_ui_prefs`): range, walk chip, dietary/filter chips, last city/zip **text**, onboard/hero flags. Never coordinates. Boot applies chips/input only — does not auto-run Overpass/Nominatim.
+- **`localStorage`** may hold **UI prefs only** (one JSON key `rb_ui_prefs`): range, walk chip, dietary/filter chips, units, onboard/hero flags. Never coordinates, last city, or search history. Hearts live in `rb_saved` (id, name, address) on this device only. Boot applies chips only — does not auto-run Overpass/Nominatim. Filters includes Clear my saved data.
 - **In-memory wipe** on `pagehide` and `beforeunload` only (real leave/close): clears `state.lat` / `state.lng` / `state.places` and map markers. **Not** on `visibilitychange`. Clear now wipes GPS + places only; UI prefs stay.
 - **No production-ish `console.log` of coordinates** or full place payloads (warnings use error names / codes only).
 - **Sponsored** badges (max 1–2) are deterministic demo honesty labels — not tracking, not a claim that we store or sell data.

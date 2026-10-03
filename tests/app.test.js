@@ -208,11 +208,14 @@ t("no Nominatim autocomplete path", () => {
   const calls = src.match(/fetchPlaceSuggest\(/g) || [];
   assert.strictEqual(calls.length, 1, "only the (unused) definition may remain");
 });
-t("metrics.js: no device code in the counter body", () => {
+t("metrics.js does not write a found record", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "metrics.js"), "utf8");
-  assert.ok(/JSON\.stringify\(\{ kind: "found" \}\)/.test(src));
+  assert.ok(!/JSON\.stringify\(\{ kind: "found" \}\)/.test(src));
+  assert.ok(!/kind:\s*"found"/.test(src));
+  assert.ok(!/function markHelped/.test(src));
+  assert.ok(!/\.herenow\/data\//.test(src));
   assert.ok(!/device:\s*id/.test(src));
-  assert.ok(!/\.herenow\/data\/helped["'`]/.test(src));
+  assert.ok(!/\bfetch\s*\(/.test(src));
 });
 const T = load("app.js", [
   "termsAcceptedForVersion", "termsNoticePending", "screenshotBypassPrefs", "overpassUpstreamHeaders",
@@ -264,7 +267,7 @@ t("stored acceptance matches TERMS_VERSION only", () => {
     }
   }
 });
-const M = load("metrics.js", ["clearLegacyDeviceIds"]);
+const M = load("metrics.js", ["clearLegacyDeviceIds", "clearLegacyLocationKeys"]);
 t("shipped JS does not store a device identifier", () => {
   const files = ["app.js", "metrics.js", "analytics.js", "specials.js", "deals.js", "disclaimers.js", "config.js", "sw.js", "config.example.js"];
   const idKey = /device|visitor|install|pending_key|helped_done|helped_id|deviceId|device_id/i;
@@ -281,18 +284,12 @@ t("shipped JS does not store a device identifier", () => {
     assert.ok(!/setItem\s*\([^)]*uuid\s*\(/.test(src), file);
   }
   const metrics = fs.readFileSync(path.join(__dirname, "..", "metrics.js"), "utf8");
-  const markStart = metrics.indexOf("function markHelped()");
-  const markEnd = metrics.indexOf("window.RangeBitesMetrics");
-  const mark = metrics.slice(markStart, markEnd);
-  assert.ok(markStart >= 0 && markEnd > markStart, "markHelped");
-  assert.ok(!/Idempotency-Key/.test(mark));
-  assert.ok(!/localStorage/.test(mark));
-  assert.ok(/ss\.setItem\(countedKey, "1"\)/.test(mark));
-  assert.ok(/window\.sessionStorage/.test(mark));
-  assert.ok(/JSON\.stringify\(\{ kind: "found" \}\)/.test(mark));
+  assert.ok(!/function markHelped/.test(metrics));
+  assert.ok(!/kind:\s*"found"/.test(metrics));
+  assert.ok(!/\.herenow\/data\//.test(metrics));
   assert.ok(!/foundRetryKey/.test(metrics));
   assert.ok(/clearLegacyDeviceIds\(/.test(metrics));
-  assert.ok(/real helped count at publish/.test(metrics));
+  assert.ok(/clearLegacyLocationKeys\(/.test(metrics));
   assert.ok(!/records are removed/.test(metrics));
   for (const page of ["privacy.html", "privacy/index.html"]) {
     const privacy = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
@@ -347,6 +344,59 @@ t("cleanup removes legacy device ids", () => {
   assert.strictEqual(local.getItem("rb_helped_count"), "12");
   assert.strictEqual(session.getItem("rb_helped_count"), "12");
 });
+t("cleanup removes legacy location keys and does not wipe on-device prefs", () => {
+  function mem(seed) {
+    const data = Object.assign({}, seed);
+    return {
+      get length() { return Object.keys(data).length; },
+      key(i) { return Object.keys(data)[i]; },
+      getItem(k) { return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
+      setItem(k, v) { data[k] = String(v); },
+      removeItem(k) { delete data[k]; },
+    };
+  }
+  const prefs = JSON.stringify({
+    radiusMiles: 10,
+    units: "km",
+    lastPlaceQuery: "Austin",
+    lat: 30.2,
+    filters: { type: "cafe" },
+    termsAccepted: "2026-10-04",
+  });
+  const saved = JSON.stringify([{ id: "n1", name: "Cafe", address: "1 Main" }]);
+  const seed = {
+    rb_ui_prefs: prefs,
+    rb_saved: saved,
+    rb_notice_seen: "1",
+    rb_last_city: "Austin",
+    rb_last_place: "Austin",
+    rb_search_history: "[]",
+    rb_lat: "30.2",
+    rb_lng: "-97.7",
+    latitude: "30.2",
+    longitude: "-97.7",
+    lastPlaceQuery: "Austin",
+    rb_location_history: "[]",
+    rb_found_session: "1",
+    rb_helped_count: "12",
+  };
+  const local = mem(seed);
+  const session = mem(seed);
+  M.clearLegacyLocationKeys(local, session);
+  for (const k of ["rb_last_city", "rb_last_place", "rb_search_history", "rb_lat", "rb_lng", "latitude", "longitude", "lastPlaceQuery", "rb_location_history", "rb_found_session", "rb_helped_count"]) {
+    assert.strictEqual(local.getItem(k), null, "local " + k);
+    assert.strictEqual(session.getItem(k), null, "session " + k);
+  }
+  assert.strictEqual(local.getItem("rb_saved"), saved);
+  assert.strictEqual(local.getItem("rb_notice_seen"), "1");
+  const kept = JSON.parse(local.getItem("rb_ui_prefs"));
+  assert.strictEqual(kept.radiusMiles, 10);
+  assert.strictEqual(kept.units, "km");
+  assert.strictEqual(kept.filters.type, "cafe");
+  assert.strictEqual(kept.termsAccepted, "2026-10-04");
+  assert.ok(!("lastPlaceQuery" in kept));
+  assert.ok(!("lat" in kept));
+});
 t("continue is the default and opens until this TERMS_VERSION", () => {
   assert.strictEqual(T.shouldShowContinueSheet("continue", "", "2026-10-03"), true);
   assert.strictEqual(T.shouldShowContinueSheet("continue", true, "2026-10-03"), true);
@@ -392,11 +442,14 @@ t("shipped site does not add visitor tracking", () => {
     /\bgtag\s*\(/,
     /fingerprintjs/i,
     /\.herenow\/data\/hits/,
+    /\.herenow\/data\/found/,
+    /\.herenow\/data\/helped/,
     /navigator\.sendBeacon/,
     /FOOD_RADAR_AMPLITUDE/,
     /kind:\s*"view"/,
     /kind:\s*"locate"/,
     /kind:\s*"deal"/,
+    /kind:\s*"found"/,
   ];
   function walk(dir, out) {
     for (const name of fs.readdirSync(dir)) {
@@ -422,8 +475,8 @@ t("shipped site does not add visitor tracking", () => {
   assert.ok(!/userAgent/.test(metrics));
   assert.ok(!/Idempotency-Key/.test(metrics));
   assert.ok(!/webdriver/.test(metrics));
-  assert.ok(/referrerPolicy:\s*"no-referrer"/.test(metrics));
-  assert.ok(/JSON\.stringify\(\{ kind: "found" \}\)/.test(metrics));
+  assert.ok(!/\bfetch\s*\(/.test(metrics));
+  assert.ok(!/markHelped/.test(metrics));
   const stats = fs.readFileSync(path.join(root, "metrics.html"), "utf8");
   assert.ok(stats.includes("tracks nobody"));
   assert.ok(!/<script/i.test(stats));
@@ -431,9 +484,49 @@ t("shipped site does not add visitor tracking", () => {
     const privacy = fs.readFileSync(path.join(root, page), "utf8");
     assert.ok(privacy.includes("RangeBites is a free site that tracks nobody."), page);
     assert.ok(privacy.includes("RangeBites does not create or store a device identifier."), page);
+    assert.ok(privacy.includes("RangeBites does not store any information about you. Location is used only to show nearby places and is not saved."), page);
   }
 });
-t("data.json: device-code + page-open lists are owner-read; found is kind-only", () => {
+t("no storage of location, last city, or visitor records", () => {
+  const root = path.join(__dirname, "..");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  const persist = /function persistUiPrefs\(\) \{[\s\S]*?\n  \}/.exec(app);
+  assert.ok(persist, "persistUiPrefs");
+  assert.ok(!/lastPlaceQuery\s*:/.test(persist[0]));
+  assert.ok(/delete payload\.lastPlaceQuery/.test(persist[0]));
+  assert.ok(!/markHelped/.test(app));
+  assert.ok(!/\.herenow\/data\/(found|hits|helped)/.test(app));
+  const sentence = "RangeBites does not store any information about you. Location is used only to show nearby places and is not saved.";
+  for (const page of ["privacy.html", "privacy/index.html", "about.html", "about/index.html", "index.html"]) {
+    const src = fs.readFileSync(path.join(root, page), "utf8");
+    assert.ok(src.includes(sentence), page);
+  }
+  const home = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  assert.ok(home.includes("Clear my saved data"));
+  assert.ok(!home.includes("Devices that found food"));
+  assert.ok(!home.includes('id="lastPlaceWrap"'));
+  assert.ok(!home.includes('id="visitCount"'));
+  const sw = fs.readFileSync(path.join(root, "sw.js"), "utf8");
+  assert.ok(/function isStaticAsset/.test(sw));
+  assert.ok(/function mustNotCache/.test(sw));
+  assert.ok(/\/api\//.test(sw));
+  assert.ok(/\/\.herenow\//.test(sw));
+  assert.ok(/c\.put\(req, copy\)/.test(sw));
+  const putAt = sw.indexOf("c.put");
+  const guardAt = sw.lastIndexOf("isStaticAsset", putAt);
+  assert.ok(guardAt >= 0 && putAt > guardAt);
+  const files = ["app.js", "metrics.js", "sw.js", "analytics.js", "deals.js", "config.js"];
+  const locWrite = /(?:localStorage|sessionStorage)\.setItem\s*\(\s*["'][^"']*(?:lat|lng|latitude|longitude|lastCity|last_city|lastPlace|searchHistory|search_history)/i;
+  for (const file of files) {
+    const src = fs.readFileSync(path.join(root, file), "utf8");
+    assert.ok(!locWrite.test(src), file);
+    assert.ok(!/indexedDB\s*\.\s*open\s*\(/.test(src), file);
+  }
+  const metrics = fs.readFileSync(path.join(root, "metrics.js"), "utf8");
+  assert.ok(/indexedDB\.deleteDatabase/.test(metrics));
+  assert.ok(!/indexedDB\s*\.\s*open\s*\(/.test(metrics));
+});
+t("data.json: hits and helped are owner-read; found inserts are off when present", () => {
   const p = path.join(__dirname, "..", ".herenow", "data.json");
   if (!fs.existsSync(p)) { console.log("   (skipped: .herenow/ is gitignored; checked on the publish tree)"); return; }
   const dj = JSON.parse(fs.readFileSync(p, "utf8")).collections;
@@ -441,6 +534,6 @@ t("data.json: device-code + page-open lists are owner-read; found is kind-only",
     assert.strictEqual(dj[k].access.read, "owner");
     assert.strictEqual(dj[k].access.insert, "none");
   });
-  assert.deepStrictEqual(Object.keys(dj.found.fields), ["kind"]);
+  if (dj.found) assert.strictEqual(dj.found.access.insert, "none");
 });
 console.log(`\n${pass} passed`);

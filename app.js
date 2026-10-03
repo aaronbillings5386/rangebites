@@ -3,8 +3,8 @@
  *
  * Privacy rules (non-negotiable):
  * - NEVER store lat/lng or location history in localStorage, IndexedDB, cookies, or console logs.
- * - rb_ui_prefs: range, walk chip, dietary/filter chips, last city TEXT, units mi/km TEXT, onboard/hero/a2hs flags.
- *   Never coordinates. Do not auto-run Overpass/Nominatim from saved prefs.
+ * - rb_ui_prefs: range, walk chip, dietary/filter chips, units mi/km TEXT, onboard/hero/a2hs flags.
+ *   Never coordinates, last city, or search history. Do not auto-run Overpass/Nominatim from saved prefs.
  * - rb_saved: osm id + name + address you heart on this device. Never lat/lng. No GPS trail.
  * - Clear now wipes GPS+places only; UI prefs + hearts stay. Do NOT wipe on pagehide — iOS Safari fires it on the GPS sheet, app switch, and Maps.
  * - Locate Me + live OSM Overpass only. No demo map, no fake places, no invented hours/phones.
@@ -178,7 +178,6 @@
 
   /** UI prefs live outside location state so Clear now cannot wipe them */
   const uiPrefs = {
-    lastPlaceQuery: "",
     onboardDismissed: false,
     heroTipHidden: false,
     a2hsDismissed: false,
@@ -241,26 +240,8 @@
     return q;
   }
 
-  function syncLastPlaceControl() {
-    const wrap = $("#lastPlaceWrap");
-    const btn = $("#lastPlaceBtn");
-    if (!wrap || !btn) return;
-    const q = sanitizePlaceQuery(uiPrefs.lastPlaceQuery);
-    if (!q) {
-      wrap.hidden = true;
-      btn.textContent = "";
-      btn.removeAttribute("data-query");
-      return;
-    }
-    wrap.hidden = false;
-    btn.textContent = q;
-    btn.setAttribute("data-query", q);
-    btn.setAttribute("aria-label", "Search last city: " + q);
-  }
-
   function persistUiPrefs() {
     try {
-      const q = sanitizePlaceQuery(uiPrefs.lastPlaceQuery);
       const payload = {
         radiusMiles: state.radiusMiles,
         walkMinutes: state.walkMinutes == null ? null : state.walkMinutes,
@@ -290,7 +271,6 @@
             halal: !!(state.filters.diet && state.filters.diet.halal),
           },
         },
-        lastPlaceQuery: q,
         units: uiPrefs.units === "km" ? "km" : "mi",
         onboardDismissed: !!uiPrefs.onboardDismissed,
         heroTipHidden: !!uiPrefs.heroTipHidden,
@@ -304,6 +284,10 @@
       delete payload.latitude;
       delete payload.longitude;
       delete payload.coords;
+      delete payload.lastPlaceQuery;
+      delete payload.lastCity;
+      delete payload.searchHistory;
+      delete payload.location;
       localStorage.setItem(UI_PREFS_KEY, JSON.stringify(payload));
     } catch (_) {
       /* private mode — ok */
@@ -370,8 +354,6 @@
       gluten_free: !!d.gluten_free,
       halal: !!d.halal,
     };
-    const q = sanitizePlaceQuery(p.lastPlaceQuery);
-    uiPrefs.lastPlaceQuery = q;
     uiPrefs.units = p.units === "km" ? "km" : "mi";
     uiPrefs.onboardDismissed = !!p.onboardDismissed;
     uiPrefs.heroTipHidden = !!p.heroTipHidden;
@@ -380,9 +362,7 @@
       ? p.termsAccepted
       : "";
     uiPrefs.filtersOpen = false;
-    const input = $("#placeSearch");
-    if (input && q) input.value = q;
-    syncLastPlaceControl();
+    const hadLocation = ["lastPlaceQuery", "lastCity", "last_city", "searchHistory", "lat", "lng", "latitude", "longitude", "coords", "location"].some((k) => Object.prototype.hasOwnProperty.call(p, k));
     const dealBtn = $("#filterDeal");
     if (dealBtn) dealBtn.classList.toggle("active", state.filters.hasDeal);
     const openBtn = $("#filterOpen");
@@ -407,6 +387,7 @@
     });
     syncUnitsChipsUI();
     syncRadiusChipLabels();
+    if (hadLocation) persistUiPrefs();
   }
 
   function analytics() {
@@ -1270,6 +1251,75 @@
     writeSaved([]);
     renderList();
     setStatus("Saved restaurants cleared on this device");
+  }
+
+  /** Hearts, filter choices, and any leftover location keys on this device. Terms acceptance stays. */
+  function clearMySavedData() {
+    writeSaved([]);
+    state.walkMinutes = null;
+    state.radiusMiles = 10;
+    state.dietaryFilter = null;
+    state.nameQuery = "";
+    state.filters.openNow = false;
+    state.filters.hasDeal = false;
+    state.filters.saved = false;
+    state.filters.type = "all";
+    state.filters.takeaway = false;
+    state.filters.delivery = false;
+    state.filters.driveThrough = false;
+    state.filters.wheelchair = false;
+    state.filters.outdoorSeating = false;
+    state.filters.restroom = false;
+    state.filters.dogsOk = false;
+    state.filters.airConditioning = false;
+    state.filters.changingTable = false;
+    state.filters.smokeFree = false;
+    state.filters.kidsArea = false;
+    state.filters.lateNight = false;
+    state.filters.cuisine = null;
+    state.filters.foodCategory = null;
+    state.filters.diet = { vegan: false, vegetarian: false, gluten_free: false, halal: false };
+    uiPrefs.units = "mi";
+    persistUiPrefs();
+    try {
+      if (window.RangeBitesMetrics && window.RangeBitesMetrics.clearLegacyLocationKeys) {
+        window.RangeBitesMetrics.clearLegacyLocationKeys(window.localStorage, window.sessionStorage);
+      }
+    } catch (_) {}
+    const input = $("#placeSearch");
+    if (input) input.value = "";
+    const nameSearch = $("#nameSearch");
+    if (nameSearch) nameSearch.value = "";
+    syncPlaceClear();
+    syncRadiusChipsUI();
+    syncDietChipsUI();
+    syncUnitsChipsUI();
+    const dealBtn = $("#filterDeal");
+    if (dealBtn) dealBtn.classList.remove("active");
+    const openBtn = $("#filterOpen");
+    if (openBtn) {
+      openBtn.classList.remove("active");
+      openBtn.setAttribute("aria-pressed", "false");
+    }
+    const openFirst = $("#openNowFirst");
+    if (openFirst) {
+      openFirst.classList.remove("active");
+      openFirst.setAttribute("aria-pressed", "false");
+    }
+    const pantry = $("#filterPantries");
+    if (pantry) {
+      pantry.classList.remove("active");
+      pantry.setAttribute("aria-pressed", "false");
+    }
+    setToggleState($("#filterSaved"), false);
+    setToggleState($("#filterLateNight"), false);
+    const typeSel = $("#filterType");
+    if (typeSel) typeSel.value = "all";
+    $$("[data-tag]").forEach((btn) => btn.classList.remove("active"));
+    renderFoodCategoryChips();
+    syncFiltersLaunch();
+    renderList();
+    setStatus("Saved data cleared on this device.");
   }
 
   function isSavedId(id) {
@@ -2260,7 +2310,8 @@
   function reviewsMapsLinks(p) {
     const name = p && p.name ? String(p.name).trim() : "";
     if (!name) return { google: "" };
-    const city = String((p && p.city) || (typeof uiPrefs !== "undefined" && uiPrefs.lastPlaceQuery) || "").trim();
+    const typed = typeof currentSearchText === "function" ? currentSearchText() : "";
+    const city = String((p && p.city) || typed || "").trim();
     const q = city ? name + " " + city : name;
     return {
       google: "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q),
@@ -2992,8 +3043,13 @@
     }
   }
 
+  function currentSearchText() {
+    const input = $("#placeSearch");
+    return sanitizePlaceQuery((input && input.value) || "");
+  }
+
   function cityShareUrl() {
-    const q = (uiPrefs.lastPlaceQuery || "").trim();
+    const q = currentSearchText();
     try {
       const u = new URL(window.location.origin + "/");
       if (q) u.searchParams.set("q", q);
@@ -3212,10 +3268,6 @@
         }
       });
     }
-    if (live && state.places.length) {
-      // Anonymous "found" count: once per browser session, after real results. Body is {"kind":"found"} only.
-      try { if (window.RangeBitesMetrics && window.RangeBitesMetrics.markHelped) window.RangeBitesMetrics.markHelped(); } catch (_) {}
-    }
     state.loading = false;
     if (fetchedRadius != null) state.fetchedRadiusMiles = fetchedRadius;
     try {
@@ -3424,9 +3476,6 @@
       const near = hit.alternates && hit.alternates.length
         ? geocodeShortLabel(hit)
         : shortPlaceLabel(hit.label || hit.display_name, q);
-      uiPrefs.lastPlaceQuery = q;
-      persistUiPrefs();
-      syncLastPlaceControl();
       // forge 20261003 (Shade): the city is no longer written into the address bar (?q=).
       // Inbound shared links with ?q= still work; Share still builds its own link.
       const off = geocodeLooksDifferent(q, hit);
@@ -3481,9 +3530,6 @@
     resetFoodChipsForNewArea();
     applyUnitsFromGeocode(alt);
     const near = alt.shortLabel || shortPlaceLabel(alt.label, "");
-    uiPrefs.lastPlaceQuery = near;
-    persistUiPrefs();
-    syncLastPlaceControl();
     const input = $("#placeSearch");
     if (input) input.value = near;
     setNearLine("Showing results near " + near, false);
@@ -3906,17 +3952,6 @@
         searchCityOrZip(input && input.value);
       });
     }
-    const lastPlaceBtn = $("#lastPlaceBtn");
-    if (lastPlaceBtn) {
-      lastPlaceBtn.addEventListener("click", () => {
-        const q = sanitizePlaceQuery(lastPlaceBtn.getAttribute("data-query") || uiPrefs.lastPlaceQuery);
-        if (!q) return;
-        const input = $("#placeSearch");
-        if (input) input.value = q;
-        syncPlaceClear();
-        searchCityOrZip(q);
-      });
-    }
     $("#aboutBtn").addEventListener("click", openAbout);
     const privacyAbout = $("#privacyAboutBtn");
     if (privacyAbout) privacyAbout.addEventListener("click", openAbout);
@@ -4040,17 +4075,6 @@
     if (filtersClose) filtersClose.addEventListener("click", closeFilters);
     const filtersDone = $("#filtersDone");
     if (filtersDone) filtersDone.addEventListener("click", closeFilters);
-    const forgetBtn = $("#lastPlaceForget");
-    if (forgetBtn) {
-      forgetBtn.addEventListener("click", () => {
-        uiPrefs.lastPlaceQuery = "";
-        persistUiPrefs();
-        syncLastPlaceControl();
-        setStatus("Last city forgotten on this device.");
-        const input = $("#placeSearch");
-        if (input) { try { input.focus({ preventScroll: true }); } catch (_) {} }
-      });
-    }
     const pantryBtn = $("#filterPantries");
     if (pantryBtn) {
       pantryBtn.addEventListener("click", () => {
@@ -4121,6 +4145,8 @@
     if (filtersBack) filtersBack.addEventListener("click", closeFilters);
     const clearSavedBtn = $("#clearSavedBtn");
     if (clearSavedBtn) clearSavedBtn.addEventListener("click", clearSavedPlaces);
+    const clearMyDataBtn = $("#clearMyDataBtn");
+    if (clearMyDataBtn) clearMyDataBtn.addEventListener("click", clearMySavedData);
     const lateBtn = $("#filterLateNight");
     if (lateBtn) {
       lateBtn.addEventListener("click", () => {
@@ -4471,7 +4497,6 @@
     initMap();
     applyUiPrefs(); // chips/filters/input only — do not auto-run Overpass/Nominatim
     bindUI();
-    syncLastPlaceControl();
     renderList();
     maybeShowInsecureBanner();
     setStatus("Tap Locate Me, or search any city. Any type of food.");

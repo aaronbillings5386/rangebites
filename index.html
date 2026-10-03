@@ -43,10 +43,6 @@
         <h1>RangeBites</h1>
       </div>
       <div class="header-right">
-        <a class="visit-count" id="visitCount" href="#about" aria-label="Devices that got food results (once per browser session; approximate)" hidden>
-          <span class="visit-count-num" id="visitCountNum">–</span>
-          <span class="visit-count-label">Devices that found food</span>
-        </a>
         <button type="button" class="about-btn" id="aboutBtn">About</button>
       </div>
     </header>
@@ -74,11 +70,6 @@
             </div>
             <button type="submit" class="btn-secondary" id="placeSearchBtn">Search</button>
             <button type="button" class="btn-filters" id="filtersBtn" aria-expanded="false" aria-controls="filtersSheet">Filters</button>
-          </div>
-          <div class="last-place" id="lastPlaceWrap" hidden>
-            <span class="last-place-label">Last city</span>
-            <button type="button" class="last-place-btn" id="lastPlaceBtn"></button>
-            <button type="button" class="last-place-forget" id="lastPlaceForget" aria-label="Forget last city on this device">Forget</button>
           </div>
           <p class="assent-line" id="assentLine" hidden>By using RangeBites you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>
         </form>
@@ -244,6 +235,7 @@
       <p class="what-leaves" id="whatLeaves">Any type of food from OpenStreetMap. Location is for this search only.</p>
       <div class="filters-clear-row">
         <button type="button" class="btn-clear-saved" id="clearSavedBtn">Clear saved</button>
+        <button type="button" class="btn-clear-saved" id="clearMyDataBtn">Clear my saved data</button>
         <button type="button" class="btn-clear-now" id="clearNowBtn">Clear location</button>
       </div>
     </div>
@@ -289,11 +281,10 @@
       <p>Tap Locate Me or search any city. Listings and hours come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) and may be wrong or stale. Hours combine OpenStreetMap (ODbL) with AllThePlaces (CC0). The matching method is public in the GitHub repo: <a href="https://github.com/aaronbillings5386/rangebites/blob/main/tools/build-atp-hours.py">tools/build-atp-hours.py</a> and <a href="https://github.com/aaronbillings5386/rangebites/blob/main/app.js">app.js</a>. Directions open in Apple Maps or Google Maps. Reviews open in Google Maps. We do not invent hours, star ratings, or coupons.</p>
 
       <h3>Location</h3>
-      <p>Locate Me keeps your coordinate in memory for this search only. We never persist lat/lng. We do not save a location history. We do not store GPS on this device or on our host. This device may remember range, distance units (mi or km as text), and last city as text — not coordinates.</p>
+      <p>RangeBites does not store any information about you. Location is used only to show nearby places and is not saved. Locate Me keeps your coordinate in memory for this search only. This device may remember saved restaurants, range, filter choices, and distance units (mi or km as text). Those stay on this device and are not sent. Filters includes Clear my saved data, which removes them from this device.</p>
       <p>Tap the heart to save or unheart a restaurant. Hearts on this device are OpenStreetMap id, name, and address — not a GPS trail. Heart a place again to unsave it. That list stays on this device only.</p>
       <p>To fetch restaurants, our host’s proxy sends the search to OpenStreetMap services: Overpass (run by OpenStreetMap France) and, for a city you type, Nominatim (run by the OpenStreetMap Foundation). With Locate Me, that search includes your coordinates rounded to 3 decimal places, which still places you within about 100 m. The host and those services see the search and your IP. Map images come from tile.openstreetmap.de (FOSSGIS e.V.), which sees your IP and the map area you view.</p>
-      <p>RangeBites is a free site that tracks nobody. It does not use device codes, analytics identifiers, visitor tracking, or third-party analytics or trackers. It does not log page views or taps. A city search or Locate Me is used only for that search, then dropped.</p>
-      <p>Devices that found food is an anonymous count. The first time a search or Locate Me in this browser session shows food results, the site sends one record with just the word “found.” RangeBites does not create or store a device identifier. This session may keep a yes-or-no flag so it does not send that count again. Anyone can add to that public list, and a new browser session can count again, so it is approximate, not a count of people. Test traffic is excluded. The app does not store your IP address.</p>
+      <p>RangeBites is a free site that tracks nobody. It does not use device codes, analytics identifiers, visitor tracking, or third-party analytics or trackers. It does not log page views or taps. RangeBites does not create or store a device identifier. A city search or Locate Me is used only during that search, then dropped.</p>
       <h3>Contact &amp; accessibility</h3>
       <p>Questions, corrections, accessibility problems, or legal notices: RangeBites (rangebites.com), contact: <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>. We aim to meet WCAG 2.1 AA. If something doesn’t work for you, tell us at that address.</p>
 

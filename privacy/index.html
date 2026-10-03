@@ -60,7 +60,7 @@
     <p class="read-note">This Privacy Policy describes how the operator of RangeBites handles information. It is part of your agreement to use the Service, together with the Terms of Use.</p>
 
     <h2>1. Operator</h2>
-    <p>RangeBites is a non-tracking food information website. It sends only the anonymous counts described in section 6. The Operator does not build a profile of you and does not save GPS.</p>
+    <p>RangeBites does not store any information about you. Location is used only to show nearby places and is not saved. The Operator does not build a profile of you and does not save GPS.</p>
     <h2>1a. Non-tracking</h2>
     <p>RangeBites is an information-only food app at rangebites.com, designed, published, and operated by an individual website developer (the “Operator”). No account is required. The Operator does not run a diner email list. RangeBites is not a reservation service, not legal, tax, or financial advice, and not RangeBits or any finance product.</p>
     <h2>2. Information we do not collect</h2>
@@ -68,18 +68,18 @@
 
     <h2>3. Locate Me and city search</h2>
     <p>If you choose Locate Me, your device may share a coordinate with the browser so the Service can request nearby restaurants. That coordinate is held in memory for the current search. It is not saved as a GPS trail. In-memory coordinates are cleared when you tap Clear location, or when the page fully unloads. They are not wiped on a brief page hide, the iOS location permission sheet, or switching apps.</p>
-    <p>If you search a city, that text is sent to look up the area only when you tap Search or press Enter. There is no search-as-you-type. The city is not added to the page address. This device may remember range, filter choices, distance units (mi or km as text), and last city as text only, not coordinates. It may also store a flag that you tapped “Got it” on the first-search notice, and a yes-or-no flag for this browser session, described in section 6.</p>
+    <p>If you search a city, that text is sent to look up the area only when you tap Search or press Enter. There is no search-as-you-type. The city is not added to the page address and is not saved on this device or on the host. This device may remember range, filter choices, and distance units (mi or km as text). Those choices stay on this device and are not sent. It may also store a flag that you tapped “Got it” on the first-search notice. Saved restaurants are described in section 4. Filters includes Clear my saved data, which removes saved restaurants and those on-device choices.</p>
     <h2>4. Saved restaurants (hearts)</h2>
-    <p>If you heart a listing, this device may store its OpenStreetMap identifier, name, and address. That list does not include latitude or longitude and is not a GPS trail. Hearts remain on this device. You may unheart a restaurant or clear saved restaurants in Filters.</p>
+    <p>If you heart a listing, this device may store its OpenStreetMap identifier, name, and address. That list does not include latitude or longitude and is not a GPS trail. Hearts remain on this device and are not sent. You may unheart a restaurant, tap Clear saved, or tap Clear my saved data in Filters.</p>
 
     <h2>5. What is transmitted to provide the Service</h2>
     <p>To show places near you, your search goes through our host’s proxy to two OpenStreetMap services: the Overpass API instance run by OpenStreetMap France (overpass.openstreetmap.fr), which finds places, and the Nominatim geocoder run by the OpenStreetMap Foundation (nominatim.openstreetmap.org), which looks up a city you type. If you use Locate Me, the place search includes the latitude and longitude your browser shared, rounded to 3 decimal places, which still places you within about 100 m. The host and those services also see your IP address. Map images load from a community OpenStreetMap tile server (tile.openstreetmap.de, run by FOSSGIS e.V. for OpenStreetMap Germany), which sees your IP address and the map area you view. We don’t save your coordinates or build a location history.</p>
-    <p>The host also sees the network address on a connection, including the anonymous “found” count and the place search. RangeBites does not store that address, and it does not keep a visitor log.</p>
+    <p>Each of those requests happens at the moment you search or view the map. RangeBites does not store the search, the coordinates, or your IP address. The host sees the connection’s IP address on the proxied request. The host may keep its own connection log. RangeBites does not write a visitor record.</p>
     <p>Restaurants may optionally submit an offer and a contact email on the Specials page for review. That is restaurant contact, not a diner mailing list.</p>
     <p>The site is served over HTTPS. Files are hosted on here.now (Cloudflare).</p>
     <h2>6. Analytics and tracking</h2>
     <p>RangeBites is a free site that tracks nobody. It does not use device codes, analytics identifiers, visitor tracking, or third-party analytics or trackers. It does not log page views, taps, referrers, or user agents. A city search or Locate Me is used only during that search to show nearby places, then dropped. It is not stored as tracking data.</p>
-    <p>RangeBites does not create or store a device identifier. “Devices that found food” is an anonymous count: the first time a search or Locate Me in this browser session shows food results, the Service sends one record that contains only the word “found.” Nothing from that count is saved on this device except a yes-or-no flag for this browser session, so the same session does not send it again. The record does not include a name, email, or location, and the app does not store your IP address. These counter records are stored with our host in a list that is publicly readable, so the number can be shown. Anyone can add to that list, and a new browser session can count again, so the number is approximate.</p>
+    <p>RangeBites does not store any information about you. Location is used only to show nearby places and is not saved. RangeBites does not create or store a device identifier.</p>
     <p>We don’t track you across other websites, and we don’t let third parties do so through RangeBites, so we don’t change anything in response to browser Do Not Track signals.</p>
     <h2>7. Listings</h2>
     <p>Restaurant names, hours, and maps come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) as-is and may be wrong. Hours combine OpenStreetMap (ODbL) with AllThePlaces (CC0). The matching method is public in the GitHub repo: <a href="https://github.com/aaronbillings5386/rangebites/blob/main/tools/build-atp-hours.py">tools/build-atp-hours.py</a> and <a href="https://github.com/aaronbillings5386/rangebites/blob/main/app.js">app.js</a>. There is no warranty that a listing is accurate, open, or still there.</p>
@@ -90,7 +90,7 @@
     <h2>9. Third parties</h2>
     <p>Restaurant listings and hours come from OpenStreetMap contributors; some chain hours come from AllThePlaces (CC0), a public dataset built from chains’ own store locators. See the <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener noreferrer">OpenStreetMap Foundation Privacy Policy</a> (Nominatim). Place searches are answered by OpenStreetMap France’s Overpass server, and map images by FOSSGIS e.V. (tile.openstreetmap.de); their own policies apply. When you open Google Maps, Apple Maps, or a restaurant website, those services’ policies apply. RangeBites does not scrape those services or display their star ratings on our pages.</p>
     <h2>10. Your choices</h2>
-    <p>You may deny location permission and still search any city. You may unheart restaurants or clear saved restaurants in Filters, reset filters with Filters › Clear, and tap Forget next to “Last city” to remove the saved city on this device. Clearing this site’s data in your browser removes everything the site stored on this device. Tap Clear location to wipe the in-memory search, or fully unload the page. A brief page hide, the iOS location permission sheet, or switching apps does not clear it.</p>
+    <p>You may deny location permission and still search any city. You may unheart restaurants, tap Clear saved, or tap Clear my saved data in Filters. Clear my saved data removes saved restaurants and on-device filter choices from this device. It does not send anything. You may also reset filters with Filters › Clear. Tap Clear location to wipe the in-memory search, or fully unload the page. A brief page hide, the iOS location permission sheet, or switching apps does not clear the in-memory search. Clearing this site’s data in your browser removes everything the site stored on this device.</p>
     <h2>11. Contact</h2>
     <p>Questions, corrections, accessibility problems, or legal notices: RangeBites (rangebites.com), contact: <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>. We don’t run a diner mailing list, and writing to us won’t add you to one.</p>
     <h2>12. Children</h2>
@@ -113,6 +113,7 @@
     </nav>
     <p class="site-footer-note">RangeBites is an information-only food app. By using it you agree to the Terms of Use. Not a reservation. Not legal, tax, or finance advice. Not RangeBits.</p>
   </footer>
+  <script src="/metrics.js?v=20261003c"></script>
   <script src="/config.js?v=20261003c"></script>
 </body>
 </html>
