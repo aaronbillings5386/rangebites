@@ -710,7 +710,14 @@
   function isPermanentlyClosed(tags) {
     if (!tags) return false;
     const oh = String(tags.opening_hours || "").trim().toLowerCase();
-    if (oh === "closed") return true;
+    if (oh === "closed" || oh === "off") return true;
+    // end_date (lifecycle) already passed → gone. Only full ISO dates/years; anything fuzzy is ignored.
+    const end = String(tags.end_date || "").trim();
+    if (/^\d{4}(-\d{2}(-\d{2})?)?$/.test(end)) {
+      const parts = end.split("-").map(Number);
+      const endMs = new Date(parts[0], parts[1] ? parts[1] - 1 : 11, parts[2] || (parts[1] ? 28 : 31)).getTime();
+      if (endMs < Date.now()) return true;
+    }
     const yes = (v) => String(v || "").toLowerCase() === "yes";
     if (yes(tags.disused) || yes(tags.abandoned) || yes(tags.closed) || yes(tags.permanently_closed) || yes(tags.demolished)) return true;
     if (String(tags.shop || "").toLowerCase() === "vacant") return true;
@@ -781,6 +788,28 @@
 
 
 
+
+  /** Wall clock for open-now math. Eastern band (VA/WV/KY/TN east of ~87.6°W) uses
+   * America/New_York via Intl (DST-correct, independent of the device's own zone).
+   * Elsewhere falls back to nowAtLng. Returns a Date whose local getters read that wall clock. */
+  const HOURS_TZ = "America/New_York";
+  let hoursTzFmt = null;
+  function placeNow(lng) {
+    const n = Number(lng);
+    if (Number.isFinite(n) && n < -87.6) return nowAtLng(n);
+    try {
+      hoursTzFmt = hoursTzFmt || new Intl.DateTimeFormat("en-US", {
+        timeZone: HOURS_TZ, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric",
+        hour: "numeric", minute: "numeric", second: "numeric",
+      });
+      const parts = {};
+      for (const x of hoursTzFmt.formatToParts(new Date())) parts[x.type] = x.value;
+      const d = new Date(+parts.year, +parts.month - 1, +parts.day, +parts.hour % 24, +parts.minute, +parts.second);
+      return Number.isFinite(d.getTime()) ? d : nowAtLng(lng);
+    } catch (_) {
+      return nowAtLng(lng);
+    }
+  }
 
   /* ---------- OSM opening_hours (strict subset, OSM rule semantics) ----------
    * Supports: 24/7; weekday lists/ranges (Mo-Fr,Su); PH (US federal holidays, computed); "off"/"closed";
@@ -954,7 +983,9 @@
       open: !!cur,
       untilClose: cur ? (cur[1] >= 8 * 1440 ? null : cur[1] - nowMin) : null,
       untilOpen: !cur && next ? next[0] - nowMin : null,
+      nextOpenAt: !cur && next ? next[0] : null, // minutes from today's 00:00 (may be > 1440)
       allDay: !!cur && cur[0] <= -1440 && cur[1] >= 8 * 1440,
+      today: ohDaySpans(rules, new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12), lat, lng).spans,
     };
   }
 
@@ -989,24 +1020,57 @@
     return h12 + (mm ? ":" + String(mm).padStart(2, "0") : "") + (am ? "am" : "pm");
   }
 
-  /** Plain hours for cards. Never invents; only formats tagged OSM hours. */
+  const OH_DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  /** "Today 7am–9pm" / "Closed today" from parsed OSM spans. "" if unreadable. */
+  function todayHoursText(r) {
+    if (!r) return "";
+    if (r.allDay) return "Tagged 24 hours";
+    if (!r.today || !r.today.length) return "Today tagged closed";
+    const merged = [];
+    for (const sp of r.today.slice().sort((x, y) => x[0] - y[0])) {
+      const last = merged[merged.length - 1];
+      if (last && sp[0] <= last[1]) last[1] = Math.max(last[1], sp[1]);
+      else merged.push(sp.slice());
+    }
+    return "Today " + merged
+      .map(([a, b]) => (a === 0 && b >= 1440 ? "all day" : clockFromMinutes(a) + "–" + clockFromMinutes(b)))
+      .join(", ");
+  }
+
+  /** Plain hours for cards. Never invents; only formats tagged OSM hours.
+   * Readable tag → open/closed now + today's hours. Unreadable tag → the raw tag text.
+   * No tag → "" (card says "Hours not listed"). */
   function friendlyHoursLine(p, now) {
     const raw = String(p.hours || "").trim();
     if (!raw) return "";
-    now = now || nowAtLng(state.lng);
+    now = now || placeNow(p.lng != null ? p.lng : state.lng);
     const nowMin = now.getHours() * 60 + now.getMinutes();
-    if (p.openStatus === "open" && p.closesSoon && p.untilOpen == null) {
-      const until = minutesUntilClose(raw, now, p.lat, p.lng);
-      if (until != null) return "Closes soon · until " + clockFromMinutes(nowMin + until) + " · verify";
-      return "Closes soon · verify";
-    }
-    if (p.openStatus === "open") {
-      const until = minutesUntilClose(raw, now, p.lat, p.lng);
-      if (until != null) return "Tagged open until " + clockFromMinutes(nowMin + until) + " · verify";
-      return "Open 24 hours · verify";
-    }
-    if (p.openStatus === "closed") return "Closed · verify";
+    const r = ohEval(raw, now, p.lat, p.lng);
+    if (!r) return "Hours (OSM): " + raw + " · verify";
+    return friendlyHoursCore(p, r, now, nowMin) + hoursSourceNote(p) + " · verify";
+  }
+  /** Where the hours came from. OSM check dates older than 2 years are called out. */
+  function hoursSourceNote(p) {
+    if (p.hoursSource === "atp") return " · chain store locator";
+    const y = /^(\d{4})/.exec(String(p.hoursChecked || ""));
+    if (y && new Date().getFullYear() - Number(y[1]) >= 2) return " · OSM checked " + y[1];
     return "";
+  }
+  function friendlyHoursCore(p, r, now, nowMin) {
+    const today = todayHoursText(r);
+    if (r.open) {
+      if (r.allDay) return "Tagged 24 hours";
+      const until = r.untilClose != null ? clockFromMinutes(nowMin + r.untilClose) : "";
+      const lead = r.untilClose != null && r.untilClose <= 60 ? "Closes soon" : "Tagged open";
+      return lead + (until ? " · until " + until : "") + " · " + today;
+    }
+    let opens = "";
+    if (r.nextOpenAt != null) {
+      const dayOff = Math.floor(r.nextOpenAt / 1440);
+      opens = "Opens " + clockFromMinutes(r.nextOpenAt) +
+        (dayOff === 0 ? "" : dayOff === 1 ? " tomorrow" : " " + OH_DAY_SHORT[(now.getDay() + dayOff) % 7]);
+    }
+    return "Tagged closed" + (opens ? " · " + opens : "") + " · " + today;
   }
 
   function openIshStatus(hours) {
@@ -1730,7 +1794,7 @@
 
       const hours = tags.opening_hours || "";
       const kitchenHours = tags["opening_hours:kitchen"] || "";
-      const atPlace = nowAtLng(originLng);
+      const atPlace = placeNow(originLng);
       const openStatus = parseOpeningHours(hours, atPlace, lat, lng);
       const kitchenStatus = kitchenHours ? parseOpeningHours(kitchenHours, atPlace, lat, lng) : null;
       const untilClose = openStatus === "open" ? minutesUntilClose(hours, atPlace, lat, lng) : null;
@@ -1749,6 +1813,9 @@
         amenity,
         cuisine: cuisineRaw,
         hours,
+        hoursSource: hours ? "osm" : "",
+        hoursChecked: String(tags["check_date:opening_hours"] || tags.check_date || tags["survey:date"] || "").trim(),
+        brandQid: String(tags["brand:wikidata"] || "").trim(),
         kitchenHours,
         kitchenClosedDoorsOpen: openStatus === "open" && kitchenHours && kitchenStatus === "closed",
         phone: tags.phone || tags["contact:phone"] || "",
@@ -1785,6 +1852,77 @@
     }
 
     return sortNearestFirst(places).slice(0, 400);
+  }
+
+  /* ---------- AllThePlaces chain hours (CC0, weekly store-locator scrape) ----------
+   * data/atp-hours.json is built offline by tools/build-atp-hours.py (no key, no cost).
+   * Match = same brand:wikidata within 150 m. Fills missing OSM hours; within 60 m the
+   * chain locator wins over older OSM chain hours. Label says where hours came from. */
+  const ATP_URL = "data/atp-hours.json";
+  const ATP_FILL_M = 150;
+  const ATP_OVERRIDE_M = 60;
+  let atpIndex = null;
+  let atpLoading = null;
+  function loadAtpHours() {
+    if (atpLoading) return atpLoading;
+    atpLoading = fetch(ATP_URL, { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const idx = new Map();
+        for (const row of (j && Array.isArray(j.rows) ? j.rows : [])) {
+          if (!Array.isArray(row) || !row[0] || !row[3]) continue;
+          const list = idx.get(row[0]) || [];
+          list.push(row);
+          idx.set(row[0], list);
+        }
+        atpIndex = idx;
+        return idx;
+      })
+      .catch(() => { atpIndex = new Map(); return atpIndex; });
+    return atpLoading;
+  }
+  function metersBetween(lat1, lng1, lat2, lng2) {
+    return haversineMiles(lat1, lng1, lat2, lng2) * 1609.344;
+  }
+  /** Recompute open/closed fields from p.hours. Never invents: unreadable → null. */
+  function setHoursState(p, now) {
+    const at = now || placeNow(p.lng);
+    const st = p.hours ? parseOpeningHours(p.hours, at, p.lat, p.lng) : null;
+    const untilClose = st === "open" ? minutesUntilClose(p.hours, at, p.lat, p.lng) : null;
+    const untilOpen = st === "closed" ? minutesUntilOpen(p.hours, at, p.lat, p.lng) : null;
+    p.openStatus = st;
+    p.closesSoon = st === "open" && untilClose != null && untilClose <= 60;
+    p.opensSoon = st === "closed" && untilOpen != null && untilOpen > 0 && untilOpen <= 90;
+    p.untilOpen = untilOpen;
+    p.lateNight = isLateNightHours(p.hours);
+  }
+  /** Merge chain hours into places. Returns how many places changed. */
+  function applyAtpHours(places) {
+    if (!atpIndex || !atpIndex.size || !places || !places.length) return 0;
+    let changed = 0;
+    for (const p of places) {
+      if (!p.brandQid || p.hoursSource === "atp") continue;
+      const rows = atpIndex.get(p.brandQid);
+      if (!rows) continue;
+      let best = null;
+      let bestM = Infinity;
+      for (const row of rows) {
+        const m = metersBetween(p.lat, p.lng, row[1], row[2]);
+        if (m < bestM) { bestM = m; best = row; }
+      }
+      if (!best) continue;
+      const fill = !p.hours && bestM <= ATP_FILL_M;
+      const override = p.hours && bestM <= ATP_OVERRIDE_M && String(best[3]).trim() !== String(p.hours).trim();
+      if (!fill && !override) continue;
+      if (parseOpeningHours(best[3], placeNow(p.lng), p.lat, p.lng) == null) continue; // only readable chain hours
+      if (override) p.osmHours = p.hours;
+      p.hours = String(best[3]).trim();
+      p.hoursSource = "atp";
+      p.hoursSpider = String(best[4] || ""); // AllThePlaces spider name (attribution only)
+      setHoursState(p);
+      changed++;
+    }
+    return changed;
   }
 
   function cuisineTokens(p) {
@@ -1956,8 +2094,11 @@
       );
     }
     if (p.hours) {
+      const src = p.hoursSource === "atp"
+        ? " (chain store locator via AllThePlaces, CC0)"
+        : " (OpenStreetMap)";
       rows.push(
-        `<div class="contact-hours"><span class="contact-label">Hours</span> ${escapeHtml(p.hours)}</div>`
+        `<div class="contact-hours"><span class="contact-label">Hours</span> ${escapeHtml(p.hours)}${src}</div>`
       );
     }
     if (!rows.length) return "";
@@ -2086,7 +2227,7 @@
       .slice(0, 24)
       .map(
         (p) =>
-          `<button type="button" class="open-pill" role="listitem" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">OSM hours</span></button>`
+          `<button type="button" class="open-pill" role="listitem" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">${p.hoursSource === "atp" ? "Chain hours" : "OSM hours"}</span></button>`
       )
       .join("");
   }
@@ -2473,13 +2614,16 @@
           ? `<button type="button" class="nav-btn" data-copy-addr="${pid}">Copy address</button>`
           : "";
         let hoursLine = "";
-        if (p.hours && p.openStatus === "open") {
-          hoursLine = `<div class="place-hours is-open">${escapeHtml(friendlyHoursLine(p))}</div>`;
-        } else if (p.hours && p.openStatus === "closed") {
-          const closedLine = friendlyHoursLine(p);
-          if (closedLine) hoursLine = `<div class="place-hours is-closed">${escapeHtml(closedLine)}</div>`;
+        const hoursText = p.hours ? friendlyHoursLine(p) : "";
+        if (hoursText && p.openStatus === "open") {
+          hoursLine = `<div class="place-hours is-open">${escapeHtml(hoursText)}</div>`;
+        } else if (hoursText && p.openStatus === "closed") {
+          hoursLine = `<div class="place-hours is-closed">${escapeHtml(hoursText)}</div>`;
+        } else if (hoursText) {
+          // Tagged but outside the parser's subset: show the tag text, no open/closed guess.
+          hoursLine = `<div class="place-hours is-raw">${escapeHtml(hoursText)}</div>`;
         } else {
-          // Missing or unreadable OSM hours: never guess open/closed.
+          // No OSM opening_hours tag at all: never guess.
           hoursLine = `<div class="place-hours is-unknown">Hours not listed</div>`;
         }
 
@@ -2720,6 +2864,16 @@
 
   function applyPlaces(places, { live, statusMsg, fetchedRadius } = {}) {
     state.places = places || [];
+    if (atpIndex) applyAtpHours(state.places);
+    else {
+      const batch = state.places;
+      loadAtpHours().then(() => {
+        if (state.places === batch && applyAtpHours(batch)) {
+          renderList();
+          try { renderMarkers(filteredPlaces()); } catch (_) {}
+        }
+      });
+    }
     if (live && state.places.length) {
       // "People helped": once per device, only after real results. Sends a random on-device code (no coords).
       try { if (window.RangeBitesMetrics && window.RangeBitesMetrics.markHelped) window.RangeBitesMetrics.markHelped(); } catch (_) {}
@@ -3794,20 +3948,21 @@
 
   function refreshOpenStatuses() {
     if (!state.places || !state.places.length) return;
-    const at = nowAtLng(state.lng);
+    const at = placeNow(state.lng);
     let changed = false;
     for (let i = 0; i < state.places.length; i++) {
       const p = state.places[i];
+      if (!p.hours) continue;
       const next = parseOpeningHours(p.hours, at, p.lat, p.lng);
-      if (next !== p.openStatus) {
-        p.openStatus = next;
-        const untilClose = next === "open" ? minutesUntilClose(p.hours, at, p.lat, p.lng) : null;
-        const untilOpen = next === "closed" ? minutesUntilOpen(p.hours, at, p.lat, p.lng) : null;
-        p.closesSoon = next === "open" && untilClose != null && untilClose <= 60;
-        p.opensSoon = next === "closed" && untilOpen != null && untilOpen > 0 && untilOpen <= 90;
-        p.untilOpen = untilOpen;
-        changed = true;
-      }
+      const untilClose = next === "open" ? minutesUntilClose(p.hours, at, p.lat, p.lng) : null;
+      const untilOpen = next === "closed" ? minutesUntilOpen(p.hours, at, p.lat, p.lng) : null;
+      const closesSoon = next === "open" && untilClose != null && untilClose <= 60;
+      const opensSoon = next === "closed" && untilOpen != null && untilOpen > 0 && untilOpen <= 90;
+      if (next !== p.openStatus || closesSoon !== p.closesSoon || opensSoon !== p.opensSoon) changed = true;
+      p.openStatus = next;
+      p.closesSoon = closesSoon;
+      p.opensSoon = opensSoon;
+      p.untilOpen = untilOpen;
     }
     if (!changed) return;
     renderList();
