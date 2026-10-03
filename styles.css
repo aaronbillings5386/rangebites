@@ -1828,32 +1828,49 @@ html[data-device="desktop"] .sheet.filters-sheet.open {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  min-width: 68px;
-  max-width: 80px;
-  min-height: 58px;
-  padding: 8px 8px 6px;
+  min-width: 72px;
+  max-width: none;
+  width: max-content;
+  min-height: 64px;
+  padding: 8px 10px;
   border-radius: 14px;
   flex: 0 0 auto;
+  transform: none;
+  opacity: 1;
+  text-shadow: none;
+}
+.chip.chip-food-cat.active,
+.chip.chip-food-cat:active {
+  transform: none;
+  opacity: 1;
 }
 .chip-food-cat .cuisine-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   line-height: 0;
+  transform: none;
+  opacity: 1;
 }
 .chip-food-cat .cuisine-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   display: block;
 }
 .chip-food-cat .cuisine-name {
-  font-size: 0.64rem;
-  line-height: 1.15;
+  font-size: 16px;
+  line-height: 20px;
   text-align: center;
-  font-weight: 650;
+  font-weight: 600;
   white-space: nowrap;
+  letter-spacing: 0;
+  text-shadow: none;
+  opacity: 1;
+  transform: none;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
 }
 .filters-sheet .chips-food-cats {
   flex-wrap: wrap;
