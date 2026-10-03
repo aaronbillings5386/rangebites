@@ -2155,47 +2155,21 @@
     return sortNearestFirst(places).slice(0, 400);
   }
 
-  /* ---------- Curated closed places (owner list). A missing file hides nothing. ----------
-   * OSM lifecycle tags are still handled by isPermanentlyClosed(). This list is only for
-   * places the owner confirmed are gone while OSM still shows them as open. */
-  const CLOSED_PLACES_URL = "data/closed-places.json";
-  let closedPlaceIds = null;
-  let closedPlacesLoading = null;
+  /* ---------- Curated closed places (data/closed-places.json) ----------
+   * Hand-checked permanent closures keyed by OSM "type/id", hidden even when OSM still tags them open.
+   * Each entry carries its source + date. Fails open (no file → nothing hidden). */
+  const CLOSED_URL = "data/closed-places.json";
+  let closedIds = new Set();
+  let closedLoading = null;
   function loadClosedPlaces() {
-    if (closedPlacesLoading) return closedPlacesLoading;
-    closedPlacesLoading = fetch(CLOSED_PLACES_URL, { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((rows) => {
-        const ids = new Set();
-        const list = Array.isArray(rows) ? rows : [];
-        for (let i = 0; i < list.length; i++) {
-          const row = list[i];
-          const id = typeof row === "string" ? row : (row && row.id);
-          if (id) ids.add(String(id));
-        }
-        closedPlaceIds = ids;
-        return ids;
-      })
-      .catch(() => {
-        closedPlaceIds = new Set();
-        return closedPlaceIds;
-      });
-    return closedPlacesLoading;
+    if (closedLoading) return closedLoading;
+    closedLoading = fetch(CLOSED_URL, { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { closedIds = new Set(Object.keys((j && j.places) || {})); return closedIds; })
+      .catch(() => closedIds);
+    return closedLoading;
   }
-  function isCuratedClosed(p) {
-    return !!(closedPlaceIds && p && closedPlaceIds.has(String(p.id || "")));
-  }
-  /** Remove curated-closed rows from this array. Returns how many were removed. */
-  function dropCuratedClosedInPlace(list) {
-    if (!closedPlaceIds || !list || !list.length) return 0;
-    let removed = 0;
-    for (let i = list.length - 1; i >= 0; i--) {
-      if (!isCuratedClosed(list[i])) continue;
-      list.splice(i, 1);
-      removed++;
-    }
-    return removed;
-  }
+  function isCuratedClosed(p) { return !!(p && closedIds.has(String(p.id))); }
 
   /* ---------- AllThePlaces chain hours (CC0, weekly store-locator scrape) ----------
    * data/atp-hours.json is built offline by tools/build-atp-hours.py (no key, no cost).
@@ -3299,15 +3273,15 @@
   /* ---------- Search / locate ---------- */
 
   function applyPlaces(places, { live, statusMsg, fetchedRadius } = {}) {
-    state.places = places || [];
-    dropCuratedClosedInPlace(state.places);
-    if (closedPlaceIds == null) {
-      const closedBatch = state.places;
+    state.places = (places || []).filter((p) => !isCuratedClosed(p));
+    if (!closedLoading) {
+      const batch = state.places;
       loadClosedPlaces().then(() => {
-        if (state.places !== closedBatch) return;
-        if (!dropCuratedClosedInPlace(closedBatch)) return;
-        renderList();
-        try { renderMarkers(filteredPlaces()); } catch (_) {}
+        if (state.places === batch && batch.some(isCuratedClosed)) {
+          for (let i = batch.length - 1; i >= 0; i--) if (isCuratedClosed(batch[i])) batch.splice(i, 1); // in place: keeps ATP's batch identity
+          renderList();
+          try { renderMarkers(filteredPlaces()); } catch (_) {}
+        }
       });
     }
     if (atpIndex) applyAtpHours(state.places);
