@@ -213,6 +213,78 @@ t("metrics.js: no device code in the counter body", () => {
   assert.ok(/JSON\.stringify\(\{ kind: "found" \}\)/.test(src));
   assert.ok(!/device:\s*id/.test(src));
 });
+const T = load("app.js", [
+  "termsAcceptedForVersion", "termsNoticePending", "screenshotBypassPrefs", "overpassUpstreamHeaders",
+]);
+t("shot=1 does not store terms acceptance", () => {
+  const out = T.screenshotBypassPrefs({ termsAcceptedVersion: "", onboardDismissed: false });
+  assert.strictEqual(out.onboardDismissed, true);
+  assert.strictEqual(out.heroTipHidden, true);
+  assert.strictEqual(out.a2hsDismissed, true);
+  assert.strictEqual(out.termsAcceptedVersion, "");
+  assert.strictEqual(T.termsAcceptedForVersion(out.termsAcceptedVersion, "2026-10-03"), false);
+  const fromBoolean = T.screenshotBypassPrefs({ termsAccepted: true });
+  assert.strictEqual(fromBoolean.termsAcceptedVersion, "");
+  const kept = T.screenshotBypassPrefs({ termsAcceptedVersion: "2026-10-03" });
+  assert.strictEqual(kept.termsAcceptedVersion, "2026-10-03");
+  const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  const shot = /if \(shot\) \{[\s\S]*?\n    \}/.exec(src);
+  assert.ok(shot, "shot block");
+  assert.ok(!/termsAccepted\s*=\s*true/.test(shot[0]));
+  assert.ok(/screenshotBypassPrefs\(/.test(shot[0]));
+});
+t("stored acceptance matches TERMS_VERSION only", () => {
+  assert.strictEqual(T.termsAcceptedForVersion("2026-10-03", "2026-10-03"), true);
+  assert.strictEqual(T.termsAcceptedForVersion("2026-09-01", "2026-10-03"), false);
+  assert.strictEqual(T.termsAcceptedForVersion(true, "2026-10-03"), false);
+  assert.strictEqual(T.termsAcceptedForVersion("", "2026-10-03"), false);
+  assert.strictEqual(T.termsNoticePending("", "2026-10-03"), true);
+  assert.strictEqual(T.termsNoticePending("2026-09-01", "2026-10-03"), true);
+  assert.strictEqual(T.termsNoticePending("2026-10-03", "2026-10-03"), false);
+  const cfg = fs.readFileSync(path.join(__dirname, "..", "config.js"), "utf8");
+  assert.ok(/TERMS_VERSION:\s*"2026-10-03"/.test(cfg));
+  const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  assert.ok(html.includes("Terms updated October 3, 2026"));
+  assert.ok(html.includes('href="/terms"'));
+  assert.ok(/By using RangeBites you agree to the <a href="\/terms">Terms<\/a> and <a href="\/privacy">Privacy<\/a>/.test(html));
+  for (const page of ["index.html", "about.html", "about/index.html", "privacy.html", "privacy/index.html"]) {
+    const pageSrc = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
+    const bits = pageSrc.split("rounded to 3 decimal places");
+    assert.ok(bits.length > 1, page);
+    for (let i = 1; i < bits.length; i++) {
+      assert.ok(!/anonymous/i.test(bits[i].slice(0, 120)), page);
+    }
+  }
+});
+const M = load("metrics.js", ["uuid", "foundRetryKey"], [], "var FOUND_RETRY_MS = 24 * 60 * 60 * 1000;\n");
+t("found retry key is per event, not a stored device id", () => {
+  const day = 24 * 60 * 60 * 1000;
+  const now = 1_700_000_000_000;
+  const a = M.foundRetryKey(null, now);
+  const b = M.foundRetryKey(null, now);
+  assert.notStrictEqual(a.key, b.key);
+  assert.strictEqual(a.fresh, true);
+  assert.strictEqual(a.exp - now, day);
+  const again = M.foundRetryKey({ key: a.key, exp: a.exp }, now + 1000);
+  assert.strictEqual(again.key, a.key);
+  assert.strictEqual(again.fresh, false);
+  const expired = M.foundRetryKey({ key: a.key, exp: a.exp }, a.exp);
+  assert.notStrictEqual(expired.key, a.key);
+  assert.strictEqual(expired.fresh, true);
+  const tooLong = M.foundRetryKey({ key: a.key, exp: now + day + 1 }, now);
+  assert.notStrictEqual(tooLong.key, a.key);
+  const src = fs.readFileSync(path.join(__dirname, "..", "metrics.js"), "utf8");
+  assert.ok(!/lsSet\(PENDING_KEY/.test(src));
+  assert.ok(!/localStorage\.setItem\(PENDING_KEY/.test(src));
+  assert.ok(/sessionStorage\.setItem\(PENDING_KEY/.test(src));
+  assert.ok(/localStorage\.removeItem\(PENDING_KEY\)/.test(src));
+  const headers = T.overpassUpstreamHeaders();
+  const file = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "tools", "overpass-proxy.headers.json"), "utf8"));
+  assert.strictEqual(headers.Referer, "https://rangebites.com");
+  assert.strictEqual(headers["User-Agent"], file["User-Agent"]);
+  assert.strictEqual(headers.Referer, file.Referer);
+  assert.ok(/rangebites@agentmail\.to/.test(headers["User-Agent"]));
+});
 t("data.json: device-code + page-open lists are owner-read; found is kind-only", () => {
   const p = path.join(__dirname, "..", ".herenow", "data.json");
   if (!fs.existsSync(p)) { console.log("   (skipped: .herenow/ is gitignored; checked on the publish tree)"); return; }

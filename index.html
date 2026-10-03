@@ -51,6 +51,11 @@
       </div>
     </header>
 
+    <div class="terms-updated" id="termsUpdated" role="status" hidden>
+      <p>Terms updated October 3, 2026. <a href="/terms">Read the Terms</a>.</p>
+      <button type="button" class="terms-updated-dismiss" id="termsUpdatedDismiss">Dismiss</button>
+    </div>
+
     <section class="search-first" aria-label="Find food">
       <div class="find-row">
         <button type="button" class="btn-primary" id="locateBtn">
@@ -142,6 +147,7 @@
         <a href="specials.html">Specials</a>
         <a href="sitemap.html">Sitemap</a>
       </nav>
+      <p class="site-footer-assent">By using RangeBites you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy</a>.</p>
       <p class="site-footer-note">RangeBites finds any type of food. No account. Not a reservation. Not RangeBits.</p>
       <p class="legal-foot">RangeBites is an independent food finder run by one person in Virginia, not affiliated with or endorsed by any business, pantry, or map service shown. Listings come from OpenStreetMap and may be wrong, so check with the place before you go · Map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
     </footer>
@@ -281,16 +287,15 @@
     <div class="sheet-body">
       <h3>RangeBites</h3>
       <p>RangeBites helps you find food nearby. No account. Not a reservation. Not RangeBits. You must be 13 or older.</p>
-      <p>Tap Locate Me or search any city. Listings and hours come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) and may be wrong or stale. Directions open in Apple Maps or Google Maps. Reviews open in Google Maps. We do not invent hours, star ratings, or coupons.</p>
+      <p>Tap Locate Me or search any city. Listings and hours come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) and may be wrong or stale. Hours combine OpenStreetMap (ODbL) with AllThePlaces (CC0). The matching method is public in the GitHub repo: <a href="https://github.com/aaronbillings5386/rangebites/blob/main/tools/build-atp-hours.py">tools/build-atp-hours.py</a> and <a href="https://github.com/aaronbillings5386/rangebites/blob/main/app.js">app.js</a>. Directions open in Apple Maps or Google Maps. Reviews open in Google Maps. We do not invent hours, star ratings, or coupons.</p>
 
       <h3>Location</h3>
       <p>Locate Me keeps your coordinate in memory for this search only. We never persist lat/lng. We do not save a location history. We do not store GPS on this device or on our host. This device may remember range, distance units (mi or km as text), and last city as text — not coordinates.</p>
       <p>Tap the heart to save or unheart a restaurant. Hearts on this device are OpenStreetMap id, name, and address — not a GPS trail. Heart a place again to unsave it. That list stays on this device only.</p>
       <p>To fetch restaurants, our host’s proxy sends the search to OpenStreetMap services: Overpass (run by OpenStreetMap France) and, for a city you type, Nominatim (run by the OpenStreetMap Foundation). With Locate Me, that search includes your coordinates rounded to 3 decimal places, which still places you within about 100 m. The host and those services see the search and your IP. Map images come from tile.openstreetmap.de (FOSSGIS e.V.), which sees your IP and the map area you view.</p>
       <p>We do not track you. Amplitude is off. The app does not log taps. Opening the home page also sends a first-party page-open count, at most once per browser session: a kind label and a time. It does not include coordinates, name, or email. Hits, if any, never include GPS.</p>
-      <p>Devices that found food counts each device once, the first time a search or Locate Me shows food results. The site sends one record with just the word “found” and the time, and this device remembers it was counted. No device code is sent. Anyone can add to that public list and clearing storage can count a device again, so it is approximate, not a count of people. Test traffic is excluded.</p>
+      <p>Devices that found food counts each device once, the first time a search or Locate Me shows food results. The site sends one record with just the word “found” and the time, and this device remembers it was counted. No device code is sent. A random retry value may be sent in a request header for that one count. It stays only for this browser session, for at most 24 hours, and it is not a device identifier. Anyone can add to that public list and clearing storage can count a device again, so it is approximate, not a count of people. Test traffic is excluded.</p>
       <h3>Contact &amp; accessibility</h3>
-      <!-- PLACEHOLDER contact until Aaron confirms: rangebites@agentmail.to -->
       <p>Questions, corrections, accessibility problems, or legal notices: <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>. We aim to meet WCAG 2.1 AA. If something doesn’t work for you, tell us at that address.</p>
 
       <h3>Promo text</h3>
@@ -300,7 +305,7 @@
       <p>RangeBites is designed, published, and operated by an individual website developer in Virginia, USA (the “Operator”), not a restaurant. By using RangeBites you agree to the <a href="/terms">Terms of Use</a> and <a href="/privacy">Privacy Policy</a>. If you do not agree, discontinue use.</p>
 
       <h3>Disclaimer</h3>
-      <p>THE SERVICE IS PROVIDED AS IS, WITHOUT WARRANTY. Listings, hours, and maps are obtained from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) and may be inaccurate or stale. The Operator is not liable for a closed restaurant, an incorrect pin, food you consume, travel you undertake, or third-party maps you open. RangeBites is not a safety or emergency service. Full terms are in the Terms of Use.</p>
+      <p>THE SERVICE IS PROVIDED AS IS, WITHOUT WARRANTY, TO THE EXTENT PERMITTED BY LAW. Listings, hours, and maps are obtained from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) and may be inaccurate or stale. To the extent permitted by law, the Operator is not liable for a closed restaurant, an incorrect pin, food you consume, travel you undertake, or third-party maps you open. Nothing here excludes or limits liability for personal injury or death caused by negligence, for gross negligence, fraud, or willful misconduct, or any other liability that cannot be excluded or limited under applicable law, including Virginia law. RangeBites is not a safety or emergency service. Full terms are in the Terms of Use.</p>
 
       <p><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Use</a> · <a href="specials.html">Restaurant specials</a> · <a href="sitemap.html">Sitemap</a></p>
       <p class="fine">Map data © OpenStreetMap contributors.</p>

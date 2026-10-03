@@ -24,7 +24,7 @@ jobs:
       - name: JSON configs parse
         run: |
           set -e
-          for f in .herenow/data.json .herenow/proxy.json manifest.webmanifest vercel.json; do
+          for f in .herenow/data.json .herenow/proxy.json tools/overpass-proxy.headers.json manifest.webmanifest vercel.json; do
             [ -f "$f" ] && node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" && echo "ok $f"
           done
       - name: Python tools compile

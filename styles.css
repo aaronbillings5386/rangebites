@@ -1176,6 +1176,17 @@ html, body { overflow-x: hidden; max-width: 100%; }
   text-decoration: none;
 }
 .site-footer-nav a:hover { color: var(--text); }
+.site-footer-assent {
+  margin: 12px auto 0;
+  max-width: 36rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.site-footer-assent a {
+  color: #ffc43a;
+  padding: 8px 2px;
+}
 .site-footer-note {
   margin: 10px auto 0;
   max-width: 28rem;
@@ -1183,6 +1194,32 @@ html, body { overflow-x: hidden; max-width: 100%; }
   color: var(--muted);
   line-height: 1.4;
 }
+.terms-updated {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 8px 14px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 196, 58, 0.1);
+  border: 1px solid rgba(255, 196, 58, 0.35);
+  color: #fff6ea;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+.terms-updated p { margin: 0; flex: 1 1 auto; }
+.terms-updated a { color: #ffc43a; }
+.terms-updated-dismiss {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 196, 58, 0.6);
+  background: transparent;
+  color: #ffc43a;
+  font-weight: 800;
+}
+.terms-updated[hidden] { display: none !important; }
 
 .dir-row {
   display: flex; gap: 8px; flex-wrap: wrap;

@@ -1,11 +1,16 @@
-/* RangeBites: no analytics. This file only holds one UI switch.
+/* RangeBites: no analytics. UI switches only.
  *
- * ASSENT_MODE (forge 20261003, Snitch item 6) — how the Terms are presented:
- *   "current"    DEFAULT. Today's live behaviour: the Continue sheet stays hidden, no extra line.
- *   "continue"   Show the existing "Before you use RangeBites … Tap Continue" sheet once per device
- *                (remembered in rb_ui_prefs.termsAccepted after the tap).
- *   "browsewrap" Show "By using RangeBites you agree to the Terms and Privacy Policy" under the search box.
- * To flip: change the string below, bump ?v= on config.js in index.html, publish. If you pick "continue"
- * or "browsewrap", make Terms §1 describe that method (it currently says "by tapping Continue on first use").
+ * ASSENT_MODE:
+ *   "current"    Continue sheet stays hidden.
+ *   "continue"   Show the Continue sheet until termsAccepted equals TERMS_VERSION.
+ *   "browsewrap" Show the agree line under the search box.
+ * TERMS_VERSION is the string stored when Continue is tapped. A new value
+ * shows the Continue sheet again in "continue" mode, and the Terms-updated
+ * notice until that version is dismissed. TERMS_UPDATED_LABEL is the date
+ * in that notice.
  */
-window.RB_CONFIG = Object.freeze({ ASSENT_MODE: "current" });
+window.RB_CONFIG = Object.freeze({
+  ASSENT_MODE: "current",
+  TERMS_VERSION: "2026-10-03",
+  TERMS_UPDATED_LABEL: "October 3, 2026",
+});

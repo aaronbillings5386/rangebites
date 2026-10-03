@@ -5,8 +5,9 @@
  * No location, email, cookies, or user-agent in the body.
  * "Devices that found food" (forge 20261003, Shade/Gavel H2): body is {"kind":"found"} only. No device code.
  * Sent once per device, after the first search or Locate Me that returns ≥1 place; this device remembers it
- * already counted with the flag "rb_helped_done" in localStorage. A one-off random Idempotency-Key makes a
- * retried send safe; it is kept only until the send succeeds and is never in the record body.
+ * already counted with the flag "rb_helped_done" in localStorage. A per-event random Idempotency-Key may be
+ * retried in this browser session for up to 24 hours. It is not stored in localStorage, it is not a device
+ * identifier, and it is never in the record body.
  * The public number = LEGACY_FOUND_BASE + the number of "found" records. Page-open "hits" and the old
  * "helped" device-code records are owner-read only (.herenow/data.json); only "found" is publicly readable.
  * The host also sees the requester's IP address on these requests.
@@ -20,8 +21,7 @@
    * never sends again. Bots/crawlers, automation (webdriver), and QA runs (?qa=1, ?rbqa=1, rb_no_count=1) never count. */
   var HELPED_COLLECTIONS = { found: 1, found_selftest: 1 };
   /* Devices counted under the old "helped" collection before 20261003. Those devices already have
-   * rb_helped_done=1, so they are never counted again in "found". PUBLISH STEP: set this to the owner-side
-   * count of distinct devices in "helped" at publish time. The 2 below is a placeholder until that count is confirmed. */
+   * rb_helped_done=1, so they are never counted again in "found". Added to the public "found" total. */
   var LEGACY_FOUND_BASE = 2;
   var DEVICE_KEY = "rb_device_id"; // legacy key: removed on boot, never sent
   var PENDING_KEY = "rb_found_pending_key";
@@ -249,14 +249,51 @@
     return false;
   }
 
-  /** One-off retry key for the single "found" send. Not a device ID: removed once the send succeeds. */
-  function pendingKey() {
-    var k = lsGet(PENDING_KEY);
-    if (!k || !/^[0-9a-f-]{36}$/i.test(k)) {
-      k = uuid();
-      lsSet(PENDING_KEY, k);
+  var FOUND_RETRY_MS = 24 * 60 * 60 * 1000;
+
+  /** Per-event retry key. Reuse only a session record that expires within 24 hours. Otherwise a new key. */
+  function foundRetryKey(stored, nowMs) {
+    var now = typeof nowMs === "number" ? nowMs : Date.now();
+    var rec = stored && typeof stored === "object" ? stored : null;
+    var key = rec && typeof rec.key === "string" ? rec.key : "";
+    var exp = rec && typeof rec.exp === "number" ? rec.exp : 0;
+    if (/^[0-9a-f-]{36}$/i.test(key) && exp > now && (exp - now) <= FOUND_RETRY_MS) {
+      return { key: key, exp: exp, fresh: false };
     }
-    return k;
+    return { key: uuid(), exp: now + FOUND_RETRY_MS, fresh: true };
+  }
+
+  function readFoundRetry() {
+    try {
+      var raw = sessionStorage.getItem(PENDING_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeFoundRetry(rec) {
+    try {
+      sessionStorage.setItem(PENDING_KEY, JSON.stringify({ key: rec.key, exp: rec.exp }));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function clearFoundRetry() {
+    try { sessionStorage.removeItem(PENDING_KEY); } catch (_) {}
+    try { localStorage.removeItem(PENDING_KEY); } catch (_) {}
+  }
+
+  /** Session-only retry key. Never written to localStorage. */
+  function pendingKey() {
+    try { localStorage.removeItem(PENDING_KEY); } catch (_) {}
+    var rec = foundRetryKey(readFoundRetry(), Date.now());
+    if (rec.fresh) writeFoundRetry(rec);
+    return rec.key;
   }
 
   var helpedInFlight = false;
@@ -268,7 +305,6 @@
       return Promise.resolve(false);
     }
     var key = pendingKey();
-    if (!lsGet(PENDING_KEY)) return Promise.resolve(false); // storage blocked: cannot promise once-ever, skip
     helpedInFlight = true;
     return fetch(helpedUrl(), {
       method: "POST",
@@ -279,9 +315,9 @@
       helpedInFlight = false;
       if (res && res.ok) {
         lsSet(doneKey, "1");
-        try { localStorage.removeItem(PENDING_KEY); } catch (_) {}
+        clearFoundRetry();
         if (lastExact != null) {
-          lastExact += 1; // our new, never-before-counted device ID
+          lastExact += 1; // this send was accepted, so the on-screen total includes it
           paintVisitCount(lastExact, { exact: true });
         }
         return true;
@@ -312,6 +348,7 @@
     }
     try { localStorage.removeItem("rb_visit_count"); localStorage.removeItem("rb_visit_count_more"); } catch (_) {}
     try { localStorage.removeItem(DEVICE_KEY); } catch (_) {} // old device code: no longer used or sent
+    try { localStorage.removeItem(PENDING_KEY); } catch (_) {} // old cross-session retry key: never send it again
     var home = !path || path === "index.html" || path === "";
     var wait = home ? hitViewOncePerSession() : Promise.resolve(false);
     wait.then(function () {

@@ -183,9 +183,44 @@
     heroTipHidden: false,
     a2hsDismissed: false,
     filtersOpen: false,
-    termsAccepted: false,
+    termsAcceptedVersion: "",
     units: "mi",
   };
+
+  function currentTermsVersion() {
+    const cfg = (typeof window !== "undefined" && window.RB_CONFIG) || {};
+    const v = cfg.TERMS_VERSION;
+    return typeof v === "string" ? v : "";
+  }
+
+  /** Stored acceptance counts only when it equals the current TERMS_VERSION. A boolean or older string does not. */
+  function termsAcceptedForVersion(stored, version) {
+    return typeof stored === "string" && stored.length > 0 && stored === version;
+  }
+
+  /** True until this browser has dismissed the notice for this TERMS_VERSION. */
+  function termsNoticePending(seen, version) {
+    return typeof version === "string" && version.length > 0 && seen !== version;
+  }
+
+  /** ?shot=1 may hide onboard chrome. It must not record Terms acceptance. */
+  function screenshotBypassPrefs(prefs) {
+    const prev = prefs && typeof prefs === "object" ? prefs : {};
+    return {
+      onboardDismissed: true,
+      heroTipHidden: true,
+      a2hsDismissed: true,
+      termsAcceptedVersion: typeof prev.termsAcceptedVersion === "string" ? prev.termsAcceptedVersion : "",
+    };
+  }
+
+  /** Headers the same-origin Overpass proxy must send upstream. The browser cannot set User-Agent. */
+  function overpassUpstreamHeaders() {
+    return {
+      Referer: "https://rangebites.com",
+      "User-Agent": "RangeBites/1.0 (+https://rangebites.com; rangebites@agentmail.to)",
+    };
+  }
 
   function looksLikeCoords(s) {
     return /[-+]?\d{1,3}\.\d+\s*[, ]\s*[-+]?\d{1,3}\.\d+/.test(String(s || ""));
@@ -260,7 +295,9 @@
         onboardDismissed: !!uiPrefs.onboardDismissed,
         heroTipHidden: !!uiPrefs.heroTipHidden,
         a2hsDismissed: !!uiPrefs.a2hsDismissed,
-        termsAccepted: !!uiPrefs.termsAccepted,
+        termsAccepted: termsAcceptedForVersion(uiPrefs.termsAcceptedVersion, currentTermsVersion())
+          ? uiPrefs.termsAcceptedVersion
+          : "",
       };
       delete payload.lat;
       delete payload.lng;
@@ -339,7 +376,9 @@
     uiPrefs.onboardDismissed = !!p.onboardDismissed;
     uiPrefs.heroTipHidden = !!p.heroTipHidden;
     uiPrefs.a2hsDismissed = !!p.a2hsDismissed;
-    uiPrefs.termsAccepted = !!p.termsAccepted;
+    uiPrefs.termsAcceptedVersion = termsAcceptedForVersion(p.termsAccepted, currentTermsVersion())
+      ? p.termsAccepted
+      : "";
     uiPrefs.filtersOpen = false;
     const input = $("#placeSearch");
     if (input && q) input.value = q;
@@ -1707,6 +1746,8 @@
       const controller = new AbortController();
       const timer = setTimeout(function () { controller.abort(); }, abortMs);
       try {
+        // Upstream must send overpassUpstreamHeaders() (Referer + descriptive User-Agent).
+        // referrerPolicy "origin" is the browser Referer; User-Agent is set by the proxy.
         let res = await fetch(url, {
           method: "POST",
           headers: {
@@ -4332,9 +4373,17 @@
     const agreeBtn = $("#agreeContinue");
     if (agreeBtn) {
       agreeBtn.addEventListener("click", () => {
-        uiPrefs.termsAccepted = true;
+        uiPrefs.termsAcceptedVersion = currentTermsVersion();
         persistUiPrefs();
         hideAgree();
+      });
+    }
+    const termsDismiss = $("#termsUpdatedDismiss");
+    if (termsDismiss) {
+      termsDismiss.addEventListener("click", () => {
+        try { localStorage.setItem("rb_terms_notice_seen", currentTermsVersion()); } catch (_) {}
+        const note = $("#termsUpdated");
+        if (note) note.hidden = true;
       });
     }
     syncDietChipsUI();
@@ -4380,7 +4429,7 @@
     const mode = assentMode();
     const line = $("#assentLine");
     if (line) line.hidden = mode !== "browsewrap";
-    if (mode === "continue" && !uiPrefs.termsAccepted) {
+    if (mode === "continue" && !termsAcceptedForVersion(uiPrefs.termsAcceptedVersion, currentTermsVersion())) {
       openAgree();
       return;
     }
@@ -4388,6 +4437,14 @@
     hideAgree();
   }
 
+  function syncTermsNotice() {
+    const note = $("#termsUpdated");
+    if (!note) return;
+    const version = currentTermsVersion();
+    let seen = "";
+    try { seen = localStorage.getItem("rb_terms_notice_seen") || ""; } catch (_) {}
+    note.hidden = !termsNoticePending(seen, version);
+  }
 
   function refreshOpenStatuses() {
     if (!state.places || !state.places.length) return;
@@ -4427,6 +4484,7 @@
     syncTrustStrip();
     hideOnboarding();
     maybeShowAgree();
+    syncTermsNotice();
     maybeShowA2hs();
     uiPrefs.filtersOpen = false;
     closeFilters();
@@ -4438,10 +4496,11 @@
       shot = new URLSearchParams(location.search).get("shot") === "1";
     } catch (_) {}
     if (shot) {
-      uiPrefs.onboardDismissed = true;
-      uiPrefs.heroTipHidden = true;
-      uiPrefs.a2hsDismissed = true;
-      uiPrefs.termsAccepted = true;
+      const bypass = screenshotBypassPrefs(uiPrefs);
+      uiPrefs.onboardDismissed = bypass.onboardDismissed;
+      uiPrefs.heroTipHidden = bypass.heroTipHidden;
+      uiPrefs.a2hsDismissed = bypass.a2hsDismissed;
+      uiPrefs.termsAcceptedVersion = bypass.termsAcceptedVersion;
       persistUiPrefs();
       hideOnboarding();
       hideHeroTip(false);

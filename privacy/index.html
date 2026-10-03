@@ -56,7 +56,7 @@
     <p class="legal-back"><a href="/">← RangeBites</a></p>
     <p class="legal-kicker">Legal</p>
     <h1>Privacy Policy</h1>
-    <p class="meta">RangeBites · rangebites.com · Effective [ship date of this change, set at publish] <!-- PLACEHOLDER: PR date --></p>
+    <p class="meta">RangeBites · rangebites.com · Effective October 3, 2026</p>
     <p class="read-note">This Privacy Policy describes how the operator of RangeBites handles information. It is part of your agreement to use the Service, together with the Terms of Use.</p>
 
     <h2>1. Operator</h2>
@@ -79,10 +79,10 @@
     <p>The site is served over HTTPS. Files are hosted on here.now (Cloudflare).</p>
     <h2>6. Analytics and tracking</h2>
     <p>The Operator does not use Amplitude or similar product-analytics services to track you. The application does not log Locate Me, search, or deal taps as a user profile. The home page sends a first-party page-open count at most once per browser session. If the host retains it, that record is a kind label and a time. It does not include coordinates, name, or email. Page-open records are stored with our host and are not publicly readable.</p>
-    <p>“Devices that found food” count: the first time a search or Locate Me on this device shows food results, the Service sends one record that contains only the word “found” and the time. This device remembers that it was counted with a flag in its local storage, so it is counted once. No device code is sent. These counter records (just that label plus a time) are stored with our host in a list that is publicly readable, so the number can be shown. They don’t include your name, email, location, or IP address. Anyone can add to that list, and clearing this site’s storage or using another browser can count a device again, so the number is approximate. Earlier versions of the site sent a random device code with this count; those older records are kept with our host and are no longer publicly readable.</p>
+    <p>“Devices that found food” count: the first time a search or Locate Me on this device shows food results, the Service sends one record that contains only the word “found” and the time. This device remembers that it was counted with a flag in its local storage, so it is counted once. No device code is sent. A random retry value may be sent in a request header for that one count. It stays only for this browser session, for at most 24 hours, and it is not a device identifier. These counter records (just that label plus a time) are stored with our host in a list that is publicly readable, so the number can be shown. They don’t include your name, email, location, or IP address. Anyone can add to that list, and clearing this site’s storage or using another browser can count a device again, so the number is approximate. Earlier versions of the site sent a random device code with this count; those older records are kept with our host and are no longer publicly readable.</p>
     <p>We don’t track you across other websites, and we don’t let third parties do so through RangeBites, so we don’t change anything in response to browser Do Not Track signals.</p>
     <h2>7. Listings</h2>
-    <p>Restaurant names, hours, and maps come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) as-is and may be wrong. There is no warranty that a listing is accurate, open, or still there.</p>
+    <p>Restaurant names, hours, and maps come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) as-is and may be wrong. Hours combine OpenStreetMap (ODbL) with AllThePlaces (CC0). The matching method is public in the GitHub repo: <a href="https://github.com/aaronbillings5386/rangebites/blob/main/tools/build-atp-hours.py">tools/build-atp-hours.py</a> and <a href="https://github.com/aaronbillings5386/rangebites/blob/main/app.js">app.js</a>. There is no warranty that a listing is accurate, open, or still there.</p>
 
     <h2>8. What we do not do</h2>
     <p>The Operator does not sell personal information, does not require an account to browse, does not store reservations, does not use advertising trackers, and does not collect diner emails.</p>
@@ -92,7 +92,6 @@
     <h2>10. Your choices</h2>
     <p>You may deny location permission and still search any city. You may unheart restaurants or clear saved restaurants in Filters, reset filters with Filters › Clear, and tap Forget next to “Last city” to remove the saved city on this device. Clearing this site’s data in your browser removes everything the site stored on this device. Tap Clear location to wipe the in-memory search, or fully unload the page. A brief page hide, the iOS location permission sheet, or switching apps does not clear it.</p>
     <h2>11. Contact</h2>
-    <!-- PLACEHOLDER contact until Aaron confirms: rangebites@agentmail.to -->
     <p>Questions, corrections, accessibility problems, or legal notices: <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>. We don’t run a diner mailing list, and writing to us won’t add you to one.</p>
     <h2>12. Children</h2>
     <p>The Service is intended for persons 13 years of age and older. It is not directed to children under 13. The Operator does not knowingly collect personal information from children under 13.</p>
