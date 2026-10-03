@@ -2030,7 +2030,6 @@
         changingTable: osmTagYes(tags.changing_table),
         smokeFree: osmTagNo(tags.smoking),
         kidsArea: osmTagYes(tags.kids_area),
-        lateNight: isLateNightHours(hours, atPlace, lat, lng),
         dietVegan,
         dietVegetarian,
         dietGlutenFree,
@@ -2089,7 +2088,6 @@
     p.closesSoon = st === "open" && untilClose != null && untilClose <= 60;
     p.opensSoon = st === "closed" && untilOpen != null && untilOpen > 0 && untilOpen <= 90;
     p.untilOpen = untilOpen;
-    p.lateNight = isLateNightHours(p.hours);
   }
   /** Merge chain hours into places. Returns how many places changed. */
   function applyAtpHours(places) {

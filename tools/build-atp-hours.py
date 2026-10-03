@@ -48,7 +48,7 @@ def main():
             k += 1
         per[sp] = k
     out = {
-        "source": "AllThePlaces (https://www.alltheplaces.xyz/), CC0-1.0. Chain store-locator hours.",
+        "source": "AllThePlaces, CC0-1.0. Chain store-locator hours.",
         "run_id": run, "built": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "bbox": REGION_BBOX,
         "fields": ["brand_wikidata", "lat", "lng", "opening_hours", "atp_spider"], "rows": rows,
     }
