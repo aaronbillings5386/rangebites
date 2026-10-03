@@ -18,6 +18,7 @@ GitHub `main` (`188a0e7`) is behind live build `20261003b`. Open PR #8 was not u
 - `ASSENT_MODE` in `config.js` is `"continue"`. The Continue sheet shows until `termsAccepted` equals `TERMS_VERSION`. Terms §1 says “by tapping Continue, or by using the site.” The home footer agree line stays. `?shot=1` does not store acceptance.
 - `PUBLISH_DATE` in `config.js` is `2026-10-04` (October 4, 2026). `TERMS_VERSION` and the Terms-updated notice both use that one constant. The same date is plain text in Terms, Privacy, and the home “Terms updated” line, so it shows without JavaScript. Change the constant and those plain-text copies together if the publish date slips.
 - `LEGACY_FOUND_BASE` in `metrics.js` is `2` for now. Set it to the real helped count at publish time. A new helped record has appeared since the earlier base.
+- The public found count is an anonymous `{"kind":"found"}` once per browser session. RangeBites does not create or store a device identifier. The only on-device record of that count is a yes-or-no flag in `sessionStorage`. First load deletes leftover device, visitor, and install ids from `localStorage` and `sessionStorage`. The app does not write the `helped` collection and does not store the requester IP.
 - Contact is RangeBites (rangebites.com), `rangebites@agentmail.to`. Terms §12 states that. `security.txt` keeps `Contact: mailto:rangebites@agentmail.to`. No personal name is added.
 - Late night means today’s tagged hours run past 9 pm or cross midnight. `filteredPlaces` calls `isLateNightHours(p.hours, placeNow(p.lng), p.lat, p.lng)`. The place object does not store `lateNight`.
 - `data/atp-hours.json` rows are brand id, coordinates, opening hours, and spider name. The file has no URLs.
@@ -26,11 +27,11 @@ GitHub `main` (`188a0e7`) is behind live build `20261003b`. Open PR #8 was not u
 
 ## Checks on this branch
 
-`node --check` passes on the JS files. `node tests/app.test.js` passes 25 tests, including the US-box clock, screenshot bypass, terms version, continue-mode sheet, found-count retry key, geocoder-busy, place-alternate, CSP, aria-pressed, late-night, and street-line cases.
+`node --check` passes on the JS files. `node tests/app.test.js` passes 26 tests, including the US-box clock, screenshot bypass, terms version, continue-mode sheet, device-id storage grep, legacy device-id cleanup, geocoder-busy, place-alternate, CSP, aria-pressed, late-night, and street-line cases.
 
 The Overpass proxy must send `Referer: https://rangebites.com` and `User-Agent: RangeBites/1.0 (+https://rangebites.com; rangebites@agentmail.to)`. Those values are in `tools/overpass-proxy.headers.json` and `overpassUpstreamHeaders()` in `app.js`. `herenow.patch` / `.herenow/proxy.json` must match. The browser fetch uses `referrerPolicy: "origin"` and cannot set User-Agent.
 
-Publish `herenow.patch` (owner-only helped, found collection, drop the `/api/overpass-lz4` route) BEFORE the site files. At that publish step, set `LEGACY_FOUND_BASE` to the real helped count, and change `PUBLISH_DATE` plus the plain-text dates if October 4, 2026 is no longer the ship date.
+Publish `herenow.patch` (owner-only helped, found collection, drop the `/api/overpass-lz4` route) BEFORE the site files. That patch must make `helped` owner-only with inserts disabled, and the remaining helped records will be deleted at publish. At that same step, set `LEGACY_FOUND_BASE` to the real helped count, and change `PUBLISH_DATE` plus the plain-text dates if October 4, 2026 is no longer the ship date.
 
 ## Still needs a real device
 

@@ -3218,7 +3218,7 @@
       });
     }
     if (live && state.places.length) {
-      // "Devices that found food": once per device, only after real results. Sends {"kind":"found"} only (no code, no coords).
+      // Anonymous "found" count: once per browser session, after real results. Body is {"kind":"found"} only.
       try { if (window.RangeBitesMetrics && window.RangeBitesMetrics.markHelped) window.RangeBitesMetrics.markHelped(); } catch (_) {}
     }
     state.loading = false;

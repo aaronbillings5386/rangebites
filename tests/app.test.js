@@ -212,6 +212,7 @@ t("metrics.js: no device code in the counter body", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "metrics.js"), "utf8");
   assert.ok(/JSON\.stringify\(\{ kind: "found" \}\)/.test(src));
   assert.ok(!/device:\s*id/.test(src));
+  assert.ok(!/\.herenow\/data\/helped["'`]/.test(src));
 });
 const T = load("app.js", [
   "termsAcceptedForVersion", "termsNoticePending", "screenshotBypassPrefs", "overpassUpstreamHeaders",
@@ -263,36 +264,88 @@ t("stored acceptance matches TERMS_VERSION only", () => {
     }
   }
 });
-const M = load("metrics.js", ["uuid", "foundRetryKey"], [], "var FOUND_RETRY_MS = 24 * 60 * 60 * 1000;\n");
-t("found retry key is per event, not a stored device id", () => {
-  const day = 24 * 60 * 60 * 1000;
-  const now = 1_700_000_000_000;
-  const a = M.foundRetryKey(null, now);
-  const b = M.foundRetryKey(null, now);
-  assert.notStrictEqual(a.key, b.key);
-  assert.strictEqual(a.fresh, true);
-  assert.strictEqual(a.exp - now, day);
-  const again = M.foundRetryKey({ key: a.key, exp: a.exp }, now + 1000);
-  assert.strictEqual(again.key, a.key);
-  assert.strictEqual(again.fresh, false);
-  const expired = M.foundRetryKey({ key: a.key, exp: a.exp }, a.exp);
-  assert.notStrictEqual(expired.key, a.key);
-  assert.strictEqual(expired.fresh, true);
-  const tooLong = M.foundRetryKey({ key: a.key, exp: now + day + 1 }, now);
-  assert.notStrictEqual(tooLong.key, a.key);
-  const src = fs.readFileSync(path.join(__dirname, "..", "metrics.js"), "utf8");
-  assert.ok(!/lsSet\(PENDING_KEY/.test(src));
-  assert.ok(!/localStorage\.setItem\(PENDING_KEY/.test(src));
-  assert.ok(/sessionStorage\.setItem\(PENDING_KEY/.test(src));
-  assert.ok(/localStorage\.removeItem\(PENDING_KEY\)/.test(src));
-  assert.ok(/real helped count at publish/.test(src));
-  assert.ok(!/records are removed/.test(src));
+const M = load("metrics.js", ["clearLegacyDeviceIds"]);
+t("shipped JS does not store a device identifier", () => {
+  const files = ["app.js", "metrics.js", "analytics.js", "specials.js", "deals.js", "disclaimers.js", "config.js", "sw.js", "config.example.js"];
+  const idKey = /device|visitor|install|pending_key|helped_done|helped_id|deviceId|device_id/i;
+  for (const file of files) {
+    const src = fs.readFileSync(path.join(__dirname, "..", file), "utf8");
+    src.split("\n").forEach((line, idx) => {
+      if (/removeItem\s*\(/.test(line)) return;
+      const writes = /(?:localStorage|sessionStorage)\.setItem\s*\(|\blsSet\s*\(|\bssSet\s*\(/.test(line);
+      assert.ok(!(writes && idKey.test(line)), file + ":" + (idx + 1) + " stores a device id: " + line.trim());
+    });
+    assert.ok(!/indexedDB\s*\.\s*open\s*\(/.test(src), file);
+    assert.ok(!/document\.cookie\s*=/.test(src), file);
+    assert.ok(!/\.herenow\/data\/helped["'`]/.test(src), file);
+    assert.ok(!/setItem\s*\([^)]*uuid\s*\(/.test(src), file);
+  }
+  const metrics = fs.readFileSync(path.join(__dirname, "..", "metrics.js"), "utf8");
+  const markStart = metrics.indexOf("function markHelped()");
+  const markEnd = metrics.indexOf("window.RangeBitesMetrics");
+  const mark = metrics.slice(markStart, markEnd);
+  assert.ok(markStart >= 0 && markEnd > markStart, "markHelped");
+  assert.ok(!/Idempotency-Key/.test(mark));
+  assert.ok(!/localStorage/.test(mark));
+  assert.ok(/ss\.setItem\(countedKey, "1"\)/.test(mark));
+  assert.ok(/window\.sessionStorage/.test(mark));
+  assert.ok(/JSON\.stringify\(\{ kind: "found" \}\)/.test(mark));
+  assert.ok(!/foundRetryKey/.test(metrics));
+  assert.ok(/clearLegacyDeviceIds\(/.test(metrics));
+  assert.ok(/real helped count at publish/.test(metrics));
+  assert.ok(!/records are removed/.test(metrics));
+  for (const page of ["privacy.html", "privacy/index.html"]) {
+    const privacy = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
+    assert.ok(privacy.includes("RangeBites does not create or store a device identifier."), page);
+  }
   const headers = T.overpassUpstreamHeaders();
   const file = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "tools", "overpass-proxy.headers.json"), "utf8"));
   assert.strictEqual(headers.Referer, "https://rangebites.com");
   assert.strictEqual(headers["User-Agent"], file["User-Agent"]);
   assert.strictEqual(headers.Referer, file.Referer);
   assert.ok(/rangebites@agentmail\.to/.test(headers["User-Agent"]));
+});
+t("cleanup removes legacy device ids", () => {
+  function mem(seed) {
+    const data = Object.assign({}, seed);
+    return {
+      get length() { return Object.keys(data).length; },
+      key(i) { return Object.keys(data)[i]; },
+      getItem(k) { return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
+      removeItem(k) { delete data[k]; },
+    };
+  }
+  const seed = {
+    rb_device: "a",
+    rb_device_id: "b",
+    deviceId: "c",
+    device_id: "d",
+    visitorId: "e",
+    visitor_id: "f",
+    installId: "g",
+    install_id: "h",
+    rb_helped_id: "i",
+    rb_helped_done: "1",
+    rb_helped_done_selftest: "1",
+    rb_found_pending_key: "{\"key\":\"x\"}",
+    rb_device_id_v2: "leftover",
+    rb_ui_prefs: "{\"range\":5}",
+    rb_found_session: "1",
+    rb_helped_count: "12",
+  };
+  const local = mem(seed);
+  const session = mem(seed);
+  M.clearLegacyDeviceIds(local, session);
+  for (const k of ["rb_device", "rb_device_id", "deviceId", "device_id", "visitorId", "visitor_id", "installId", "install_id", "rb_helped_id", "rb_helped_done", "rb_helped_done_selftest", "rb_found_pending_key", "rb_device_id_v2"]) {
+    assert.strictEqual(local.getItem(k), null, "local " + k);
+    assert.strictEqual(session.getItem(k), null, "session " + k);
+  }
+  assert.strictEqual(local.getItem("rb_ui_prefs"), "{\"range\":5}");
+  assert.strictEqual(session.getItem("rb_ui_prefs"), "{\"range\":5}");
+  assert.strictEqual(local.getItem("rb_found_session"), "1");
+  assert.strictEqual(session.getItem("rb_found_session"), "1");
+  assert.strictEqual(local.getItem("rb_helped_count"), "12");
+  assert.strictEqual(session.getItem("rb_helped_count"), "12");
 });
 t("continue is the default and opens until this TERMS_VERSION", () => {
   assert.strictEqual(T.shouldShowContinueSheet("continue", "", "2026-10-03"), true);
