@@ -27,17 +27,8 @@ Quiet Precision + Reviewer claim-safety + Researcher session UX + ASO Lawyer-saf
 - Navigate/deal sheet: **We may earn a commission when you tap through. You keep the deal.**
 - Privacy: location powers search then gone; no profile; no account for core.
 
-### Analytics (snake_case only — no Title Case; no lat/long)
-`config.js` + `analytics.js` wired from `index.html`:
-- `app_opened` `{ has_account: false }` on boot
-- `onboarding_completed` `{ screens_seen: N }`
-- `account_created` — no-op stub
-- `locate_me_requested` / `locate_me_result`
-- `radius_changed` (`radius_mi`, `prior_radius_mi`)
-- `search_completed` (`radius_mi`, `result_count`)
-- `deal_impression`
-- `deal_tapped` (Deal Viewed → `deal_tapped`; `has_coupon` bool)
-- `nav_handoff` (Deal Navigated → `nav_handoff`; `deal_id`, `maps_app`, `radius_mi`)
+### Analytics
+Retired. RangeBites does not load a tracker. `analytics.js` makes no network call and is not included from `index.html`.
 
 ### Kept intact
 - Locate Me: no visibilitychange wipe; Try demo map; Locating states; secure-context banner; 4s Overpass race + fallback; wipe pagehide/beforeunload only
@@ -58,15 +49,9 @@ No git push.
 
 ---
 
-## Morning pass — 2026-08-23 (local only, no push)
+## Morning pass — 2026-08-23 (retired)
 
-Privacy-safe Amplitude **eventing finish/verify**:
-
-- Confirmed locked snake_case call sites in `app.js` + helpers in `analytics.js`.
-- Debug helpers: `_queueLength()`, `_debugEventNames()`, `?analytics_debug=1` → `data-fr-analytics-*` (names only when debug).
-- `radius_changed` skips identical radius re-taps.
-- Docs: `AARON_AMPLITUDE.md` (Aaron: confirm events in project **855341**, paste Browser API key into `config.js` as `FOOD_RADAR_AMPLITUDE_API_KEY`, refresh). `EVENTING.md` taxonomy + changelog.
-- No secrets invented; empty key = in-memory queue only. No push.
+This note used to describe an Amplitude setup. That tracker is not part of RangeBites. Do not add it back.
 
 ---
 

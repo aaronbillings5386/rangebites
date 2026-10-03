@@ -1,22 +1,18 @@
 /**
- * RangeBites — first-party counts only.
- * Page-open hits: body is {"kind": "view"|"locate"|"demo"|"deal"}; the app only sends "view",
- * at most once per browser session, from the home page (skipped entirely if sessionStorage is unavailable).
- * No location, email, cookies, or user-agent in the body.
- * "Devices that found food": body is {"kind":"found"} only. Anonymous +1. No device identifier is
- * created, stored, or sent. That request has no Idempotency-Key. Nothing is saved on the device except a
- * yes-or-no "already counted this session" flag in sessionStorage. The app does not store the requester IP.
- * The public number = LEGACY_FOUND_BASE + the number of "found" records. Page-open "hits" are owner-read.
- * The old "helped" collection is not written. The host may see the requester IP; this app does not store it.
+ * RangeBites tracks nobody.
+ * No page-view log, no device id, no analytics id, no referrer, no user-agent capture.
+ * "Devices that found food" is one anonymous {"kind":"found"} per browser session.
+ * Nothing is saved on the device except a yes-or-no session flag. The app does not store IP.
+ * The public number = LEGACY_FOUND_BASE + the number of "found" records.
+ * The "helped" and "hits" collections are not written.
  */
 (function () {
   "use strict";
 
-  var HITS_URL = "./.herenow/data/hits";
   /* "Devices that found food": one anonymous {"kind":"found"} per browser session, only after a
    * search or Locate Me returned ≥1 place. The session flag is "1" or absent. It is not an identifier.
-   * Bots/crawlers, automation (webdriver), and QA runs (?qa=1, ?rbqa=1, rb_no_count=1) never count.
-   * Writes go to the "found" collection only. The "helped" collection is never inserted. */
+   * QA runs (?qa=1, ?rbqa=1, rb_no_count=1) never count.
+   * Writes go to the "found" collection only. "helped" and "hits" are never inserted. */
   /* Added to the public "found" total. Set this to the real helped count at publish
    * time. A new helped record has appeared since the earlier base, so confirm the
    * live count before shipping. */
@@ -24,7 +20,6 @@
   var SESSION_COUNTED_KEY = "rb_found_session";
   var NO_COUNT_KEY = "rb_no_count";
   var TARGET_KEY = "rb_count_target"; // "found_selftest" = count-test bucket only
-  var BOT_UA = /bot|crawl|spider|slurp|scrap|headless|lighthouse|pagespeed|preview|facebookexternalhit|embedly|whatsapp|telegram|discord|curl|wget|python|httpclient|java\/|go-http|phantom|puppeteer|playwright|selenium|axios|node-fetch/i;
   var MAX_PAGES = 260; // collection max is 25,000 records at 100 per page
 
   function countTarget() {
@@ -34,46 +29,7 @@
   }
   function foundUrl() { return "./.herenow/data/" + countTarget(); }
   function isSelfTest() { return countTarget() === "found_selftest"; }
-  var KINDS = { view: true, locate: true, demo: true, deal: true };
-  var CAP = 500;
   var PAGE = 100;
-
-  function uuid() {
-    try {
-      if (window.crypto && typeof window.crypto.randomUUID === "function") {
-        return window.crypto.randomUUID();
-      }
-    } catch (_) {}
-    var s = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
-    return s.replace(/[xy]/g, function (c) {
-      var r = (Math.random() * 16) | 0;
-      var v = c === "x" ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
-
-  function hit(kind) {
-    if (!KINDS[kind]) return Promise.resolve(false);
-    if (inBackoff(WRITE_BACKOFF_KEY)) return Promise.resolve(false);
-    try {
-      return fetch(HITS_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": uuid(),
-        },
-        body: JSON.stringify({ kind: kind }),
-        keepalive: true,
-      }).then(function (res) {
-        if (res && res.status === 429) startBackoff(WRITE_BACKOFF_KEY, WRITE_BACKOFF_MS);
-        return !!(res && res.ok);
-      }).catch(function () {
-        return false;
-      });
-    } catch (_) {
-      return Promise.resolve(false);
-    }
-  }
 
   function recordKind(rec) {
     if (!rec) return "";
@@ -82,12 +38,12 @@
     return typeof k === "string" ? k : "";
   }
 
-  function fetchHitsPage(cursor, base) {
-    var url = (base || HITS_URL) + "?limit=" + PAGE;
+  function fetchFoundPage(cursor) {
+    var url = foundUrl() + "?limit=" + PAGE;
     if (cursor) url += "&cursor=" + encodeURIComponent(cursor);
-    return fetch(url, { method: "GET" }).then(function (res) {
+    return fetch(url, { method: "GET", referrerPolicy: "no-referrer" }).then(function (res) {
       if (!res.ok) {
-        var err = new Error("hits " + res.status);
+        var err = new Error("found " + res.status);
         err.status = res.status;
         throw err;
       }
@@ -95,47 +51,11 @@
     });
   }
 
-  function loadHits(max, base) {
-    var cap = max || CAP;
-    var all = [];
-    function next(cursor) {
-      return fetchHitsPage(cursor, base).then(function (body) {
-        var recs = (body && body.records) || [];
-        for (var i = 0; i < recs.length && all.length < cap; i++) all.push(recs[i]);
-        var more = body && body.nextCursor;
-        if (more && all.length < cap) return next(more);
-        all.more = !!more; // more records beyond the cap → count is a lower bound
-        return all;
-      });
-    }
-    return next(null);
-  }
-
-  function tally(records) {
-    var counts = { view: 0, locate: 0, demo: 0, deal: 0, total: 0 };
-    (records || []).forEach(function (rec) {
-      var k = recordKind(rec);
-      if (KINDS[k]) counts[k] += 1;
-      counts.total += 1;
-    });
-    return counts;
-  }
-
-  function zeros() {
-    return { view: 0, locate: 0, demo: 0, deal: 0, total: 0 };
-  }
-
-  function formatOpens(n) {
-    var v = Number(n) || 0;
-    return v + (v === 1 ? " device" : " devices") + " got food results";
-  }
-
   /* Header counter: last good count cached on-device as a number ("rb_helped_count").
    * One POST + one count fetch per browser session; after 429/failure back off and never show 0. */
   var COUNT_KEY = "rb_helped_count";
   var BACKOFF_KEY = "rb_hits_backoff_until";        // reads (count fetch)
-  var WRITE_BACKOFF_KEY = "rb_hits_write_backoff_until"; // writes (page-open POST)
-  var SENT_KEY = "rb_hit_view_sent";
+  var WRITE_BACKOFF_KEY = "rb_hits_write_backoff_until"; // found-count POST backoff
   var FETCHED_KEY = "rb_count_fetched";
   var BACKOFF_MS = 20 * 60 * 1000;
   var WRITE_BACKOFF_MS = 60 * 60 * 1000;
@@ -165,7 +85,7 @@
     function next(cursor) {
       pages += 1;
       if (pages > MAX_PAGES) return Promise.reject(new Error("too many pages"));
-      return fetchHitsPage(cursor, foundUrl()).then(function (body) {
+      return fetchFoundPage(cursor).then(function (body) {
         var recs = (body && body.records) || [];
         for (var i = 0; i < recs.length; i++) {
           if (recordKind(recs[i]) === "found") n += 1;
@@ -216,34 +136,12 @@
       });
   }
 
-  function hitViewOncePerSession() {
-    // No usable sessionStorage (missing or throws) -> skip the page-open send, so it never sends on every load.
-    try {
-      var ss = window.sessionStorage;
-      if (!ss || ss.getItem(SENT_KEY) || inBackoff(WRITE_BACKOFF_KEY) || isTestTraffic()) return Promise.resolve(false);
-      ss.setItem(SENT_KEY, "1");
-    } catch (_) {
-      return Promise.resolve(false);
-    }
-    return hit("view").then(function (ok) {
-      if (ok) {
-        var c = cachedCount();
-        if (c > 0) lsSet(COUNT_KEY, String(c + 1));
-      }
-      return ok;
-    });
-  }
-
-  /** Bots, automation, and QA/owner test traffic never count toward the public number. */
+  /** Owner QA opt-out. Not a visitor record. */
   function isTestTraffic() {
     try {
       if (/[?&](rb)?qa=1\b/.test(location.search)) lsSet(NO_COUNT_KEY, "1");
     } catch (_) {}
-    if (lsGet(NO_COUNT_KEY) === "1") return true;
-    if (isSelfTest()) return false; // count-test bucket: automation allowed, public number untouched
-    try { if (navigator.webdriver) return true; } catch (_) {}
-    try { if (BOT_UA.test(navigator.userAgent || "")) return true; } catch (_) {}
-    return false;
+    return lsGet(NO_COUNT_KEY) === "1";
   }
 
   /** Delete leftover device, visitor, and install ids. Named keys, plus any key that still looks like one. */
@@ -308,6 +206,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kind: "found" }),
       keepalive: true,
+      referrerPolicy: "no-referrer",
     }).then(function (res) {
       helpedInFlight = false;
       if (res && res.ok) {
@@ -327,27 +226,13 @@
 
   window.RangeBitesMetrics = {
     markHelped: markHelped,
-    hit: hit,
-    loadHits: loadHits,
-    tally: tally,
-    zeros: zeros,
     refreshVisitCount: refreshVisitCount,
   };
 
   function boot() {
-    var path = "";
-    try {
-      path = (location.pathname || "").split("/").pop() || "index.html";
-    } catch (_) {
-      path = "index.html";
-    }
     try { localStorage.removeItem("rb_visit_count"); localStorage.removeItem("rb_visit_count_more"); } catch (_) {}
     try { clearLegacyDeviceIds(window.localStorage, window.sessionStorage); } catch (_) {}
-    var home = !path || path === "index.html" || path === "";
-    var wait = home ? hitViewOncePerSession() : Promise.resolve(false);
-    wait.then(function () {
-      return refreshVisitCount();
-    });
+    refreshVisitCount();
   }
 
   if (document.readyState === "loading") {

@@ -414,10 +414,6 @@
     return null;
   }
 
-  function metricsHit(_kind) {
-    // No tap logging. Aaron: do not track.
-  }
-
   function dealListPosition(placeId) {
     const list = filteredPlaces();
     const idx = list.findIndex((p) => p.id === placeId);
@@ -3067,7 +3063,6 @@
     opts = opts || {};
     highlightPlace(place.id, { openPopup: false, scrollCard: true, pan: true });
     if (place.deal) {
-      metricsHit("deal");
       const aTap = analytics();
       if (aTap) aTap.dealTapped(place.id, dealListPosition(place.id), state.radiusMiles, place.deal);
     }
@@ -3407,7 +3402,6 @@
     const gen = ++state.searchGen;
     cityInFlight = { q, gen };
     // forge 20261003 (Gate G1): chips, the near line and the map stay as they are until the lookup succeeds.
-    metricsHit("place-search");
     state.loading = true;
     state.searchError = null;
     renderList();
@@ -3529,7 +3523,6 @@
     const btn = $("#locateBtn");
     if (btn && btn.disabled) return; // prevent double-taps while busy
 
-    metricsHit("locate");
     const aReq = analytics();
     if (aReq) aReq.locateMeRequested("button");
 

@@ -378,12 +378,69 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   const sec = fs.readFileSync(path.join(__dirname, "..", ".well-known", "security.txt"), "utf8");
   assert.ok(/^Contact: mailto:rangebites@agentmail\.to$/m.test(sec));
 });
+t("shipped site does not add visitor tracking", () => {
+  const root = path.join(__dirname, "..");
+  const banned = [
+    /cdn\.amplitude\.com/i,
+    /api2\.amplitude\.com/i,
+    /googletagmanager\.com/i,
+    /google-analytics\.com/i,
+    /googleads\.g\.doubleclick\.net/i,
+    /connect\.facebook\.net/i,
+    /fbevents\.js/i,
+    /\bfbq\s*\(/,
+    /\bgtag\s*\(/,
+    /fingerprintjs/i,
+    /\.herenow\/data\/hits/,
+    /navigator\.sendBeacon/,
+    /FOOD_RADAR_AMPLITUDE/,
+    /kind:\s*"view"/,
+    /kind:\s*"locate"/,
+    /kind:\s*"deal"/,
+  ];
+  function walk(dir, out) {
+    for (const name of fs.readdirSync(dir)) {
+      if (name === "vendor" || name === "tests" || name === "node_modules" || name === ".git") continue;
+      const p = path.join(dir, name);
+      const st = fs.statSync(p);
+      if (st.isDirectory()) walk(p, out);
+      else if (/\.(js|html)$/.test(name)) out.push(p);
+    }
+  }
+  const files = [];
+  walk(root, files);
+  assert.ok(files.length > 5);
+  for (const file of files) {
+    const src = fs.readFileSync(file, "utf8");
+    const rel = path.relative(root, file);
+    for (const re of banned) assert.ok(!re.test(src), rel + " matches " + re);
+    if (file.endsWith(".html")) {
+      assert.ok(!/<script[^>]+src=["']https?:/i.test(src), rel + " loads a third-party script");
+    }
+  }
+  const metrics = fs.readFileSync(path.join(root, "metrics.js"), "utf8");
+  assert.ok(!/userAgent/.test(metrics));
+  assert.ok(!/Idempotency-Key/.test(metrics));
+  assert.ok(!/webdriver/.test(metrics));
+  assert.ok(/referrerPolicy:\s*"no-referrer"/.test(metrics));
+  assert.ok(/JSON\.stringify\(\{ kind: "found" \}\)/.test(metrics));
+  const stats = fs.readFileSync(path.join(root, "metrics.html"), "utf8");
+  assert.ok(stats.includes("tracks nobody"));
+  assert.ok(!/<script/i.test(stats));
+  for (const page of ["privacy.html", "privacy/index.html"]) {
+    const privacy = fs.readFileSync(path.join(root, page), "utf8");
+    assert.ok(privacy.includes("RangeBites is a free site that tracks nobody."), page);
+    assert.ok(privacy.includes("RangeBites does not create or store a device identifier."), page);
+  }
+});
 t("data.json: device-code + page-open lists are owner-read; found is kind-only", () => {
   const p = path.join(__dirname, "..", ".herenow", "data.json");
   if (!fs.existsSync(p)) { console.log("   (skipped: .herenow/ is gitignored; checked on the publish tree)"); return; }
   const dj = JSON.parse(fs.readFileSync(p, "utf8")).collections;
-  ["hits", "helped", "helped_selftest"].forEach((k) => assert.strictEqual(dj[k].access.read, "owner"));
-  ["helped", "helped_selftest"].forEach((k) => assert.strictEqual(dj[k].access.insert, "none"));
+  ["hits", "helped", "helped_selftest"].forEach((k) => {
+    assert.strictEqual(dj[k].access.read, "owner");
+    assert.strictEqual(dj[k].access.insert, "none");
+  });
   assert.deepStrictEqual(Object.keys(dj.found.fields), ["kind"]);
 });
 console.log(`\n${pass} passed`);

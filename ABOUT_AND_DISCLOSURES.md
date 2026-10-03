@@ -93,7 +93,7 @@ We don’t sell your personal information. We don’t require an account to brow
 Your browser may call public Overpass (OSM) and OpenStreetMap tiles. Not CARTO. Maps, deals, reviews, and booking may use other companies’ services. When you open those, their privacy policies apply.
 
 **On-device data**  
-Location and search results stay in memory for the current search. Leave or close the page and they clear. `sessionStorage` may hold UI flags only (onboarding, tips) — never location. Optional product analytics stay in a memory queue unless an Amplitude key is configured; events never include lat/long or a location trail. No on-device favorites in this build.
+Location and search results stay in memory for the current search. Leave or close the page and they clear. `sessionStorage` may hold UI flags only (onboarding, tips) — never location. RangeBites does not load product analytics or a third-party tracker. No on-device favorites in this build.
 
 **Your choices**  
 Deny location and use Try demo map. Turn off location in system settings. Close the page to clear in-memory search. Questions: use the support address once it is published in the app.

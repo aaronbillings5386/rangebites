@@ -41,7 +41,7 @@ Tap **Locate Me**. The browser briefly uses GPS for the current search. Results 
 | Contact / hours | Rendered from OSM tags on cards/sheet when present; hidden when missing. Not stored as a profile. |
 | Reviews | Maps handoff (`noopener` / `no-referrer`). Rare OSM `stars`/rating tags only if real, sourced “OpenStreetMap”. **Never invent ratings.** |
 | Deals | Illustrative / partner-ready patterns, labeled. Not live Honey scrapes. Confirm locally. |
-| Analytics | Optional Amplitude (key gated); no sale of personal data. |
+| Analytics | None. RangeBites tracks nobody. No third-party analytics. |
 
 **Design rule:** If a feature needs storing who you are, redesign it or make it optional and explicit.
 
