@@ -1,0 +1,314 @@
+/* Halloween decoration. Scoped to html.theme-halloween. The map and controls are not restyled. */
+
+html.theme-halloween {
+  --holiday-scene-h: 176px;
+}
+
+html.theme-halloween .header {
+  background-color: #16111c !important;
+  background-image:
+    radial-gradient(60% 140% at 78% -40%, rgba(140, 80, 200, 0.28), transparent 62%),
+    linear-gradient(180deg, #1c1428 0%, #14110e 100%) !important;
+}
+
+/* A fixed cluster, anchored clear of the wordmark and About. */
+html.theme-halloween .holiday-header-art {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: auto;
+  right: 120px;
+  width: 280px;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+html.theme-halloween .brand,
+html.theme-halloween .header-right {
+  position: relative;
+  z-index: 2;
+}
+
+html.theme-halloween .holiday-header-art,
+html.theme-halloween .holiday-header-art *,
+html.theme-halloween .holiday-list-scene,
+html.theme-halloween .holiday-list-scene * {
+  pointer-events: none !important;
+}
+
+/* Faint scene in the empty results panel. Hidden once cards are on screen.
+   Padding keeps every line, including a zero-results message, above the art. */
+html.theme-halloween .list-section {
+  position: relative;
+}
+
+html.theme-halloween .list-section:not(:has(.place-card)) {
+  padding-bottom: calc(var(--holiday-scene-h) + var(--safe-bottom)) !important;
+}
+
+html.theme-halloween .list-header,
+html.theme-halloween .place-list,
+html.theme-halloween .first-search-notice,
+html.theme-halloween .deal-note,
+html.theme-halloween .name-search,
+html.theme-halloween .deal-rail-wrap {
+  position: relative;
+  z-index: 1;
+}
+
+html.theme-halloween .holiday-list-scene {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: var(--safe-bottom);
+  height: var(--holiday-scene-h);
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.42;
+}
+
+html.theme-halloween .list-section:has(.place-card) .holiday-list-scene {
+  display: none;
+}
+
+html.theme-halloween .holiday-list-scene::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 16px;
+  background: #241833;
+  pointer-events: none;
+}
+
+html.theme-halloween .hl-skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  width: 100%;
+  height: 42px;
+}
+
+html.theme-halloween .hl-moon {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  width: 64px;
+  height: 64px;
+}
+
+html.theme-halloween .hl-bat-a {
+  position: absolute;
+  left: 84px;
+  top: 22px;
+  width: 52px;
+  height: 22px;
+}
+
+html.theme-halloween .hl-bat-b {
+  position: absolute;
+  left: 148px;
+  top: 8px;
+  width: 36px;
+  height: 16px;
+}
+
+html.theme-halloween .hl-ghost {
+  position: absolute;
+  left: 46%;
+  bottom: 28px;
+  width: 42px;
+  height: 52px;
+}
+
+html.theme-halloween .hl-pumpkin-a {
+  position: absolute;
+  right: 72px;
+  bottom: 4px;
+  width: 74px;
+  height: 70px;
+}
+
+html.theme-halloween .hl-pumpkin-b {
+  position: absolute;
+  right: 6px;
+  bottom: 10px;
+  width: 54px;
+  height: 50px;
+}
+
+html.theme-halloween .hh-stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+html.theme-halloween .hh-skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 16px;
+}
+
+html.theme-halloween .hh-moon {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 40px;
+  height: 40px;
+}
+
+html.theme-halloween .hh-bat-a {
+  position: absolute;
+  top: 10px;
+  left: 48px;
+  width: 44px;
+  height: 18px;
+}
+
+html.theme-halloween .hh-bat-b {
+  position: absolute;
+  top: 4px;
+  left: 96px;
+  width: 30px;
+  height: 14px;
+}
+
+html.theme-halloween .hh-ghost {
+  position: absolute;
+  bottom: 8px;
+  left: 132px;
+  width: 28px;
+  height: 34px;
+}
+
+html.theme-halloween .hh-pumpkin-a {
+  position: absolute;
+  bottom: -4px;
+  left: 164px;
+  width: 52px;
+  height: 50px;
+}
+
+html.theme-halloween .hh-pumpkin-b {
+  position: absolute;
+  bottom: 2px;
+  left: 218px;
+  width: 40px;
+  height: 38px;
+}
+
+html.theme-halloween .hh-glow {
+  opacity: 0.4;
+}
+
+html.theme-halloween .hh-bat,
+html.theme-halloween .hl-bat {
+  animation: rb-bat-float 3.8s ease-in-out infinite;
+}
+
+html.theme-halloween .hh-bat-b,
+html.theme-halloween .hl-bat-b {
+  animation-duration: 4.6s;
+  animation-delay: -1.1s;
+}
+
+html.theme-halloween .hh-glow {
+  animation: rb-pumpkin-glow 2.8s ease-in-out infinite;
+}
+
+@keyframes rb-bat-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -4px, 0); }
+}
+
+@keyframes rb-pumpkin-glow {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.62; }
+}
+
+@media (max-width: 767px) {
+  html.theme-halloween {
+    --holiday-scene-h: 48px;
+  }
+  html.theme-halloween .holiday-list-scene {
+    opacity: 0.4;
+  }
+  html.theme-halloween .hl-bat-b,
+  html.theme-halloween .hl-ghost,
+  html.theme-halloween .hl-skyline,
+  html.theme-halloween .hl-pumpkin-b {
+    display: none;
+  }
+  html.theme-halloween .hl-moon {
+    left: auto;
+    right: 4px;
+    top: 2px;
+    width: 32px;
+    height: 32px;
+  }
+  html.theme-halloween .hl-bat-a {
+    left: 4px;
+    top: 8px;
+    width: 36px;
+    height: 16px;
+  }
+  html.theme-halloween .hl-pumpkin-a {
+    right: auto;
+    left: 48px;
+    bottom: 0;
+    width: 40px;
+    height: 38px;
+  }
+  html.theme-halloween .holiday-header-art {
+    right: 92px;
+    width: 104px;
+  }
+  html.theme-halloween .hh-bat-b,
+  html.theme-halloween .hh-ghost,
+  html.theme-halloween .hh-pumpkin-b {
+    display: none;
+  }
+  html.theme-halloween .hh-moon {
+    left: auto;
+    right: 0;
+    top: 2px;
+    width: 30px;
+    height: 30px;
+  }
+  html.theme-halloween .hh-bat-a {
+    left: 0;
+    top: 6px;
+    width: 32px;
+    height: 14px;
+  }
+  html.theme-halloween .hh-pumpkin-a {
+    left: 28px;
+    bottom: 0;
+    width: 36px;
+    height: 34px;
+  }
+  html.theme-halloween .hh-skyline {
+    height: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-halloween .hh-bat,
+  html.theme-halloween .hh-bat-b,
+  html.theme-halloween .hl-bat,
+  html.theme-halloween .hl-bat-b,
+  html.theme-halloween .hh-glow {
+    animation: none !important;
+  }
+  html.theme-halloween .hh-glow {
+    opacity: 0.4;
+  }
+}
