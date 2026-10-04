@@ -219,8 +219,8 @@ t("theme source does not touch storage, network, or trackers", () => {
   const themeJs = fs.readFileSync(path.join(root, "themes/holiday-themes.js"), "utf8");
   assert.ok(!/holiday-bg|hb-bat/.test(themeJs));
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.ok(html.includes('href="themes/halloween.css?v=20261004c"'));
-  assert.ok(html.includes('src="themes/holiday-themes.js?v=20261004c"'));
+  assert.ok(html.includes('href="themes/halloween.css?v=20261004a"'));
+  assert.ok(html.includes('src="themes/holiday-themes.js?v=20261004a"'));
 });
 
 console.log("\n" + pass + " passed");
