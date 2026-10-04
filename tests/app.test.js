@@ -415,7 +415,7 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   const terms = fs.readFileSync(path.join(__dirname, "..", "terms.html"), "utf8");
   assert.ok(terms.includes("by tapping Continue, or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
-  assert.ok(terms.includes('src="/config.js?v=20261003j"'));
+  assert.ok(terms.includes('src="/config.js?v=20261003k"'));
   assert.ok(/Effective <span data-publish-date>October 3, 2026<\/span>/.test(terms));
   for (const legal of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"]) {
     const legalSrc = fs.readFileSync(path.join(__dirname, "..", legal), "utf8");
@@ -644,5 +644,21 @@ t("specials (20261003j): no submission form and nothing posts or stores restaura
     const s3 = pv.slice(pv.indexOf("<h2>3."), pv.indexOf("<h2>4."));
     assert.ok(s3.includes("Terms-updated notice"), page);
   }
+});
+t("terms (20261003k): Specials is an email address only; Terms version date unchanged", () => {
+  const root = path.join(__dirname, "..");
+  const line = 'The Specials page only lists an email address, <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>, that restaurants can write to about a special. Nothing is collected through the site.';
+  for (const page of ["terms.html", "terms/index.html"]) {
+    const src = fs.readFileSync(path.join(root, page), "utf8");
+    assert.ok(!/optional restaurant contact for review/i.test(src), page);
+    assert.ok(!/optional review contact/i.test(src), page);
+    assert.ok(!/through the Specials page/i.test(src), page);
+    assert.ok(!/submit[a-z]*[^.]{0,80}Specials/i.test(src), page);
+    assert.ok(src.includes(line), page);
+  }
+  // Not a material change: visitors are not re-prompted.
+  const cfg = fs.readFileSync(path.join(root, "config.js"), "utf8");
+  assert.ok(/const PUBLISH_DATE = "2026-10-03";/.test(cfg));
+  assert.ok(/TERMS_VERSION: PUBLISH_DATE/.test(cfg));
 });
 console.log(`\n${pass} passed`);
