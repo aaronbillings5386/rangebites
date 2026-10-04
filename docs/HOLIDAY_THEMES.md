@@ -170,12 +170,12 @@ Overlaps that rule settles:
 
 - **Status:** Built
 - **Window:** October 1 through October 31, local date, inclusive.
-- **Motifs:** Cartoon jack-o'-lanterns, a crescent moon, bats, a ghost, and a crooked skyline with a bare tree. A compact cluster sits on the header's right, clear of the wordmark and About. A fainter copy (opacity about 0.4) sits in the empty part of the results panel, along the bottom of that panel. It is hidden once result cards are showing. On a phone the panel copy is a short strip: one moon, one bat, one pumpkin. The same drawings are also placed in the page margins on wide screens, behind the app, so they never cover the map. The search row and About control are left alone.
+- **Motifs:** Cartoon jack-o'-lanterns, a crescent moon, bats, a ghost, and a crooked skyline with a bare tree. A compact cluster sits on the header's right, clear of the wordmark and About. A fainter copy (opacity about 0.4) sits at the bottom of the results panel only while that panel has no cards. The empty list reserves bottom padding equal to the scene height, so the art is below every line, including a zero-results message. On a phone the panel copy is a short strip: one moon, one bat, one pumpkin. Nothing is drawn in the page margins. The search row, About control, and map tiles are left alone.
 - **Palette:**
-  - `#100c16` — margin night. No text sits here.
+  - The results scene is painted on the existing `#14110e` panel, inside that reserved padding. No text sits on the art.
   - `#1c1428` — header top. `#fff6ea` on it is 16.6:1.
   - `#14110e` — header base and the app surface, unchanged. `#fff6ea` on it is 17.6:1.
-  - `#ffe7a3` — moon. On `#100c16`, 15.9:1. Illustration.
+  - `#ffe7a3` — moon. On `#14110e`, 15.4:1. Illustration.
   - `#f0c36a` — moon crater. On `#14110e`, 11.4:1. Illustration.
   - `#f27a1a` — pumpkin. On `#14110e`, 6.8:1. Illustration.
   - `#d85a0a` — pumpkin shade. On `#14110e`, 4.8:1. Illustration.
@@ -183,7 +183,7 @@ Overlaps that rule settles:
   - `#6fbf5a` — stem. On `#14110e`, 8.3:1. Illustration.
   - `#2a1408` — carved face. On `#f27a1a`, 6.3:1. The face reads; it is not text.
   - `#c4b4e6` — bat. On `#14110e`, 9.9:1. A light bat so it shows on the dark header.
-  - `#f4f0ea` — ghost. On `#100c16`, 17.0:1. Illustration.
+  - `#f4f0ea` — ghost. On `#14110e`, 16.6:1. Illustration.
   - `#8b74b0` — skyline. On `#14110e`, 4.7:1. A silhouette that still separates from the night.
   - `#ffb020` — lit window. On `#14110e`, 10.3:1. Illustration.
   - UI text stays `#fff6ea` on `#14110e` (17.6:1). About stays `#e2d2c0` on `#221c18` (11.4:1). The header wash does not replace those surfaces.
@@ -250,7 +250,7 @@ The default theme is the page with no `theme-*` class and no holiday SVG.
 - `selectHolidayTheme` or the painter throws. The class is removed if it was added. The default theme remains.
 - The query names a holiday that is not built, or names something unknown. It is ignored and the date is used.
 
-`prefers-reduced-motion: reduce` does not change the theme. In October the Halloween art still paints. `@media (prefers-reduced-motion: reduce)` sets `animation: none` on the bats and the pumpkin glow, so the scene stays still. Motion that does run otherwise (a bat drifting a few pixels, a pumpkin glow) is slow and small. Decorations use `pointer-events: none` and `aria-hidden="true"`. They are not a filter on the map tiles or markers. The results-panel scene is hidden while `.place-card` elements are in the list, so it does not sit under result text.
+`prefers-reduced-motion: reduce` does not change the theme. In October the Halloween art still paints. `@media (prefers-reduced-motion: reduce)` sets `animation: none` on the bats and the pumpkin glow, so the scene stays still. Motion that does run otherwise (a bat drifting a few pixels, a pumpkin glow) is slow and small, and only on art that is on screen. Decorations use `pointer-events: none` and `aria-hidden="true"`. The theme does not set styles on Leaflet tiles. While the results list has no `.place-card`, the list's bottom padding equals the scene height, so the art sits below the text. The scene is hidden once cards are showing, and that padding goes away with it.
 
 ### Preview
 

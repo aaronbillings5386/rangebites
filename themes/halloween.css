@@ -1,21 +1,7 @@
 /* Halloween decoration. Scoped to html.theme-halloween. The map and controls are not restyled. */
 
-html.theme-halloween .holiday-bg {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-  background:
-    radial-gradient(200px 180px at 48px 72px, rgba(255, 231, 163, 0.2), transparent 70%),
-    radial-gradient(200px 180px at calc(100% - 48px) 84px, rgba(255, 231, 163, 0.16), transparent 70%),
-    #100c16;
-}
-
-html.theme-halloween .app {
-  position: relative;
-  z-index: 1;
+html.theme-halloween {
+  --holiday-scene-h: 176px;
 }
 
 html.theme-halloween .header {
@@ -46,20 +32,19 @@ html.theme-halloween .header-right {
 
 html.theme-halloween .holiday-header-art,
 html.theme-halloween .holiday-header-art *,
-html.theme-halloween .holiday-bg,
-html.theme-halloween .holiday-bg *,
 html.theme-halloween .holiday-list-scene,
 html.theme-halloween .holiday-list-scene * {
   pointer-events: none !important;
 }
 
-/* Faint scene in the empty results panel. Hidden once cards are on screen. */
+/* Faint scene in the empty results panel. Hidden once cards are on screen.
+   Padding keeps every line, including a zero-results message, above the art. */
 html.theme-halloween .list-section {
   position: relative;
 }
 
 html.theme-halloween .list-section:not(:has(.place-card)) {
-  min-height: 240px;
+  padding-bottom: calc(var(--holiday-scene-h) + var(--safe-bottom)) !important;
 }
 
 html.theme-halloween .list-header,
@@ -76,8 +61,8 @@ html.theme-halloween .holiday-list-scene {
   position: absolute;
   left: 4px;
   right: 4px;
-  bottom: 96px;
-  height: 176px;
+  bottom: var(--safe-bottom);
+  height: var(--holiday-scene-h);
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
@@ -225,13 +210,11 @@ html.theme-halloween .hh-glow {
 }
 
 html.theme-halloween .hh-bat,
-html.theme-halloween .hb-bat,
 html.theme-halloween .hl-bat {
   animation: rb-bat-float 3.8s ease-in-out infinite;
 }
 
 html.theme-halloween .hh-bat-b,
-html.theme-halloween .hb-bat-b,
 html.theme-halloween .hl-bat-b {
   animation-duration: 4.6s;
   animation-delay: -1.1s;
@@ -252,12 +235,10 @@ html.theme-halloween .hh-glow {
 }
 
 @media (max-width: 767px) {
-  html.theme-halloween .list-section:not(:has(.place-card)) {
-    min-height: 154px;
+  html.theme-halloween {
+    --holiday-scene-h: 48px;
   }
   html.theme-halloween .holiday-list-scene {
-    height: 48px;
-    bottom: 0;
     opacity: 0.4;
   }
   html.theme-halloween .hl-bat-b,
@@ -319,116 +300,9 @@ html.theme-halloween .hh-glow {
   }
 }
 
-@media (min-width: 1100px) {
-  html.theme-halloween .holiday-bg {
-    display: block;
-  }
-  html.theme-halloween .hb-side {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 156px;
-    overflow: hidden;
-    pointer-events: none;
-  }
-  html.theme-halloween .hb-side::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 36px;
-    background: #241833;
-    pointer-events: none;
-  }
-  html.theme-halloween .hb-left { left: 0; }
-  html.theme-halloween .hb-right { right: 0; }
-  html.theme-halloween .hb-flip {
-    position: absolute;
-    inset: 0;
-  }
-  html.theme-halloween .hb-right .hb-flip {
-    transform: scaleX(-1);
-    transform-origin: center center;
-  }
-  html.theme-halloween .hb-stars {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 156px;
-    height: 240px;
-  }
-  html.theme-halloween .hb-moon {
-    position: absolute;
-    top: 28px;
-    left: 22px;
-    width: 72px;
-    height: 72px;
-  }
-  html.theme-halloween .hb-bat-a {
-    position: absolute;
-    top: 118px;
-    left: 12px;
-    width: 54px;
-    height: 24px;
-  }
-  html.theme-halloween .hb-bat-b {
-    position: absolute;
-    top: 156px;
-    left: 62px;
-    width: 36px;
-    height: 16px;
-  }
-  html.theme-halloween .hb-ghost {
-    position: absolute;
-    top: 210px;
-    left: 36px;
-    width: 44px;
-    height: 54px;
-  }
-  html.theme-halloween .hb-skyline {
-    position: absolute;
-    left: 0;
-    bottom: 28px;
-    width: 156px;
-    height: 48px;
-  }
-  html.theme-halloween .hb-pumpkin-a {
-    position: absolute;
-    left: 10px;
-    bottom: 8px;
-    width: 62px;
-    height: 58px;
-    z-index: 1;
-  }
-  html.theme-halloween .hb-pumpkin-b {
-    position: absolute;
-    left: 68px;
-    bottom: 4px;
-    width: 46px;
-    height: 44px;
-    z-index: 1;
-  }
-}
-
-/* Map tiles and markers stay untinted. */
-html.theme-halloween .map-wrap,
-html.theme-halloween #map,
-html.theme-halloween .leaflet-container,
-html.theme-halloween .leaflet-pane,
-html.theme-halloween .leaflet-tile,
-html.theme-halloween .leaflet-marker-icon,
-html.theme-halloween .leaflet-control {
-  filter: none !important;
-  -webkit-filter: none !important;
-  mix-blend-mode: normal !important;
-}
-
 @media (prefers-reduced-motion: reduce) {
   html.theme-halloween .hh-bat,
   html.theme-halloween .hh-bat-b,
-  html.theme-halloween .hb-bat,
-  html.theme-halloween .hb-bat-b,
   html.theme-halloween .hl-bat,
   html.theme-halloween .hl-bat-b,
   html.theme-halloween .hh-glow {

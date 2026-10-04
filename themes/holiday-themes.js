@@ -291,32 +291,6 @@
     );
   }
 
-  function sideMarkup(which) {
-    return (
-      '<div class="hb-side hb-' + which + '" aria-hidden="true">' +
-        '<div class="hb-flip">' +
-          svgStars("hb-stars") +
-          svgMoon("hb-moon") +
-          svgBat("hb-bat hb-bat-a") +
-          svgBat("hb-bat hb-bat-b") +
-          svgGhost("hb-ghost") +
-          svgSkyline("hb-skyline") +
-          svgPumpkin("hb-pumpkin hb-pumpkin-a") +
-          svgPumpkin("hb-pumpkin hb-pumpkin-b") +
-        "</div>" +
-      "</div>"
-    );
-  }
-
-  function backgroundMarkup() {
-    return (
-      '<div class="holiday-bg" id="holiday-bg" aria-hidden="true">' +
-        sideMarkup("left") +
-        sideMarkup("right") +
-      "</div>"
-    );
-  }
-
   function takeNode(doc, markup) {
     var wrap = doc.createElement("div");
     wrap.innerHTML = markup;
@@ -342,9 +316,6 @@
     var header = typeof doc.querySelector === "function" ? doc.querySelector(".header") : null;
     if (header && typeof header.appendChild === "function" && !doc.getElementById("holiday-header-art")) {
       header.appendChild(takeNode(doc, headerMarkup()));
-    }
-    if (doc.body && typeof doc.body.insertBefore === "function" && !doc.getElementById("holiday-bg")) {
-      doc.body.insertBefore(takeNode(doc, backgroundMarkup()), doc.body.firstChild);
     }
     var list = typeof doc.querySelector === "function" ? doc.querySelector(".list-section") : null;
     if (list && typeof list.appendChild === "function" && !doc.getElementById("holiday-list-scene")) {

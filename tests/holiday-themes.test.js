@@ -210,9 +210,14 @@ t("theme source does not touch storage, network, or trackers", () => {
   assert.ok(/prefers-reduced-motion:\s*reduce/.test(css));
   assert.ok(/pointer-events:\s*none/.test(css));
   assert.ok(/animation:\s*none\s*!important/.test(css));
-  assert.ok(/filter:\s*none\s*!important/.test(css));
+  assert.ok(!/\.leaflet-tile/.test(css), "theme must not style leaflet tiles");
+  assert.ok(!/mix-blend-mode/.test(css));
+  assert.ok(!/holiday-bg|hb-bat/.test(css));
+  assert.ok(/padding-bottom:\s*calc\(var\(--holiday-scene-h\)/.test(css));
   assert.ok(/holiday-list-scene/.test(css));
   assert.ok(/:has\(\.place-card\)/.test(css));
+  const themeJs = fs.readFileSync(path.join(root, "themes/holiday-themes.js"), "utf8");
+  assert.ok(!/holiday-bg|hb-bat/.test(themeJs));
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   assert.ok(html.includes('href="themes/halloween.css?v=20261004c"'));
   assert.ok(html.includes('src="themes/holiday-themes.js?v=20261004c"'));
