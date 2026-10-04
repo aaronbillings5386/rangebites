@@ -269,7 +269,7 @@ t("stored acceptance matches TERMS_VERSION only", () => {
 });
 const M = load("metrics.js", ["clearLegacyDeviceIds", "clearLegacyLocationKeys"]);
 t("shipped JS does not store a device identifier", () => {
-  const files = ["app.js", "metrics.js", "analytics.js", "specials.js", "deals.js", "disclaimers.js", "config.js", "sw.js", "config.example.js"];
+  const files = ["app.js", "metrics.js", "analytics.js", "deals.js", "disclaimers.js", "config.js", "sw.js", "config.example.js"];
   const idKey = /device|visitor|install|pending_key|helped_done|helped_id|deviceId|device_id/i;
   for (const file of files) {
     const src = fs.readFileSync(path.join(__dirname, "..", file), "utf8");
@@ -415,7 +415,7 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   const terms = fs.readFileSync(path.join(__dirname, "..", "terms.html"), "utf8");
   assert.ok(terms.includes("by tapping Continue, or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
-  assert.ok(terms.includes('src="/config.js?v=20261003i"'));
+  assert.ok(terms.includes('src="/config.js?v=20261003j"'));
   assert.ok(/Effective <span data-publish-date>October 3, 2026<\/span>/.test(terms));
   for (const legal of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"]) {
     const legalSrc = fs.readFileSync(path.join(__dirname, "..", legal), "utf8");
@@ -526,15 +526,17 @@ t("no storage of location, last city, or visitor records", () => {
   assert.ok(/indexedDB\.deleteDatabase/.test(metrics));
   assert.ok(!/indexedDB\s*\.\s*open\s*\(/.test(metrics));
 });
-t("data.json: hits and helped are owner-read; found inserts are off when present", () => {
+t("data.json (20261003j): no server collections that store visitor data", () => {
   const p = path.join(__dirname, "..", ".herenow", "data.json");
   if (!fs.existsSync(p)) { console.log("   (skipped: .herenow/ is gitignored; checked on the publish tree)"); return; }
-  const dj = JSON.parse(fs.readFileSync(p, "utf8")).collections;
-  ["hits", "helped", "helped_selftest"].forEach((k) => {
-    assert.strictEqual(dj[k].access.read, "owner");
-    assert.strictEqual(dj[k].access.insert, "none");
-  });
-  if (dj.found) assert.strictEqual(dj.found.access.insert, "none");
+  const dj = JSON.parse(fs.readFileSync(p, "utf8")).collections || {};
+  for (const k of ["hits", "helped", "helped_selftest", "found", "found_selftest", "specials_inbox"]) {
+    assert.ok(!(k in dj), "collection still present: " + k);
+  }
+  assert.deepStrictEqual(Object.keys(dj), []);
+  assert.ok(!/"device"/.test(fs.readFileSync(p, "utf8")));
+  const px = JSON.parse(fs.readFileSync(path.join(__dirname, "..", ".herenow", "proxy.json"), "utf8")).proxies;
+  assert.ok(px["/api/overpass"] && px["/api/nominatim"]);
 });
 t("city switch (20261003i): new origin clears old cards/pins; late older responses ignored", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
@@ -552,9 +554,9 @@ t("city switch (20261003i): new origin clears old cards/pins; late older respons
   assert.strictEqual(vm.runInContext("stillActiveSearch(2, 37.27, -81.22)", ctx), true);
   // runSearch clears state.places + pins before the request when the origin changes.
   const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("const slowTimer", src.indexOf("async function runSearch(")));
-  assert.ok(/if \(searchOriginChanged\(state\.lat, state\.lng, lat, lng\)\) \{[\s\S]*?state\.places = \[\];[\s\S]*?renderMarkers\(\[\]\)/.test(rs));
-  assert.ok(rs.indexOf("state.places = [];") < rs.indexOf("state.lat = lat;"));
-  assert.ok(rs.indexOf("renderList();") > rs.indexOf("state.places = [];"));
+  assert.ok(/if \(searchOriginChanged\(state\.lat, state\.lng, lat, lng\)\) clearResultsForNewSearch\(\);/.test(rs));
+  assert.ok(rs.indexOf("clearResultsForNewSearch();") < rs.indexOf("state.lat = lat;"));
+  assert.ok(rs.indexOf("renderList();") > rs.indexOf("clearResultsForNewSearch();"));
   // The catch path awaits the inner ring; fastP must be declared outside the try block.
   const body = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
   assert.ok(body.indexOf("let fastP") >= 0 && body.indexOf("let fastP") < body.indexOf("    try {\n"));
@@ -571,5 +573,76 @@ t("pantries status (20261003i): count matches the pantry list; other filters unc
   const handler = src.slice(a, src.indexOf("const noticeBtn", a));
   assert.ok(/setStatus\(filterCountStatus\(filteredPlaces\(\)\.length, on\)\)/.test(handler));
   assert.ok(!/setStatus\(filteredPlaces\(\)\.length \+ " restaurants after filters"\)/.test(src));
+});
+t("city switch (20261003j): a new city search clears old cards, pins and counts before the lookup; late results ignored", () => {
+  const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  // Behaviour: run the real clearResultsForNewSearch against a fake DOM/map.
+  const els = {
+    "#resultCount": { textContent: "84 restaurants" },
+    "#dealCount": { textContent: "2 listing promos", hidden: false },
+  };
+  let markersCleared = 0;
+  const classes = new Set(["has-places"]);
+  const ctx = vm.createContext({
+    state: { searchGen: 0, lat: 36.71, lng: -81.98, places: new Array(84).fill({}), fetchedRadiusMiles: 10 },
+    $: (sel) => els[sel] || null,
+    renderMarkers: (list) => { if (!list.length) markersCleared++; },
+    document: { documentElement: { classList: { remove: (c) => classes.delete(c) } } },
+  });
+  vm.runInContext(src.match(/\n\s*function clearResultsForNewSearch[\s\S]*?\n  \}\n/)[0], ctx);
+  vm.runInContext(src.match(/\n\s*function stillActiveSearch[\s\S]*?\n  \}\n/)[0], ctx);
+  vm.runInContext("clearResultsForNewSearch()", ctx); // Abingdon VA showing -> Bristol TN search starts
+  assert.strictEqual(ctx.state.places.length, 0);
+  assert.strictEqual(ctx.state.fetchedRadiusMiles, null);
+  assert.strictEqual(markersCleared, 1);
+  assert.ok(!classes.has("has-places"));
+  assert.strictEqual(els["#resultCount"].textContent, "");
+  assert.strictEqual(els["#dealCount"].hidden, true);
+  assert.strictEqual(els["#dealCount"].textContent, "");
+  // Search token: Bristol (gen 1) superseded by Richlands (gen 2); Bristol's late answer is ignored.
+  ctx.state.searchGen = 1; ctx.state.lat = 36.6; ctx.state.lng = -82.19;
+  ctx.state.searchGen = 2; ctx.state.lat = 37.09; ctx.state.lng = -81.79;
+  assert.strictEqual(vm.runInContext("stillActiveSearch(1, 36.6, -82.19)", ctx), false);
+  assert.strictEqual(vm.runInContext("stillActiveSearch(2, 37.09, -81.79)", ctx), true);
+  // Wiring: searchCityOrZip takes a new token and clears at once, before the geocoder call and the
+  // "Looking up" / "Searching" status; every await is followed by a token check.
+  const sc = src.slice(src.indexOf("async function searchCityOrZip("), src.indexOf("function cityLookupErrorMessage"));
+  const genAt = sc.indexOf("const gen = ++state.searchGen;");
+  const clearAt = sc.indexOf("clearResultsForNewSearch();");
+  assert.ok(genAt > 0 && clearAt > genAt);
+  assert.ok(clearAt < sc.indexOf("renderList();"));
+  assert.ok(clearAt < sc.indexOf('setStatus("Looking up that city…")'));
+  assert.ok(clearAt < sc.indexOf("await geocodePlace(q)"));
+  assert.ok(/await geocodePlace\(q\);\s*\n\s*if \(gen !== state\.searchGen\) return;/.test(sc));
+  // Picking an "Other places with this name" alternate also clears before the new search.
+  const pa = src.slice(src.indexOf("function pickPlaceAlternate("), src.indexOf("function geoErrorMessage"));
+  assert.ok(pa.indexOf("clearResultsForNewSearch();") > 0 && pa.indexOf("clearResultsForNewSearch();") < pa.indexOf("runSearch("));
+  // runSearch: late fast-ring and full responses check the token before painting.
+  const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
+  assert.ok(/fastP\.then\(\(near\) => \{\s*\n\s*if \(fullSettled \|\| !stillActiveSearch\(gen, lat, lng\)/.test(rs));
+  assert.ok(/await fetchPlaces\(lat, lng, fetchMi, \{ mode: "full" \}\);[\s\S]*?if \(!stillActiveSearch\(gen, lat, lng\)\) return;/.test(rs));
+});
+t("specials (20261003j): no submission form and nothing posts or stores restaurant data", () => {
+  const root = path.join(__dirname, "..");
+  assert.ok(!fs.existsSync(path.join(root, "specials.js")), "specials.js should be removed");
+  const sp = fs.readFileSync(path.join(root, "specials.html"), "utf8");
+  assert.ok(!/<form/i.test(sp));
+  assert.ok(!/<input|<textarea/i.test(sp));
+  assert.ok(!/specials\.js/.test(sp));
+  assert.ok(sp.includes('Restaurants can email <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a> about a special. Nothing is collected through this site.'));
+  for (const file of ["app.js", "metrics.js", "deals.js", "config.js", "sw.js", "disclaimers.js", "analytics.js"]) {
+    const src = fs.readFileSync(path.join(root, file), "utf8");
+    assert.ok(!/specials_inbox/.test(src), file);
+    assert.ok(!/\.herenow\/data\//.test(src), file);
+    assert.ok(!/contact_email|restaurant_name|special_text|city_or_zip/.test(src), file);
+  }
+  for (const page of ["privacy.html", "privacy/index.html"]) {
+    const pv = fs.readFileSync(path.join(root, page), "utf8");
+    assert.ok(!/submit an offer/i.test(pv), page);
+    assert.ok(!/Specials page for review/i.test(pv), page);
+    assert.ok(pv.includes("It also stores the date of the Terms version you accepted by tapping Continue, and whether you've seen the Terms-updated notice. These stay on this device and are not sent."), page);
+    const s3 = pv.slice(pv.indexOf("<h2>3."), pv.indexOf("<h2>4."));
+    assert.ok(s3.includes("Terms-updated notice"), page);
+  }
 });
 console.log(`\n${pass} passed`);
