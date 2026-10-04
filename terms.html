@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.openstreetmap.org; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Terms of Use — RangeBites</title>
-  <link rel="stylesheet" href="styles.css?v=20260901d" />
+  <link rel="stylesheet" href="styles.css?v=20261003i" />
   <style>
     body.legal-page { background: #14110e; color: #fff6ea; }
     .legal {
@@ -14,24 +14,24 @@
       padding: calc(28px + var(--safe-top)) 22px calc(48px + var(--safe-bottom));
     }
     .legal-kicker {
-      font-family: var(--font); font-size: 0.68rem; font-weight: 700;
+      font-family: var(--font); font-size: 12px; font-weight: 700;
       letter-spacing: 0.16em; text-transform: uppercase; color: #ffc43a; margin: 0 0 10px;
     }
     .legal h1 {
       font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
-      font-size: 1.85rem; font-weight: 700; letter-spacing: -0.02em;
+      font-size: 30px; font-weight: 700; letter-spacing: -0.02em;
       color: #fff6ea; margin: 0 0 8px; line-height: 1.2;
     }
     .legal .meta {
-      font-family: var(--font); color: #a89480; font-size: 0.82rem;
+      font-family: var(--font); color: #b7a08c; font-size: 13px;
       margin: 0 0 8px; letter-spacing: 0.02em;
     }
     .legal .read-note {
-      font-family: var(--font); font-size: 0.88rem; color: #e2d2c0;
+      font-family: var(--font); font-size: 14px; color: #e2d2c0;
       border-left: 2px solid #ffc43a; padding: 8px 0 8px 12px; margin: 0 0 28px;
     }
     .legal h2 {
-      font-family: var(--font); font-size: 0.78rem; font-weight: 800;
+      font-family: var(--font); font-size: 12px; font-weight: 800;
       letter-spacing: 0.1em; text-transform: uppercase;
       color: #ffe7b8; margin: 1.75rem 0 0.55rem; border-top: 1px solid rgba(255,255,255,0.1);
       padding-top: 1.1rem;
@@ -39,28 +39,28 @@
     .legal h2:first-of-type { border-top: none; padding-top: 0; }
     .legal p, .legal li {
       font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
-      color: #e2d2c0; font-size: 1.02rem; line-height: 1.55;
+      color: #e2d2c0; font-size: 16px; line-height: 1.55;
     }
     .legal a { color: #ffc43a; }
     .legal .fine {
-      font-family: var(--font); color: #a89480; font-size: 0.8rem; margin-top: 2rem;
+      font-family: var(--font); color: #b7a08c; font-size: 13px; margin-top: 2rem;
     }
-    .legal-back { font-family: var(--font); font-size: 0.9rem; }
+    .legal-back { font-family: var(--font); font-size: 14px; }
   </style>
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260901d" />
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20260901d" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20260901d" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20261003i" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20261003i" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20261003i" />
 </head>
 <body class="legal-page">
   <main class="legal">
     <p class="legal-back"><a href="/">← RangeBites</a></p>
     <p class="legal-kicker">Legal</p>
     <h1>Terms of Use</h1>
-    <p class="meta">RangeBites · rangebites.com · Effective September 1, 2026</p>
-    <p class="read-note">Please read these Terms of Use carefully. They are a legally binding agreement between you and the operator of RangeBites. RangeBites is a food-information website. It does not track you. If you do not agree, do not use the Service.</p>
+    <p class="meta">RangeBites · rangebites.com · Effective <span data-publish-date>October 3, 2026</span></p>
+    <p class="read-note">Please read these Terms of Use carefully. They are a legally binding agreement between you and the operator of RangeBites. RangeBites is a food-information website. It does not store information about you. If you do not agree, do not use the Service.</p>
 
     <h2>1. Acceptance of terms</h2>
-    <p>These Terms of Use (the “Terms”) govern access to and use of the website located at rangebites.com and related pages (the “Service”). The Service does not require payment. You agree to these Terms by tapping Continue on first use, and by continuing to use the Service. That agreement is formed with each person who uses the Service. If you do not agree, you must discontinue use immediately.</p>
+    <p>These Terms of Use (the “Terms”) govern access to and use of the website located at rangebites.com and related pages (the “Service”). The Service does not require payment. You agree to these Terms by tapping Continue, or by using the site. That agreement is formed with each person who uses the Service. If you do not agree, you must discontinue use immediately.</p>
 
     <h2>2. Operator; website developer</h2>
     <p>The Service is designed, published, and operated by an individual website developer (the “Operator”), not by a restaurant, franchise, or food-service company. The Operator is one person. RangeBites is not a limited liability company. The Operator provides an information website only. The Operator is not a food provider, driver, insurer, attorney, or agent of any restaurant. Nothing on the Service creates a professional, fiduciary, or employment relationship with the Operator.</p>
@@ -70,7 +70,7 @@
     <p>Any “deal” or promo text appears only if the underlying listing already mentions a promo (for example in a description or note). It is not a live coupon feed. Confirm with the restaurant. The Specials page is optional restaurant contact for review. It is not a live coupon, a promise of price, or a diner mailing list.</p>
 
     <h2>4. Third-party data; no invention</h2>
-    <p>Listings, hours, addresses, and related tags are obtained from OpenStreetMap and similar public sources. Such data may be inaccurate, incomplete, or out of date. The Operator does not invent hours, star ratings, coupons, or pantry locations. The Operator does not inspect kitchens, verify hours, honor promotions, take reservations, or process payments. You are solely responsible for confirming information with the restaurant or venue before you travel or purchase.</p>
+    <p>Listings, hours, addresses, and related tags are obtained from OpenStreetMap, AllThePlaces (CC0 chain store-locator data), and similar public sources. Such data may be inaccurate, incomplete, or out of date. The Operator does not invent hours, star ratings, coupons, or pantry locations. The Operator does not inspect kitchens, verify hours, honor promotions, take reservations, or process payments. You are solely responsible for confirming information with the restaurant or venue before you travel or purchase.</p>
 
     <h2>5. Maps and third-party sites</h2>
     <p>Directions open in Apple Maps or Google Maps. A Reviews control opens Google Maps search for that place. The names Google Maps and Apple Maps appear as ordinary text so you can open those apps. RangeBites does not scrape those services, does not display their star ratings, and does not show their logos or other marks. Those map services are independent. Their terms and privacy policies govern your use of them. The Operator has no control over, and assumes no responsibility for, those services or for any trip, purchase, or meal that follows.</p>
@@ -79,36 +79,56 @@
     <p>You must be at least thirteen (13) years of age to use the Service. The Service is not directed to children under 13.</p>
 
     <h2>7. License and acceptable use</h2>
-    <p>The Operator grants you a limited, revocable, non-exclusive, non-transferable license to access the Service for your personal, lawful, informational use. You shall not scrape, overload, reverse engineer, or disrupt the Service; submit false information; attempt unauthorized access; or present RangeBites as RangeBits or as a finance product. The Operator may suspend or terminate access for conduct reasonably believed to violate these Terms.</p>
+    <p>The Operator grants you a limited, revocable, non-exclusive, non-transferable license to access the Service for your personal, lawful, informational use. You shall not scrape, overload, reverse engineer, or disrupt the Service; submit false information; attempt unauthorized access; or present RangeBites as RangeBits or as a finance product. The Operator may suspend or terminate access for conduct reasonably believed to violate these Terms. Nothing here limits rights you have under the OpenStreetMap ODbL, CC BY-SA, or other open licenses for the underlying map data and tiles.</p>
 
     <h2>8. Intellectual property</h2>
-    <p>Original text, layout, and selection on the Service are owned by the Operator. Map data and place tags remain the property of their sources, including OpenStreetMap contributors, and are used subject to the Open Database License (ODbL). See <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">openstreetmap.org/copyright</a>. “RangeBites” is the name of this website. The Operator does not claim a registered trademark in that name. Domain registration is not a trademark. You may not copy the Service to build a competing product.</p>
+    <p>Original text, layout, and selection on the Service are owned by the Operator. Map data and place tags remain the property of their sources, including OpenStreetMap contributors, and are used subject to the Open Database License (ODbL). See <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">openstreetmap.org/copyright</a>. “RangeBites” is the name of this website. The Operator does not claim a registered trademark in that name. Domain registration is not a trademark. You may not copy the Service to build a competing product. Nothing here limits rights you have under the OpenStreetMap ODbL, CC BY-SA, or other open licenses for the underlying map data and tiles.</p>
 
-    <h2>9. Disclaimer of warranties</h2>
-    <p>THE SERVICE IS PROVIDED “AS IS” AND “AS AVAILABLE,” WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT, TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW. THE OPERATOR DOES NOT WARRANT THAT LISTINGS, HOURS, MAPS, DEALS, OR THE SERVICE WILL BE ACCURATE, COMPLETE, CURRENT, OR UNINTERRUPTED. FOOD, TRAVEL, AND PURCHASING DECISIONS ARE YOURS ALONE. THE SERVICE IS NOT A SAFETY, NAVIGATION, OR EMERGENCY SERVICE.</p>
-
+    <h2>9. Information accuracy; no warranty</h2>
+    <p>RangeBites shows restaurant, café, and food pantry listings, opening hours, “tagged open” status, feature tags (like delivery or wheelchair access), and promo text taken from public map data. We don’t visit, call, or check these places, and this information can be incomplete, out of date, or wrong. A place shown as “tagged open” may be closed. A promo may have ended. A pantry may have moved. Always confirm with the business or pantry before you travel, order, or rely on anything you see here.</p>
+    <p><strong>THE SERVICE AND ALL INFORMATION ON IT ARE PROVIDED “AS IS” AND “AS AVAILABLE.” TO THE FULLEST EXTENT PERMITTED BY LAW, THE OPERATOR DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING ANY WARRANTIES OF ACCURACY, COMPLETENESS, MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. THE OPERATOR DOES NOT WARRANT THAT ANY LISTING, HOURS, OPEN STATUS, DEAL, OR PANTRY INFORMATION IS CORRECT OR CURRENT, OR THAT THE SERVICE WILL BE UNINTERRUPTED OR ERROR-FREE.</strong></p>
     <h2>10. Limitation of liability</h2>
-    <p>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE OPERATOR AND THE WEBSITE DEVELOPER SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR LOST PROFITS, DATA, OR GOODWILL, ARISING OUT OF OR RELATED TO YOUR USE OF THE SERVICE OR RELIANCE ON ANY LISTING, HOUR, DEAL, MAP, OR THIRD-PARTY SITE, INCLUDING WITHOUT LIMITATION A CLOSED RESTAURANT, STALE HOURS, AN INCORRECT LOCATION, FOOD YOU CONSUME, OR TRAVEL YOU UNDERTAKE. TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE OPERATOR’S TOTAL LIABILITY FOR ANY CLAIM ARISING OUT OF OR RELATING TO THE SERVICE SHALL NOT EXCEED ONE HUNDRED U.S. DOLLARS (US $100). SOME JURISDICTIONS DO NOT ALLOW CERTAIN LIMITATIONS; IN SUCH JURISDICTIONS, LIABILITY IS LIMITED TO THE FULLEST EXTENT PERMITTED.</p>
-
+    <p><strong>TO THE FULLEST EXTENT PERMITTED BY LAW, THE OPERATOR WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR LOST PROFITS, DATA, OR GOODWILL, ARISING FROM OR RELATED TO YOUR USE OF THE SERVICE. TO THE FULLEST EXTENT PERMITTED BY LAW, THE OPERATOR’S TOTAL LIABILITY FOR ALL CLAIMS RELATED TO THE SERVICE WILL NOT EXCEED ONE HUNDRED U.S. DOLLARS (US $100).</strong></p>
+    <p>Nothing in these Terms excludes or limits liability for personal injury or death caused by negligence, for gross negligence, fraud, or willful misconduct, or any other liability that cannot be excluded or limited under applicable law, including Virginia law.</p>
     <h2>11. Indemnification</h2>
-    <p>You agree to indemnify, defend, and hold harmless the Operator and the website developer from and against any claims, damages, losses, and expenses (including reasonable attorneys’ fees) arising out of your use of the Service, your reliance on listings, or your violation of these Terms.</p>
-
-    <h2>12. Privacy</h2>
+    <p>If you misuse the Service or break these Terms, for example by scraping or overloading it, or by submitting false or unlawful material through the Specials page, you agree to cover the Operator’s reasonable costs, including reasonable attorneys’ fees, for claims by others that result from that misuse. This doesn’t apply to claims caused by the Operator’s own negligence or misconduct.</p>
+    <h2>12. Operator and privacy</h2>
+    <p>RangeBites (rangebites.com), contact: <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>.</p>
     <p>Location, if you choose to share it, is used for the current search only and is not stored as a location history. The Privacy Policy describes what the host may see in order to fetch map data. The Privacy Policy is incorporated by reference.</p>
 
     <h2>13. Governing law and venue</h2>
-    <p>These Terms are governed by the laws of the Commonwealth of Virginia, United States of America, without regard to conflict-of-laws rules. Subject to applicable law, exclusive venue for any court action arising out of these Terms or the Service shall lie in the state or federal courts located in Virginia, and you consent to personal jurisdiction there.</p>
-
+    <p>These Terms and any dispute about the Service are governed by the laws of the Commonwealth of Virginia, without regard to its conflict-of-laws rules. Any lawsuit must be brought in the state courts located in Russell County, Virginia, or in the United States District Court for the Western District of Virginia, Abingdon Division, and you and the Operator agree to the personal jurisdiction of those courts. Either party may bring an eligible claim in small claims court instead.</p>
     <h2>14. Changes</h2>
-    <p>The Operator may revise these Terms at any time by posting an updated version with a new effective date. Continued use of the Service after an update constitutes acceptance of the revised Terms.</p>
-
+    <p>We may update these Terms from time to time. When we do, we’ll post the new version here with a new effective date, and for significant changes we’ll show a notice on the site. Changes apply from the effective date onward and don’t apply to disputes that arose before then. If you keep using RangeBites after a change, you accept the updated Terms.</p>
     <h2>15. Miscellaneous</h2>
     <p>If any provision of these Terms is held unenforceable, the remaining provisions shall continue in full force. Failure to enforce a provision is not a waiver. These Terms, together with the Privacy Policy, are the entire agreement between you and the Operator concerning the Service and supersede prior understandings on that subject. Headings are for convenience only. “Including” means “including without limitation.”</p>
 
     <h2>16. Contact</h2>
-    <p>The Service is operated at rangebites.com. Restaurant operators may use the Specials page for optional review contact. The Operator does not collect diner emails and does not publish a consumer support inbox on the Service.</p>
+    <p>Questions, corrections, accessibility problems, or legal notices: RangeBites (rangebites.com), contact: <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>. We don’t run a diner mailing list, and writing to us won’t add you to one. Restaurant operators may also use the Specials page for optional review contact.</p>
 
+    <h2>17. Third-party data and services</h2>
+    <p>Listings and map data come from OpenStreetMap, © OpenStreetMap contributors, and are available under the Open Database License (ODbL). See <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">openstreetmap.org/copyright</a>. Place searches are sent through our host to the OpenStreetMap Overpass API, and city searches to the Nominatim geocoder, which we use in line with the <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank" rel="noopener noreferrer">Nominatim Usage Policy</a>. Map images come from a community OpenStreetMap tile server (tile.openstreetmap.de). The map display uses the open-source Leaflet library (BSD 2-Clause License). Directions and “Reviews” buttons open Apple Maps or Google Maps, and some pages link to outside directories such as Feeding America and 211. These services are run by others, not by RangeBites. Their own terms and privacy policies apply, and we aren’t responsible for their content, availability, or practices.</p>
+
+    <h2>18. Your decisions and trips</h2>
+    <p>You decide where to go, what to eat, and how to get there. RangeBites is not a navigation, safety, delivery, reservation, or emergency service. To the fullest extent permitted by law, the Operator isn’t responsible for losses that come from relying on information on the Service, such as a wasted trip, a closed or moved location, an expired promo, or a pantry that couldn’t serve you. This section doesn’t limit liability that the law doesn’t allow to be limited (see “Limitation of liability”).</p>
+
+    <h2>19. No affiliation or endorsement; trademarks</h2>
+    <p>RangeBites is independent. It isn’t affiliated with, sponsored by, or endorsed by any restaurant, food pantry, chain, map provider, or organization shown or linked on the Service. A listing doesn’t mean we recommend it, and no business pays to be listed or ranked. Business names, trademarks, and logos belong to their owners. We use names only to identify the places and services they refer to. If you own a listing or a mark and want something corrected, contact RangeBites (rangebites.com) at <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>.</p>
+
+    <h2>20. Food allergies and food safety</h2>
+    <p>RangeBites doesn’t know what’s in any food, how it’s prepared, or whether a kitchen meets health or safety standards. Diet and cuisine tags come from public map data and may be wrong. If you have a food allergy, intolerance, or dietary need, ask the restaurant directly before ordering. Never rely on RangeBites for allergy, ingredient, or food-safety information.</p>
+
+    <h2>21. Food pantries and free-food resources</h2>
+    <p>Food banks, pantries, and soup kitchens appear only when public map data tags them. RangeBites doesn’t run, fund, or speak for any of them. Hours, location, eligibility rules, required documents, and available food change often and are not guaranteed. Please contact the pantry, or call or text 211, before you go.</p>
+
+    <h2>22. Accessibility</h2>
+    <p>We aim to meet WCAG 2.1 AA. If something doesn’t work for you, tell RangeBites (rangebites.com), contact: <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>.</p>
+
+    <h2>23. Do Not Track</h2>
+    <p>We don’t track you across other websites, and we don’t let third parties do so through RangeBites, so we don’t change anything in response to browser Do Not Track signals.</p>
     <p class="fine">Map data © OpenStreetMap contributors. These Terms are a website contract. They are not legal advice to you, and posting them does not create an attorney-client relationship.</p>
+    <p class="legal-foot">RangeBites is an independent food finder run by one person in Virginia, not affiliated with or endorsed by any business, pantry, or map service shown. Listings come from OpenStreetMap and may be wrong, so check with the place before you go · Map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
+
   </main>
   <footer class="site-footer">
     <nav class="site-footer-nav" aria-label="Site">
@@ -120,5 +140,7 @@
     </nav>
     <p class="site-footer-note">RangeBites helps you find food nearby. By using it you agree to the Terms of Use. Not a reservation. Not legal, tax, or finance advice. Not RangeBits.</p>
   </footer>
+  <script src="/metrics.js?v=20261003i"></script>
+  <script src="/config.js?v=20261003i"></script>
 </body>
 </html>

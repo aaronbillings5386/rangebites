@@ -1,149 +1,165 @@
 /**
- * RangeBites — first-party tap counts only.
- * Body is always {"kind": "view"|"locate"|"demo"|"deal"}.
- * Never send location, email, cookies, user-agent, or identifiers in the body.
+ * RangeBites stores no visitor information.
+ * This file does not count visits, write here.now collections, or keep a session flag.
+ * On load it deletes leftover device ids, location keys, and the old found-count cache.
  */
 (function () {
   "use strict";
 
-  var HITS_URL = "./.herenow/data/hits";
-  var KINDS = { view: true, locate: true, demo: true, deal: true };
-  var CAP = 500;
-  var PAGE = 100;
-
-  function uuid() {
-    try {
-      if (window.crypto && typeof window.crypto.randomUUID === "function") {
-        return window.crypto.randomUUID();
+  /** Delete leftover device, visitor, and install ids. Named keys, plus any key that still looks like one. */
+  function clearLegacyDeviceIds(localStore, sessionStore) {
+    var named = [
+      "rb_device",
+      "rb_device_id",
+      "deviceId",
+      "device_id",
+      "visitorId",
+      "visitor_id",
+      "installId",
+      "install_id",
+      "rb_helped_id",
+      "rb_helped_done",
+      "rb_helped_done_selftest",
+      "rb_found_pending_key",
+      "rb_visitor",
+      "rb_install_id"
+    ];
+    var looksLikeId = /device|visitor|install|pending_key|helped_done|helped_id|deviceId|device_id/i;
+    function wipe(store) {
+      if (!store || typeof store.removeItem !== "function") return;
+      var i;
+      for (i = 0; i < named.length; i++) {
+        try { store.removeItem(named[i]); } catch (_) {}
       }
+      if (typeof store.length !== "number" || typeof store.key !== "function") return;
+      var found = [];
+      try {
+        for (i = 0; i < store.length; i++) {
+          var k = store.key(i);
+          if (k && looksLikeId.test(k)) found.push(k);
+        }
+      } catch (_) {}
+      for (i = 0; i < found.length; i++) {
+        try { store.removeItem(found[i]); } catch (_) {}
+      }
+    }
+    wipe(localStore);
+    wipe(sessionStore);
+  }
+
+  /** Delete leftover location, last-city, and search-history keys. Also drops the old found-count cache. */
+  function clearLegacyLocationKeys(localStore, sessionStore) {
+    var locationFields = [
+      "lastPlaceQuery",
+      "lastCity",
+      "last_city",
+      "searchHistory",
+      "lat",
+      "lng",
+      "latitude",
+      "longitude",
+      "coords",
+      "location"
+    ];
+    function scrubStoredPrefs(raw) {
+      try {
+        var p = JSON.parse(raw);
+        if (!p || typeof p !== "object" || Array.isArray(p)) return raw;
+        var changed = false;
+        var n;
+        for (n = 0; n < locationFields.length; n++) {
+          if (Object.prototype.hasOwnProperty.call(p, locationFields[n])) {
+            delete p[locationFields[n]];
+            changed = true;
+          }
+        }
+        return changed ? JSON.stringify(p) : raw;
+      } catch (_) {
+        return raw;
+      }
+    }
+    var named = [
+      "rb_last_place",
+      "rb_last_city",
+      "rb_last_query",
+      "lastCity",
+      "last_city",
+      "lastPlaceQuery",
+      "rb_search_history",
+      "rb_location",
+      "rb_lat",
+      "rb_lng",
+      "latitude",
+      "longitude",
+      "rb_coords",
+      "geolocation",
+      "rb_found_session",
+      "rb_found_session_selftest",
+      "rb_helped_count",
+      "rb_helped_count_target",
+      "rb_hits_backoff_until",
+      "rb_hits_write_backoff_until",
+      "rb_count_fetched",
+      "rb_count_target",
+      "rb_no_count",
+      "rb_visit_count",
+      "rb_visit_count_more"
+    ];
+    var looksLikeLocation = /last.?city|last.?place|last.?query|search.?history|(^|[_\-])(lat|lng)([_\-]|$)|latitude|longitude|(^|[_\-])coords([_\-]|$)|(^|[_\-])location([_\-]|$)|geolocation|location_history/i;
+    function wipe(store) {
+      if (!store || typeof store.removeItem !== "function") return;
+      var i;
+      for (i = 0; i < named.length; i++) {
+        try { store.removeItem(named[i]); } catch (_) {}
+      }
+      if (typeof store.length === "number" && typeof store.key === "function") {
+        var found = [];
+        try {
+          for (i = 0; i < store.length; i++) {
+            var k = store.key(i);
+            if (!k || k === "rb_ui_prefs" || k === "rb_saved" || k === "rb_notice_seen") continue;
+            if (looksLikeLocation.test(k)) found.push(k);
+          }
+        } catch (_) {}
+        for (i = 0; i < found.length; i++) {
+          try { store.removeItem(found[i]); } catch (_) {}
+        }
+      }
+      if (typeof store.getItem !== "function" || typeof store.setItem !== "function") return;
+      try {
+        var prefs = store.getItem("rb_ui_prefs");
+        if (!prefs) return;
+        var next = scrubStoredPrefs(prefs);
+        if (next !== prefs) store.setItem("rb_ui_prefs", next);
+      } catch (_) {}
+    }
+    wipe(localStore);
+    wipe(sessionStore);
+  }
+
+  function clearLegacyLocationDatabases() {
+    try {
+      if (!window.indexedDB || typeof window.indexedDB.databases !== "function") return;
+      window.indexedDB.databases().then(function (list) {
+        (list || []).forEach(function (db) {
+          var name = db && db.name;
+          if (!name) return;
+          if (/last.?city|last.?place|search.?history|latitude|longitude|geolocation|location_history|(^|[_\-])(lat|lng|coords|location)([_\-]|$)/i.test(name)) {
+            try { window.indexedDB.deleteDatabase(name); } catch (_) {}
+          }
+        });
+      }).catch(function () {});
     } catch (_) {}
-    var s = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
-    return s.replace(/[xy]/g, function (c) {
-      var r = (Math.random() * 16) | 0;
-      var v = c === "x" ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
-
-  function hit(kind) {
-    if (!KINDS[kind]) return Promise.resolve(false);
-    try {
-      return fetch(HITS_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": uuid(),
-        },
-        body: JSON.stringify({ kind: kind }),
-        keepalive: true,
-      }).then(function (res) {
-        return !!(res && res.ok);
-      }).catch(function () {
-        return false;
-      });
-    } catch (_) {
-      return Promise.resolve(false);
-    }
-  }
-
-  function recordKind(rec) {
-    if (!rec) return "";
-    var data = rec.data && typeof rec.data === "object" ? rec.data : rec;
-    var k = data && data.kind;
-    return typeof k === "string" ? k : "";
-  }
-
-  function fetchHitsPage(cursor) {
-    var url = HITS_URL + "?limit=" + PAGE;
-    if (cursor) url += "&cursor=" + encodeURIComponent(cursor);
-    return fetch(url, { method: "GET" }).then(function (res) {
-      if (!res.ok) {
-        var err = new Error("hits " + res.status);
-        err.status = res.status;
-        throw err;
-      }
-      return res.json();
-    });
-  }
-
-  function loadHits(max) {
-    var cap = max || CAP;
-    var all = [];
-    function next(cursor) {
-      return fetchHitsPage(cursor).then(function (body) {
-        var recs = (body && body.records) || [];
-        for (var i = 0; i < recs.length && all.length < cap; i++) all.push(recs[i]);
-        var more = body && body.nextCursor;
-        if (more && all.length < cap) return next(more);
-        return all;
-      });
-    }
-    return next(null);
-  }
-
-  function tally(records) {
-    var counts = { view: 0, locate: 0, demo: 0, deal: 0, total: 0 };
-    (records || []).forEach(function (rec) {
-      var k = recordKind(rec);
-      if (KINDS[k]) counts[k] += 1;
-      counts.total += 1;
-    });
-    return counts;
-  }
-
-  function zeros() {
-    return { view: 0, locate: 0, demo: 0, deal: 0, total: 0 };
-  }
-
-  function formatOpens(n) {
-    var v = Number(n) || 0;
-    if (v === 1) return "1 page open";
-    return v + " page opens";
-  }
-
-  function paintVisitCount(n) {
-    var num = document.getElementById("visitCountNum");
-    var wrap = document.getElementById("visitCount");
-    if (!num) return;
-    var v = Number(n) || 0;
-    num.textContent = String(v);
-    if (wrap) wrap.setAttribute("aria-label", formatOpens(v) + " · Stats");
-  }
-
-  function refreshVisitCount() {
-    var num = document.getElementById("visitCountNum");
-    if (!num) return Promise.resolve();
-    return loadHits(CAP)
-      .then(function (recs) {
-        paintVisitCount(tally(recs).view);
-      })
-      .catch(function () {
-        paintVisitCount(0);
-      });
   }
 
   window.RangeBitesMetrics = {
-    hit: hit,
-    loadHits: loadHits,
-    tally: tally,
-    zeros: zeros,
-    refreshVisitCount: refreshVisitCount,
+    clearLegacyLocationKeys: clearLegacyLocationKeys,
   };
 
   function boot() {
-    var path = "";
-    try {
-      path = (location.pathname || "").split("/").pop() || "index.html";
-    } catch (_) {
-      path = "index.html";
-    }
-    var home = !path || path === "index.html" || path === "";
-    var wait = home ? hit("view") : Promise.resolve(false);
-    wait.then(function () {
-      return refreshVisitCount();
-    }).then(function () {
-      if (home) setTimeout(refreshVisitCount, 800);
-    });
+    try { clearLegacyDeviceIds(window.localStorage, window.sessionStorage); } catch (_) {}
+    try { clearLegacyLocationKeys(window.localStorage, window.sessionStorage); } catch (_) {}
+    clearLegacyLocationDatabases();
   }
 
   if (document.readyState === "loading") {

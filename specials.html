@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#161a21" />
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.openstreetmap.org https://*.openstreetmap.de https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests" />
   <title>RangeBites — restaurant specials</title>
   <style>
     :root {
@@ -26,25 +26,26 @@
       background: var(--bg); color: var(--text);
       font-family: var(--font); font-size: 16px; line-height: 1.45;
       -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
     .wrap {
       max-width: 420px; margin: 0 auto;
       padding: calc(48px + var(--safe-top)) 20px calc(32px + var(--safe-bottom));
     }
     .kicker {
-      font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase;
-      color: var(--muted); font-weight: 650; margin: 0 0 10px;
+      font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); font-weight: 600; margin: 0 0 10px;
     }
     h1 {
-      margin: 0 0 10px; font-size: 1.55rem; font-weight: 800;
+      margin: 0 0 10px; font-size: 25px; font-weight: 800;
       letter-spacing: -0.03em; line-height: 1.2;
     }
     .lede {
-      margin: 0 0 22px; font-size: 1.02rem; font-weight: 650; line-height: 1.35; color: var(--text);
+      margin: 0 0 22px; font-size: 16px; font-weight: 600; line-height: 1.35; color: var(--text);
     }
     label {
-      display: block; font-size: 0.82rem; color: var(--muted);
-      font-weight: 650; margin-bottom: 6px;
+      display: block; font-size: 13px; color: var(--muted);
+      font-weight: 600; margin-bottom: 6px;
     }
     input, textarea {
       width: 100%; padding: 14px 16px; border-radius: 12px;
@@ -61,27 +62,27 @@
       color: #12151a; background: #dce3ef;
     }
     button[type="submit"]:disabled { opacity: 0.55; cursor: wait; }
-    button[type="submit"]:active { transform: scale(0.99); }
-    .hint { margin: -8px 0 14px; font-size: 0.78rem; color: var(--muted); }
+    button[type="submit"]:active { transform: none; }
+    .hint { margin: -8px 0 14px; font-size: 12px; color: var(--muted); }
     .privacy {
-      margin: 16px 0 0; font-size: 0.82rem; color: var(--muted); line-height: 1.4;
+      margin: 16px 0 0; font-size: 13px; color: var(--muted); line-height: 1.4;
     }
     .success {
-      display: none; margin: 0; font-size: 1.05rem; font-weight: 650;
+      display: none; margin: 0; font-size: 17px; font-weight: 600;
       line-height: 1.35;
     }
     .success.show { display: block; }
     .form.hidden { display: none; }
     .err {
-      display: none; font-size: 0.82rem; color: #ff8a8a; margin: 0 0 12px;
+      display: none; font-size: 13px; color: #ff8a8a; margin: 0 0 12px;
     }
     .err.show { display: block; }
     .closed {
-      display: none; margin: 0 0 16px; font-size: 1.05rem; font-weight: 650;
+      display: none; margin: 0 0 16px; font-size: 17px; font-weight: 600;
       line-height: 1.35;
     }
     .closed.show { display: block; }
-    .foot { margin: 28px 0 0; font-size: 0.82rem; color: var(--muted); }
+    .foot { margin: 28px 0 0; font-size: 13px; color: var(--muted); }
     .foot a { color: var(--muted); text-decoration: none; }
     .foot a:hover { color: var(--text); }
     .hp {
@@ -89,9 +90,9 @@
       overflow: hidden;
     }
   </style>
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260916a" />
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20260916a" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20260916a" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20261003i" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20261003i" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20261003i" />
 </head>
 <body>
   <main class="wrap">
@@ -128,6 +129,8 @@
     <p class="foot"><a href="index.html">RangeBites</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="sitemap.html">Sitemap</a></p>
     <p class="privacy">RangeBites helps you find food nearby. Nearby restaurants and listed promo text. No account. Not a reservation. Not legal, tax, or finance advice. Not RangeBits.</p>
   </main>
-  <script src="specials.js?v=20260916a"></script>
+  <script src="metrics.js?v=20261003i"></script>
+  <script src="specials.js?v=20261003i"></script>
+  <footer class="site-footer"><p class="legal-foot">RangeBites is an independent food finder run by one person in Virginia, not affiliated with or endorsed by any business, pantry, or map service shown. Listings come from OpenStreetMap and may be wrong, so check with the place before you go · Map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p></footer>
 </body>
 </html>

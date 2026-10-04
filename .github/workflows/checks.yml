@@ -1,0 +1,35 @@
+# RangeBites checks: syntax + small pure-function tests. No npm install, no third-party actions
+# beyond actions/checkout (MIT), pinned to a commit SHA.
+name: checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Node version
+        run: node --version
+      - name: node --check every shipped script
+        run: |
+          set -e
+          for f in app.js deals.js metrics.js specials.js sw.js config.js disclaimers.js analytics.js tests/*.js; do
+            [ -f "$f" ] && node --check "$f" && echo "ok $f"
+          done
+      - name: JSON configs parse
+        run: |
+          set -e
+          for f in .herenow/data.json .herenow/proxy.json tools/overpass-proxy.headers.json manifest.webmanifest vercel.json data/closed-places.json; do
+            [ -f "$f" ] && node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" && echo "ok $f"
+          done
+      - name: Python tools compile
+        run: python3 -m py_compile tools/*.py
+      - name: Harness tests
+        run: |
+          node tests/app.test.js
+          node tests/t.js

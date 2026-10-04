@@ -8,7 +8,7 @@ This demo is **privacy-first** and has **no RangeBites backend**. There is no se
 |-------------|------|-----|
 | Public **Overpass** APIs (`overpass-api.de`, `lz4.overpass-api.de`, `overpass.kumi.systems`) | Approximate lat/lng + search radius in the Overpass query | Load nearby OSM restaurants / cafés / fast food from the browser |
 | **OpenStreetMap** tile CDN | Tile XYZ requests around the map viewport | Render the Leaflet map |
-| **Amplitude** (only if `FOOD_RADAR_AMPLITUDE_API_KEY` is set) | Session product events (locate, radius, search, deals, nav) — **never** lat/long or location history | Soft-launch funnel; North Star `nav_handoff`. No key = memory queue only (nothing leaves). |
+| Place search through our host | Rounded coordinates for the current search only | Show nearby places. Not stored as a visitor log. |
 
 Those third parties operate under their own policies. RangeBites does not proxy or log those requests.
 
@@ -23,7 +23,7 @@ Outbound **Apple Maps / Google Maps / merchant website** links open in a new tab
   - place lists or location history
   - deal clicks / views
   - user identity
-- **`localStorage`** may hold **UI prefs only** (one JSON key `rb_ui_prefs`): range, walk chip, dietary/filter chips, last city/zip **text**, onboard/hero flags. Never coordinates. Boot applies chips/input only — does not auto-run Overpass/Nominatim.
+- **`localStorage`** may hold **UI prefs only** (one JSON key `rb_ui_prefs`): range, walk chip, dietary/filter chips, units, onboard/hero flags. Never coordinates, last city, or search history. Hearts live in `rb_saved` (id, name, address) on this device only. Boot applies chips only — does not auto-run Overpass/Nominatim. Filters includes Clear my saved data.
 - **In-memory wipe** on `pagehide` and `beforeunload` only (real leave/close): clears `state.lat` / `state.lng` / `state.places` and map markers. **Not** on `visibilitychange`. Clear now wipes GPS + places only; UI prefs stay.
 - **No production-ish `console.log` of coordinates** or full place payloads (warnings use error names / codes only).
 - **Sponsored** badges (max 1–2) are deterministic demo honesty labels — not tracking, not a claim that we store or sell data.
@@ -48,21 +48,6 @@ For the Bluefield demo center, sample coords stay absolute. For a real Locate Me
 
 Those names/coords are static fixtures — not scraped from device history and **never written** to storage. Radius chips and filters apply to both live and fallback lists; deals / Sponsored (max 2) still come from `deals.js`.
 
-## Product analytics (Amplitude-ready, privacy-safe)
+## Analytics
 
-Optional instrumentation lives in `analytics.js` + `config.js`.
-
-| Rule | Detail |
-|------|--------|
-| Session-scoped | Events queue in memory for the page session. **Never** written to `localStorage` / IndexedDB by RangeBites. |
-| No location trails | **Never** send lat, lng, place names as location history, coords, addresses, or “near X” sequences. |
-| Allowed props | `source`, `outcome`, `radius_mi`, `prior_radius_mi`, `result_count`, `deal_id` (OSM/demo entity id), `position`, `has_coupon`, `maps_app`, `has_account`, `screens_seen`. |
-| Amplitude | Browser SDK 2.x loads from `cdn.amplitude.com` **only if** `window.FOOD_RADAR_AMPLITUDE_API_KEY` is a non-empty string. Init uses `identityStorage: "none"`, `autocapture: false`, in-memory `storageProvider`, and `trackingOptions.ipAddress: false`. |
-| No key | Events stay in the in-memory queue (optional `FOOD_RADAR_ANALYTICS_DEBUG` logs **event names only**, never props). |
-| Taxonomy | Data Analyst **snake_case** event names (`locate_me_requested`, …). Title Case duplicates are held until Analyst alignment. |
-
-See `config.example.js` for the API key placeholder. CSP allows `cdn.amplitude.com` (script) and `api2.amplitude.com` (connect).
-
-
-
-**No API key:** events stay in an in-memory session queue and never leave the browser.
+RangeBites is a free site that tracks nobody. Do not add device codes, analytics identifiers, visitor logs, or third-party trackers. `analytics.js` makes no network call. Location from a city search or Locate Me stays in memory for that search only.

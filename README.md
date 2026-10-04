@@ -34,13 +34,13 @@ Anywhere you open it:
 | `styles.css` | Quiet Precision: graphite/slate UI; amber only for deals |
 | `app.js` | Geolocation, Overpass, Leaflet, filters, locate-glow, privacy wipe |
 | `deals.js` | Sample / partner-ready deal matching + Sponsored flags (not live Honey) |
-| `analytics.js` | Optional Amplitude eventing (key gated; in-memory queue without key) |
+| `analytics.js` | Empty on purpose. RangeBites does not load a tracker. |
 | `PRODUCT.md` | Product brief + locked bar |
 | `PRODUCT_BAR_TODAY.md` | Bar status vs code + today’s P0 ship list |
 | `PRIVACY_GUARDRAILS.md` | What leaves the device vs what never persists |
 | `ABOUT_AND_DISCLOSURES.md` | Full disclosure draft |
 | `OVERNIGHT.md` | Overnight changelog |
-| `AARON_AMPLITUDE.md` | Amplitude setup notes |
+| `AARON_AMPLITUDE.md` | Retired. Do not add a tracker. |
 
 ## How to run
 

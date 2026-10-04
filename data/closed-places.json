@@ -1,0 +1,22 @@
+{
+  "note": "Curated permanently-closed places hidden from results even if OSM still tags them. Key = OSM type/id. Remove an entry once OSM is fixed and the fix has propagated.",
+  "updated": "2026-10-03",
+  "places": {
+    "way/580777677": {
+      "name": "Wendy's",
+      "address": "21 Highland Dr, Lebanon, VA 24266",
+      "closed": "2026-01-01",
+      "status": "permanently_closed",
+      "source": "https://www.thelebanonnews.com/news/one-restaurant-opens-another-closes-in-lebanon/article_5cb7fb0c-0d6d-44dd-a148-ce1711e3d076.html; locations.wendys.com/united-states/va/lebanon/21-highland-dr returns 404 (checked 2026-10-03)",
+      "added": "2026-10-03"
+    },
+    "way/312160515": {
+      "name": "Applebee's",
+      "address": "89 Elliott Dr, Lebanon, VA 24266",
+      "closed": "2019-08-04",
+      "status": "permanently_closed",
+      "source": "https://wcyb.com/news/local/lebanon-applebees-shuts-its-doors; applebees.com/en/restaurants-lebanon-va/89-elliott-drive-83046 returns 404 (checked 2026-10-03)",
+      "added": "2026-10-03"
+    }
+  }
+}
