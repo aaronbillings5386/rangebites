@@ -147,7 +147,8 @@ t("query preview is read-only and does not persist a choice", () => {
   assert.strictEqual(themes.selectHolidayTheme(june, { query: "halloween" }), "halloween");
   assert.strictEqual(themes.selectHolidayTheme(oct, { query: "christmas" }), "halloween");
   assert.strictEqual(themes.selectHolidayTheme(june, { query: "nope" }), "default");
-  assert.strictEqual(themes.selectHolidayTheme(oct, { reducedMotion: true }), "default");
+  assert.strictEqual(themes.selectHolidayTheme(oct, { reducedMotion: true }), "halloween");
+  assert.strictEqual(themes.selectHolidayTheme(june, { reducedMotion: true }), "default");
   assert.strictEqual(
     themes.selectHolidayTheme(oct, { query: "halloween", reducedMotion: true }),
     "halloween"
@@ -178,6 +179,9 @@ t("applyTheme sets the class in October and leaves June alone", () => {
   const june = fakeDoc();
   assert.strictEqual(themes.applyTheme(june, local(2026, 5, 15), {}), "default");
   assert.strictEqual(june.documentElement.classList.contains("theme-halloween"), false);
+  const still = fakeDoc();
+  assert.strictEqual(themes.applyTheme(still, local(2026, 9, 4), { reducedMotion: true }), "halloween");
+  assert.strictEqual(still.documentElement.classList.contains("theme-halloween"), true);
 });
 
 t("a thrown class update falls back to the default theme", () => {
@@ -207,9 +211,11 @@ t("theme source does not touch storage, network, or trackers", () => {
   assert.ok(/pointer-events:\s*none/.test(css));
   assert.ok(/animation:\s*none\s*!important/.test(css));
   assert.ok(/filter:\s*none\s*!important/.test(css));
+  assert.ok(/holiday-list-scene/.test(css));
+  assert.ok(/:has\(\.place-card\)/.test(css));
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.ok(html.includes('href="themes/halloween.css?v=20261004b"'));
-  assert.ok(html.includes('src="themes/holiday-themes.js?v=20261004b"'));
+  assert.ok(html.includes('href="themes/halloween.css?v=20261004c"'));
+  assert.ok(html.includes('src="themes/holiday-themes.js?v=20261004c"'));
 });
 
 console.log("\n" + pass + " passed");

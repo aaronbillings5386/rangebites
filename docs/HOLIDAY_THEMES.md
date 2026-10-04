@@ -170,7 +170,7 @@ Overlaps that rule settles:
 
 - **Status:** Built
 - **Window:** October 1 through October 31, local date, inclusive.
-- **Motifs:** Cartoon jack-o'-lanterns, a crescent moon, bats, a ghost, and a crooked skyline with a bare tree. They sit in a compact cluster on the header's right, clear of the wordmark and About. The same drawings are also placed in the page margins on wide screens, behind the app, so they never cover the map. The search row and About control are left alone.
+- **Motifs:** Cartoon jack-o'-lanterns, a crescent moon, bats, a ghost, and a crooked skyline with a bare tree. A compact cluster sits on the header's right, clear of the wordmark and About. A fainter copy (opacity about 0.4) sits in the empty part of the results panel, along the bottom of that panel. It is hidden once result cards are showing. On a phone the panel copy is a short strip: one moon, one bat, one pumpkin. The same drawings are also placed in the page margins on wide screens, behind the app, so they never cover the map. The search row and About control are left alone.
 - **Palette:**
   - `#100c16` — margin night. No text sits here.
   - `#1c1428` — header top. `#fff6ea` on it is 16.6:1.
@@ -247,17 +247,16 @@ On load, `mount` reads `new Date()` once and, if present, the `theme` query on `
 The default theme is the page with no `theme-*` class and no holiday SVG.
 
 - No holiday contains the date, or the one that does is still planned.
-- `prefers-reduced-motion: reduce` is true at load. The decorations are skipped. `?theme=halloween` still shows them for QA, and the CSS turns animation off.
 - `selectHolidayTheme` or the painter throws. The class is removed if it was added. The default theme remains.
 - The query names a holiday that is not built, or names something unknown. It is ignored and the date is used.
 
-Motion that does run (a bat drifting a few pixels, a pumpkin glow) is slow and small. `@media (prefers-reduced-motion: reduce)` sets `animation: none`. Decorations use `pointer-events: none` and `aria-hidden="true"`. They are not a filter on the map tiles or markers.
+`prefers-reduced-motion: reduce` does not change the theme. In October the Halloween art still paints. `@media (prefers-reduced-motion: reduce)` sets `animation: none` on the bats and the pumpkin glow, so the scene stays still. Motion that does run otherwise (a bat drifting a few pixels, a pumpkin glow) is slow and small. Decorations use `pointer-events: none` and `aria-hidden="true"`. They are not a filter on the map tiles or markers. The results-panel scene is hidden while `.place-card` elements are in the list, so it does not sit under result text.
 
 ### Preview
 
 Read-only query, never stored:
 
-- `?theme=halloween` forces Halloween, including outside October and when reduced motion is on.
+- `?theme=halloween` forces Halloween, including outside October. Reduced motion still shows that art, with animation off.
 - `?theme=default` forces the default theme, including in October.
 - Any other `theme` value is ignored.
 - It combines with city search, for example `?q=bristol&theme=halloween`. The theme code does not read or change `q`.

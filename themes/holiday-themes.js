@@ -190,7 +190,7 @@
       var forced = findHoliday(query);
       if (forced && forced.built) return forced.id;
     }
-    if (opts.reducedMotion) return "default";
+    /* Reduced motion does not pick a different theme. CSS stops the animation. */
     var id = activeHolidayId(date);
     if (!id) return "default";
     var holiday = findHoliday(id);
@@ -323,15 +323,32 @@
     return wrap.firstElementChild;
   }
 
+  function listSceneMarkup() {
+    return (
+      '<div class="holiday-list-scene" id="holiday-list-scene" aria-hidden="true">' +
+        svgMoon("hl-moon") +
+        svgBat("hl-bat hl-bat-a") +
+        svgBat("hl-bat hl-bat-b") +
+        svgGhost("hl-ghost") +
+        svgSkyline("hl-skyline") +
+        svgPumpkin("hl-pumpkin hl-pumpkin-a") +
+        svgPumpkin("hl-pumpkin hl-pumpkin-b") +
+      "</div>"
+    );
+  }
+
   function paintHalloween(doc) {
     if (!doc || typeof doc.createElement !== "function" || typeof doc.getElementById !== "function") return;
-    if (doc.getElementById("holiday-header-art") || doc.getElementById("holiday-bg")) return;
     var header = typeof doc.querySelector === "function" ? doc.querySelector(".header") : null;
-    if (header && typeof header.appendChild === "function") {
+    if (header && typeof header.appendChild === "function" && !doc.getElementById("holiday-header-art")) {
       header.appendChild(takeNode(doc, headerMarkup()));
     }
-    if (doc.body && typeof doc.body.insertBefore === "function") {
+    if (doc.body && typeof doc.body.insertBefore === "function" && !doc.getElementById("holiday-bg")) {
       doc.body.insertBefore(takeNode(doc, backgroundMarkup()), doc.body.firstChild);
+    }
+    var list = typeof doc.querySelector === "function" ? doc.querySelector(".list-section") : null;
+    if (list && typeof list.appendChild === "function" && !doc.getElementById("holiday-list-scene")) {
+      list.appendChild(takeNode(doc, listSceneMarkup()));
     }
   }
 
@@ -367,22 +384,14 @@
 
   function mount(doc) {
     var search = "";
-    var reduced = false;
     try {
       var view = doc.defaultView;
       if (view && view.location) search = view.location.search || "";
     } catch (err) {
       search = "";
     }
-    try {
-      var media = doc.defaultView;
-      reduced = !!(media && media.matchMedia && media.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    } catch (err2) {
-      reduced = false;
-    }
     return applyTheme(doc, new Date(), {
       query: readThemeQuery(search),
-      reducedMotion: reduced,
     });
   }
 
