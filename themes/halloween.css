@@ -25,13 +25,14 @@ html.theme-halloween .header {
     linear-gradient(180deg, #1c1428 0%, #14110e 100%) !important;
 }
 
-/* Art lives in the gap between the wordmark and About, so it cannot cover either. */
+/* A fixed cluster, anchored clear of the wordmark and About. */
 html.theme-halloween .holiday-header-art {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 186px;
-  right: 96px;
+  left: auto;
+  right: 120px;
+  width: 280px;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
@@ -68,50 +69,50 @@ html.theme-halloween .hh-skyline {
 
 html.theme-halloween .hh-moon {
   position: absolute;
-  top: 6px;
-  left: 6%;
-  width: 32px;
-  height: 32px;
+  top: 4px;
+  left: 4px;
+  width: 40px;
+  height: 40px;
 }
 
 html.theme-halloween .hh-bat-a {
   position: absolute;
-  top: 12px;
-  left: 24%;
-  width: 40px;
+  top: 10px;
+  left: 48px;
+  width: 44px;
   height: 18px;
 }
 
 html.theme-halloween .hh-bat-b {
   position: absolute;
-  top: 6px;
-  left: 42%;
-  width: 28px;
-  height: 13px;
+  top: 4px;
+  left: 96px;
+  width: 30px;
+  height: 14px;
 }
 
 html.theme-halloween .hh-ghost {
   position: absolute;
-  bottom: 6px;
-  left: 54%;
-  width: 26px;
-  height: 32px;
+  bottom: 8px;
+  left: 132px;
+  width: 28px;
+  height: 34px;
 }
 
 html.theme-halloween .hh-pumpkin-a {
   position: absolute;
-  bottom: -2px;
-  left: 66%;
-  width: 46px;
-  height: 44px;
+  bottom: -4px;
+  left: 164px;
+  width: 52px;
+  height: 50px;
 }
 
 html.theme-halloween .hh-pumpkin-b {
   position: absolute;
-  bottom: 0;
-  left: 82%;
-  width: 34px;
-  height: 32px;
+  bottom: 2px;
+  left: 218px;
+  width: 40px;
+  height: 38px;
 }
 
 html.theme-halloween .hh-glow {
@@ -145,40 +146,35 @@ html.theme-halloween .hh-glow {
 
 @media (max-width: 767px) {
   html.theme-halloween .holiday-header-art {
-    left: 178px;
     right: 92px;
+    width: 104px;
   }
   html.theme-halloween .hh-bat-b,
   html.theme-halloween .hh-ghost,
-  html.theme-halloween .hh-pumpkin-b,
-  html.theme-halloween .hh-skyline {
+  html.theme-halloween .hh-pumpkin-b {
     display: none;
   }
   html.theme-halloween .hh-moon {
     left: auto;
     right: 0;
-    top: 3px;
-    width: 22px;
-    height: 22px;
+    top: 2px;
+    width: 30px;
+    height: 30px;
   }
   html.theme-halloween .hh-bat-a {
     left: 0;
-    top: 8px;
-    width: 26px;
-    height: 12px;
+    top: 6px;
+    width: 32px;
+    height: 14px;
   }
   html.theme-halloween .hh-pumpkin-a {
     left: 28px;
     bottom: 0;
-    width: 32px;
-    height: 30px;
+    width: 36px;
+    height: 34px;
   }
-}
-
-@media (min-width: 768px) {
-  html.theme-halloween .holiday-header-art {
-    left: 248px;
-    right: 112px;
+  html.theme-halloween .hh-skyline {
+    height: 12px;
   }
 }
 

@@ -220,9 +220,9 @@
   function svgMoon(cls) {
     return (
       '<svg class="' + cls + '" viewBox="0 0 64 64" width="32" height="32" aria-hidden="true" focusable="false">' +
-        '<path fill="#ffe7a3" d="M44 12a20 20 0 1 0 0 40 16 16 0 1 1 0-40z"/>' +
-        '<circle cx="30" cy="28" r="2.1" fill="#f0c36a"/>' +
-        '<circle cx="36" cy="40" r="1.4" fill="#f0c36a"/>' +
+        '<path fill="#ffe7a3" fill-rule="evenodd" d="M48 32A22 22 0 1 0 4 32A22 22 0 1 0 48 32ZM58 30A16 16 0 1 1 26 30A16 16 0 1 1 58 30Z"/>' +
+        '<circle cx="18" cy="26" r="2.4" fill="#f0c36a"/>' +
+        '<circle cx="16" cy="40" r="1.6" fill="#f0c36a"/>' +
       "</svg>"
     );
   }

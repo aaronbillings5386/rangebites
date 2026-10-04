@@ -170,7 +170,7 @@ Overlaps that rule settles:
 
 - **Status:** Built
 - **Window:** October 1 through October 31, local date, inclusive.
-- **Motifs:** Cartoon jack-o'-lanterns, a crescent moon, bats, a ghost, and a crooked skyline with a bare tree. They sit in the header's empty middle and, on wide screens, in the side margins. The map, search row, and About control are left alone.
+- **Motifs:** Cartoon jack-o'-lanterns, a crescent moon, bats, a ghost, and a crooked skyline with a bare tree. They sit in a compact cluster on the header's right, clear of the wordmark and About. The same drawings are also placed in the page margins on wide screens, behind the app, so they never cover the map. The search row and About control are left alone.
 - **Palette:**
   - `#100c16` — margin night. No text sits here.
   - `#1c1428` — header top. `#fff6ea` on it is 16.6:1.
