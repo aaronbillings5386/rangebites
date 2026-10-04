@@ -3042,12 +3042,12 @@
 <p class="deal-sheet-disclosure">This copies listing text. Confirm with the restaurant. Not a live coupon, and not a promise it works at the register.</p>
 <button type="button" class="nav-btn deal-cta use-special-btn" data-use-special="${escapeHtml(place.id)}">Copy listing text</button>
 <p class="use-special-status" id="useSpecialStatus" hidden>Copied. Confirm with the restaurant.</p>
-<p class="specials-add"><a href="specials.html">Restaurants: add yours</a></p>`;
+<p class="specials-add"><a href="specials.html">Restaurants: email us about a special</a></p>`;
     }
     return `<div class="no-special">
   <p class="no-special-title">No special on file</p>
   <p class="no-special-copy">No listed promo on this restaurant.</p>
-  <p><a href="specials.html">Restaurants: add yours</a></p>
+  <p><a href="specials.html">Restaurants: email us about a special</a></p>
 </div>`;
   }
 
@@ -3376,17 +3376,28 @@
     return prevLat == null || prevLng == null || prevLat !== lat || prevLng !== lng;
   }
 
+  /** 20261003j: drop the old area's cards, map pins and counts at once. Called the moment a new city
+   * search starts (before the geocoder answers), on a picked alternate, and when runSearch moves to a
+   * new origin, so nothing from the previous city lingers during "Searching…". */
+  function clearResultsForNewSearch() {
+    state.places = [];
+    state.fetchedRadiusMiles = null;
+    try { renderMarkers([]); } catch (_) {}
+    try { document.documentElement.classList.remove("has-places"); } catch (_) {}
+    try {
+      const countEl = $("#resultCount");
+      if (countEl) countEl.textContent = "";
+      const dealCountEl = $("#dealCount");
+      if (dealCountEl) { dealCountEl.hidden = true; dealCountEl.textContent = ""; }
+    } catch (_) {}
+  }
+
   async function runSearch(lat, lng, { glow, placeLabel } = {}) {
     const gen = ++state.searchGen;
     // 20261003i: a new origin drops the old area's cards and pins at once, so the skeleton shows and
     // nothing from the previous city can be kept as a "fallback" for this one. Late responses from
     // older searches are already ignored by gen (stillActiveSearch).
-    if (searchOriginChanged(state.lat, state.lng, lat, lng)) {
-      state.places = [];
-      state.fetchedRadiusMiles = null;
-      try { renderMarkers([]); } catch (_) {}
-      try { document.documentElement.classList.remove("has-places"); } catch (_) {}
-    }
+    if (searchOriginChanged(state.lat, state.lng, lat, lng)) clearResultsForNewSearch();
     state.lat = lat;
     state.lng = lng;
     state.loading = true;
@@ -3504,9 +3515,12 @@
       return;
     }
     if (cityInFlight && cityInFlight.q.toLowerCase() === q.toLowerCase() && cityInFlight.gen === state.searchGen) return;
+    // 20261003j: a new search token. Any older city lookup or Overpass response that lands later
+    // fails its gen check and is ignored.
     const gen = ++state.searchGen;
     cityInFlight = { q, gen };
-    // forge 20261003 (Gate G1): chips, the near line and the map stay as they are until the lookup succeeds.
+    // 20261003j: the old city's cards, pins and counts go now, not when the new results arrive.
+    clearResultsForNewSearch();
     state.loading = true;
     state.searchError = null;
     renderList();
@@ -3544,8 +3558,7 @@
       if (gen !== state.searchGen) return;
       state.loading = false;
       const why = cityLookupErrorMessage(err);
-      // forge 20261003 (Gate G1): keep the current map and cards. Only show the error in the list when
-      // there is nothing else to show.
+      // 20261003j: the old city's cards were cleared when this search started, so show the error.
       state.searchError = state.places && state.places.length ? null : why;
       setLocateBusy(null);
       setStatus(why);
@@ -3580,6 +3593,7 @@
     const rest = placeAlternates.filter((_, k) => k !== i);
     if (placeAltCurrent) rest.unshift(placeAltCurrent);
     state.searchGen++;
+    clearResultsForNewSearch();
     resetFoodChipsForNewArea();
     applyUnitsFromGeocode(alt);
     const near = alt.shortLabel || shortPlaceLabel(alt.label, "");
