@@ -677,6 +677,15 @@
     return n;
   }
 
+  /** 20261003i: filter status line. With Pantries on, count pantries (matches "No tagged pantries"). */
+  function filterCountStatus(n, pantryOn, otherwise) {
+    if (pantryOn) return n + (n === 1 ? " pantry" : " pantries") + " in range";
+    return otherwise != null ? otherwise : n + " restaurants after filters";
+  }
+  function pantryFilterOn() {
+    return state.dietaryFilter === "freefood";
+  }
+
   function setFoodCategory(id) {
     const next = FOOD_CATEGORY_IDS[id] ? id : null;
     const cur = FOOD_CATEGORY_IDS[state.filters.foodCategory] ? state.filters.foodCategory : null;
@@ -695,7 +704,7 @@
       return;
     }
     const n = filteredPlaces().length;
-    setStatus(cat ? n + " " + cat.label.toLowerCase() + " places" : n + " restaurants after filters");
+    setStatus(filterCountStatus(n, pantryFilterOn(), cat ? n + " " + cat.label.toLowerCase() + " places" : null));
   }
 
 
@@ -3313,7 +3322,9 @@
       setStatus(statusMsg + (statusMsg.includes("Promo text up top") ? "" : dealsHint));
       return;
     }
-    if (live) {
+    if (live && pantryFilterOn()) {
+      setStatus(filterCountStatus(shown, true)); // 20261003i: matches the pantry list
+    } else if (live) {
       if (!shown && places.length) {
         setStatus(state.filters.openNow
           ? "None tagged open. They show when OSM hours say open — verify."
@@ -3360,8 +3371,22 @@
     }
   }
 
+  /** 20261003i: true when a search moves to a different origin (new city / new GPS fix). */
+  function searchOriginChanged(prevLat, prevLng, lat, lng) {
+    return prevLat == null || prevLng == null || prevLat !== lat || prevLng !== lng;
+  }
+
   async function runSearch(lat, lng, { glow, placeLabel } = {}) {
     const gen = ++state.searchGen;
+    // 20261003i: a new origin drops the old area's cards and pins at once, so the skeleton shows and
+    // nothing from the previous city can be kept as a "fallback" for this one. Late responses from
+    // older searches are already ignored by gen (stillActiveSearch).
+    if (searchOriginChanged(state.lat, state.lng, lat, lng)) {
+      state.places = [];
+      state.fetchedRadiusMiles = null;
+      try { renderMarkers([]); } catch (_) {}
+      try { document.documentElement.classList.remove("has-places"); } catch (_) {}
+    }
     state.lat = lat;
     state.lng = lng;
     state.loading = true;
@@ -3397,13 +3422,15 @@
     }, OVERPASS_CLIENT_ABORT_MS + 4000); // fast and full now run in parallel
 
     const fetchMi = state.radiusMiles;
+    // 20261003i: declared outside try so the catch below can still await the inner ring
+    // (inside try it was out of scope there and threw a ReferenceError).
+    let fastP = Promise.resolve([]);
 
     try {
       // Progressive: inner ring and full radius start together (forge 20261003, Chip). The inner ring
       // usually lands first and paints cards; the full pass replaces it. Worst case is one full abort
       // (~22 s) instead of fast abort + full abort in series (~34 s). Same two POSTs per search.
       let fullSettled = false;
-      let fastP = Promise.resolve([]);
       if (fetchMi > FAST_RING_MILES) {
         fastP = fetchPlaces(lat, lng, FAST_RING_MILES, { mode: "fast" }).catch(() => []);
         fastP.then((near) => {
@@ -4013,7 +4040,7 @@
       if (state.lat != null && state.lng != null) updateMapCenter(state.lat, state.lng, mi);
       renderList();
       const n = filteredPlaces().length;
-      setStatus(state.lat != null ? n + " restaurants after filters" : "Searching within " + formatRadiusChipLabel(state.radiusMiles) + ".");
+      setStatus(state.lat != null ? filterCountStatus(n, pantryFilterOn()) : "Searching within " + formatRadiusChipLabel(state.radiusMiles) + ".");
     }
 
     $$(".chip[data-radius]").forEach((chip) => {
@@ -4054,7 +4081,7 @@
         syncDietChipsUI();
         syncFiltersLaunch();
         renderList();
-        setStatus(filteredPlaces().length + " restaurants after filters");
+        setStatus(filterCountStatus(filteredPlaces().length, pantryFilterOn()));
       });
     }
 
@@ -4063,7 +4090,7 @@
       $("#filterDeal").classList.toggle("active", state.filters.hasDeal);
       persistUiPrefs();
       renderList();
-      setStatus(filteredPlaces().length + " restaurants after filters");
+      setStatus(filterCountStatus(filteredPlaces().length, pantryFilterOn()));
     });
 
     const savedBtn = $("#filterSaved");
@@ -4073,11 +4100,8 @@
         setToggleState(savedBtn, state.filters.saved);
         persistUiPrefs();
         renderList();
-        setStatus(
-          state.filters.saved
-            ? filteredPlaces().length + " saved in this list"
-            : filteredPlaces().length + " restaurants after filters"
-        );
+        const nSaved = filteredPlaces().length;
+        setStatus(filterCountStatus(nSaved, pantryFilterOn(), state.filters.saved ? nSaved + " saved in this list" : null));
       });
     }
 
@@ -4110,6 +4134,7 @@
         pantryBtn.setAttribute("aria-pressed", on ? "true" : "false");
         renderList();
         if (typeof syncFiltersLaunch === "function") syncFiltersLaunch();
+        if (state.lat != null) setStatus(filterCountStatus(filteredPlaces().length, on)); // 20261003i
       });
     }
     const noticeBtn = $("#firstSearchNoticeOk");
@@ -4164,7 +4189,7 @@
         $$("[data-tag]").forEach((btn) => btn.classList.remove("active"));
         syncFiltersLaunch();
         renderList();
-        setStatus(filteredPlaces().length + " restaurants after filters");
+        setStatus(filterCountStatus(filteredPlaces().length, pantryFilterOn()));
       });
     }
     const filtersBack = $("#filtersBackdrop");
@@ -4180,7 +4205,7 @@
         setToggleState(lateBtn, state.filters.lateNight);
         persistUiPrefs();
         renderList();
-        setStatus(filteredPlaces().length + " restaurants after filters");
+        setStatus(filterCountStatus(filteredPlaces().length, pantryFilterOn()));
       });
     }
     document.addEventListener("keydown", (e) => {
@@ -4201,9 +4226,8 @@
       persistUiPrefs();
       syncOpenNowUI();
       renderList();
-      setStatus(state.filters.openNow
-        ? (filteredPlaces().length + " tagged open")
-        : (filteredPlaces().length + " nearby"));
+      const nOpen = filteredPlaces().length;
+      setStatus(filterCountStatus(nOpen, pantryFilterOn(), nOpen + (state.filters.openNow ? " tagged open" : " nearby")));
     }
     const filterOpen = $("#filterOpen");
     if (filterOpen) filterOpen.addEventListener("click", toggleOpenNow);
@@ -4218,7 +4242,7 @@
         if (state.filters.type !== "all") state.filters.foodCategory = null;
         persistUiPrefs();
         renderList();
-        setStatus(filteredPlaces().length + " restaurants after filters");
+        setStatus(filterCountStatus(filteredPlaces().length, pantryFilterOn()));
       });
     }
 
@@ -4231,7 +4255,7 @@
         btn.classList.toggle("active", !!state.filters[key]);
         persistUiPrefs();
         renderList();
-        setStatus(filteredPlaces().length + " restaurants after filters");
+        setStatus(filterCountStatus(filteredPlaces().length, pantryFilterOn()));
       });
     });
 
@@ -4255,7 +4279,7 @@
         if (state.filters.cuisine) state.filters.foodCategory = null;
         persistUiPrefs();
         renderList();
-        setStatus(filteredPlaces().length + " restaurants after filters");
+        setStatus(filterCountStatus(filteredPlaces().length, pantryFilterOn()));
       });
     }
 

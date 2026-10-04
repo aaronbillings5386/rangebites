@@ -415,7 +415,7 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   const terms = fs.readFileSync(path.join(__dirname, "..", "terms.html"), "utf8");
   assert.ok(terms.includes("by tapping Continue, or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
-  assert.ok(terms.includes('src="/config.js?v=20261003h"'));
+  assert.ok(terms.includes('src="/config.js?v=20261003i"'));
   assert.ok(/Effective <span data-publish-date>October 3, 2026<\/span>/.test(terms));
   for (const legal of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"]) {
     const legalSrc = fs.readFileSync(path.join(__dirname, "..", legal), "utf8");
@@ -535,5 +535,41 @@ t("data.json: hits and helped are owner-read; found inserts are off when present
     assert.strictEqual(dj[k].access.insert, "none");
   });
   if (dj.found) assert.strictEqual(dj.found.access.insert, "none");
+});
+t("city switch (20261003i): new origin clears old cards/pins; late older responses ignored", () => {
+  const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  const S = load("app.js", ["searchOriginChanged", "stillActiveSearch"], [],
+    "var state = { searchGen: 0, lat: null, lng: null };");
+  assert.strictEqual(S.searchOriginChanged(null, null, 36.9, -82.08), true);
+  assert.strictEqual(S.searchOriginChanged(36.9, -82.08, 37.27, -81.22), true); // Lebanon -> Bluefield
+  assert.strictEqual(S.searchOriginChanged(37.27, -81.22, 37.27, -81.22), false); // same city, wider range
+  // Simulate runSearch(Lebanon) then runSearch(Bluefield): Lebanon's late response must be dropped.
+  const ctx = vm.createContext({ state: { searchGen: 0, lat: null, lng: null } });
+  vm.runInContext(src.match(/\n\s*function stillActiveSearch[\s\S]*?\n  \}\n/)[0], ctx);
+  ctx.state.searchGen = 1; ctx.state.lat = 36.9; ctx.state.lng = -82.08; // Lebanon gen 1
+  ctx.state.searchGen = 2; ctx.state.lat = 37.27; ctx.state.lng = -81.22; // Bluefield gen 2
+  assert.strictEqual(vm.runInContext("stillActiveSearch(1, 36.9, -82.08)", ctx), false);
+  assert.strictEqual(vm.runInContext("stillActiveSearch(2, 37.27, -81.22)", ctx), true);
+  // runSearch clears state.places + pins before the request when the origin changes.
+  const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("const slowTimer", src.indexOf("async function runSearch(")));
+  assert.ok(/if \(searchOriginChanged\(state\.lat, state\.lng, lat, lng\)\) \{[\s\S]*?state\.places = \[\];[\s\S]*?renderMarkers\(\[\]\)/.test(rs));
+  assert.ok(rs.indexOf("state.places = [];") < rs.indexOf("state.lat = lat;"));
+  assert.ok(rs.indexOf("renderList();") > rs.indexOf("state.places = [];"));
+  // The catch path awaits the inner ring; fastP must be declared outside the try block.
+  const body = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
+  assert.ok(body.indexOf("let fastP") >= 0 && body.indexOf("let fastP") < body.indexOf("    try {\n"));
+});
+t("pantries status (20261003i): count matches the pantry list; other filters unchanged", () => {
+  const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  const F = load("app.js", ["filterCountStatus"]);
+  assert.strictEqual(F.filterCountStatus(0, true), "0 pantries in range");
+  assert.strictEqual(F.filterCountStatus(1, true), "1 pantry in range");
+  assert.strictEqual(F.filterCountStatus(3, true, "3 saved in this list"), "3 pantries in range");
+  assert.strictEqual(F.filterCountStatus(20, false), "20 restaurants after filters");
+  assert.strictEqual(F.filterCountStatus(4, false, "4 tagged open"), "4 tagged open");
+  const a = src.indexOf('const pantryBtn = $("#filterPantries");');
+  const handler = src.slice(a, src.indexOf("const noticeBtn", a));
+  assert.ok(/setStatus\(filterCountStatus\(filteredPlaces\(\)\.length, on\)\)/.test(handler));
+  assert.ok(!/setStatus\(filteredPlaces\(\)\.length \+ " restaurants after filters"\)/.test(src));
 });
 console.log(`\n${pass} passed`);
