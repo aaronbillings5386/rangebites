@@ -11,19 +11,32 @@ window.RangeBitesDeals = (function () {
     { re: /\b(bogo|buy\s*one\s*get\s*one|2\s*for\s*1|two\s*for\s*one)\b/i, label: "Mentions: BOGO", kind: "bogo" },
     { re: /\b(\d{1,2})\s*%\s*off\b/i, label: "Mentions: % off", kind: "pct" },
     { re: /\b(half\s*price)\b/i, label: "Mentions: half price", kind: "half" },
-    { re: /\b(free\s+delivery|free\s+drink|free\s+dessert|kids\s+eat\s+free)\b/i, label: "Mentions: promo", kind: "free" },
+    {
+      re: /\b(free\s+delivery|free\s+drink|free\s+dessert|kids\s+eat\s+free)\b/i,
+      label: "Mentions: promo",
+      kind: "free",
+    },
     { re: /\b(happy\s*hour)\b/i, label: "Mentions: happy hour", kind: "hh" },
     { re: /\b(taco\s*tuesday)\b/i, label: "Mentions: Taco Tuesday", kind: "tt" },
-    { re: /\b(lunch\s+special|lunch\s+set|prix\s*fixe|early\s*bird)\b/i, label: "Mentions: lunch special", kind: "lunch" },
+    {
+      re: /\b(lunch\s+special|lunch\s+set|prix\s*fixe|early\s*bird)\b/i,
+      label: "Mentions: lunch special",
+      kind: "lunch",
+    },
     { re: /\b(\$\d{1,2}\s*(menu|lunch|deal|special|fill[\s-]*up))\b/i, label: "Mentions: $ deal", kind: "dollar" },
-    { re: /\b(student\s+discount|senior\s+discount|military\s+discount)\b/i, label: "Mentions: discount", kind: "disc" },
+    {
+      re: /\b(student\s+discount|senior\s+discount|military\s+discount)\b/i,
+      label: "Mentions: discount",
+      kind: "disc",
+    },
     { re: /\b(rewards?|loyalty|punch\s*card)\b/i, label: "Mentions: rewards", kind: "rewards" },
     { re: /\b(coupon|promo\s*code)\b/i, label: "Mentions: coupon", kind: "coupon" },
   ];
 
   /* forge 20261003 (Proof): "no coupons", "coupons not accepted", "no happy hour" etc. are not promos. */
   var NEG_BEFORE = /\b(no|not|never|without|don'?t|do\s+not|doesn'?t|cannot|can'?t|zero)\s+(\w+\s+){0,2}$/i;
-  var NEG_AFTER = /^\s*(\w+\s+){0,1}(not\s+(accepted|valid|available|honou?red|offered)|n'?t\s+accepted|excluded|unavailable|discontinued|ended)\b/i;
+  var NEG_AFTER =
+    /^\s*(\w+\s+){0,1}(not\s+(accepted|valid|available|honou?red|offered)|n'?t\s+accepted|excluded|unavailable|discontinued|ended)\b/i;
   function negatedAt(blob, idx, len) {
     var before = blob.slice(Math.max(0, idx - 40), idx);
     var after = blob.slice(idx + len, idx + len + 40);

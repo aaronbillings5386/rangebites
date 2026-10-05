@@ -33,8 +33,8 @@
    * proxy (.herenow/proxy.json), so connect-src stays 'self' and the mirror sees the host, not the visitor.
    * Never mail.ru (hangs). Operators are named in Privacy §5 and §9. */
   const OVERPASS_MIRRORS = [
-    { url: "/api/overpass", operator: "Private.coffee" },          // overpass.private.coffee
-    { url: "/api/overpass-de", operator: "FOSSGIS e.V." },         // overpass-api.de
+    { url: "/api/overpass", operator: "Private.coffee" }, // overpass.private.coffee
+    { url: "/api/overpass-de", operator: "FOSSGIS e.V." }, // overpass-api.de
     { url: "/api/overpass-fr", operator: "OpenStreetMap France" }, // overpass.openstreetmap.fr
   ];
   /** Server-side Overpass [timeout:N]. Kept under the per-mirror client budget. */
@@ -61,34 +61,114 @@
   const UI_PREFS_KEY = "rb_ui_prefs";
   const UI_PREFS_TYPES = { all: 1, restaurant: 1, fast_food: 1, cafe: 1, bar: 1 };
   const UI_PREFS_MILES = { 10: 1, 25: 1, 50: 1 };
-  const UI_PREFS_TAGS = { takeaway: 1, delivery: 1, driveThrough: 1, wheelchair: 1, outdoorSeating: 1, restroom: 1, dogsOk: 1, airConditioning: 1, changingTable: 1, smokeFree: 1, kidsArea: 1 };
-  const TAG_PLACE_KEY = { takeaway: "takeout", delivery: "delivery", driveThrough: "driveThru", wheelchair: "wheelchair", outdoorSeating: "outdoorSeating", restroom: "restroom", dogsOk: "dogsOk", airConditioning: "airConditioning", changingTable: "changingTable", smokeFree: "smokeFree", kidsArea: "kidsArea" };
+  const UI_PREFS_TAGS = {
+    takeaway: 1,
+    delivery: 1,
+    driveThrough: 1,
+    wheelchair: 1,
+    outdoorSeating: 1,
+    restroom: 1,
+    dogsOk: 1,
+    airConditioning: 1,
+    changingTable: 1,
+    smokeFree: 1,
+    kidsArea: 1,
+  };
+  const TAG_PLACE_KEY = {
+    takeaway: "takeout",
+    delivery: "delivery",
+    driveThrough: "driveThru",
+    wheelchair: "wheelchair",
+    outdoorSeating: "outdoorSeating",
+    restroom: "restroom",
+    dogsOk: "dogsOk",
+    airConditioning: "airConditioning",
+    changingTable: "changingTable",
+    smokeFree: "smokeFree",
+    kidsArea: "kidsArea",
+  };
   const UI_PREFS_DIET_OSM = { vegan: 1, vegetarian: 1, gluten_free: 1, halal: 1 };
   const CUISINE_CANON = [
-    "american", "barbecue", "burger", "pizza", "mexican", "chinese", "thai",
-    "japanese", "korean", "vietnamese", "indian", "italian", "greek",
-    "mediterranean", "seafood", "sushi", "chicken", "sandwich", "breakfast",
-    "diner", "soul_food", "latin", "caribbean", "middle_eastern", "ethiopian",
-    "french", "german", "irish", "tex-mex", "ramen", "poke", "vegan", "vegetarian",
+    "american",
+    "barbecue",
+    "burger",
+    "pizza",
+    "mexican",
+    "chinese",
+    "thai",
+    "japanese",
+    "korean",
+    "vietnamese",
+    "indian",
+    "italian",
+    "greek",
+    "mediterranean",
+    "seafood",
+    "sushi",
+    "chicken",
+    "sandwich",
+    "breakfast",
+    "diner",
+    "soul_food",
+    "latin",
+    "caribbean",
+    "middle_eastern",
+    "ethiopian",
+    "french",
+    "german",
+    "irish",
+    "tex-mex",
+    "ramen",
+    "poke",
+    "vegan",
+    "vegetarian",
   ];
   const CUISINE_ALIASES = {
-    bbq: "barbecue", barbeque: "barbecue", burgers: "burger", hamburger: "burger",
-    texmex: "tex-mex", tex_mex: "tex-mex", soulfood: "soul_food", "soul-food": "soul_food",
-    latin_american: "latin", "latin-american": "latin",
-    "middle-eastern": "middle_eastern", middleeastern: "middle_eastern",
+    bbq: "barbecue",
+    barbeque: "barbecue",
+    burgers: "burger",
+    hamburger: "burger",
+    texmex: "tex-mex",
+    tex_mex: "tex-mex",
+    soulfood: "soul_food",
+    "soul-food": "soul_food",
+    latin_american: "latin",
+    "latin-american": "latin",
+    "middle-eastern": "middle_eastern",
+    middleeastern: "middle_eastern",
     fish: "seafood",
-    taco: "mexican", tacos: "mexican", burrito: "mexican",
-    coffee: "coffee", coffee_shop: "coffee",
-    icecream: "ice_cream", "ice-cream": "ice_cream",
-    "fish-and-chips": "fish_and_chips", fishandchips: "fish_and_chips",
-    brunch: "breakfast", pancake: "breakfast", pancakes: "breakfast",
-    pasta: "italian", curry: "indian",
-    doughnut: "donut", donuts: "donut",
-    fried_chicken: "chicken", "fried-chicken": "chicken",
-    szechuan: "chinese", sichuan: "chinese", szechwan: "chinese", cantonese: "chinese",
-    dim_sum: "chinese", dimsum: "chinese", "dim-sum": "chinese",
-    gyro: "greek", gyros: "greek", souvlaki: "greek",
-    izakaya: "japanese", teriyaki: "japanese", udon: "japanese", sashimi: "sushi",
+    taco: "mexican",
+    tacos: "mexican",
+    burrito: "mexican",
+    coffee: "coffee",
+    coffee_shop: "coffee",
+    icecream: "ice_cream",
+    "ice-cream": "ice_cream",
+    "fish-and-chips": "fish_and_chips",
+    fishandchips: "fish_and_chips",
+    brunch: "breakfast",
+    pancake: "breakfast",
+    pancakes: "breakfast",
+    pasta: "italian",
+    curry: "indian",
+    doughnut: "donut",
+    donuts: "donut",
+    fried_chicken: "chicken",
+    "fried-chicken": "chicken",
+    szechuan: "chinese",
+    sichuan: "chinese",
+    szechwan: "chinese",
+    cantonese: "chinese",
+    dim_sum: "chinese",
+    dimsum: "chinese",
+    "dim-sum": "chinese",
+    gyro: "greek",
+    gyros: "greek",
+    souvlaki: "greek",
+    izakaya: "japanese",
+    teriyaki: "japanese",
+    udon: "japanese",
+    sashimi: "sushi",
   };
   /**
    * Food-type chips. Rendered only for categories with ≥1 match in the current search (in-range places).
@@ -99,24 +179,87 @@
   const FOOD_CATEGORIES = [
     { id: "pizza", label: "Pizza", cuisines: ["pizza"], amenities: [], nameHints: ["pizza", "pizzeria"] },
     { id: "burgers", label: "Burgers", cuisines: ["burger"], amenities: [], nameHints: ["burger", "hamburger"] },
-    { id: "mexican", label: "Mexican", cuisines: ["mexican", "tex-mex"], amenities: [], nameHints: ["mexican", "taco", "burrito", "taqueria"] },
-    { id: "japanese", label: "Japanese", cuisines: ["japanese", "sushi", "ramen"], amenities: [], nameHints: ["japanese", "sushi", "ramen", "izakaya", "teriyaki", "udon", "sashimi"] },
-    { id: "chinese", label: "Chinese", cuisines: ["chinese"], amenities: [], nameHints: ["chinese", "szechuan", "sichuan", "dim sum"] },
+    {
+      id: "mexican",
+      label: "Mexican",
+      cuisines: ["mexican", "tex-mex"],
+      amenities: [],
+      nameHints: ["mexican", "taco", "burrito", "taqueria"],
+    },
+    {
+      id: "japanese",
+      label: "Japanese",
+      cuisines: ["japanese", "sushi", "ramen"],
+      amenities: [],
+      nameHints: ["japanese", "sushi", "ramen", "izakaya", "teriyaki", "udon", "sashimi"],
+    },
+    {
+      id: "chinese",
+      label: "Chinese",
+      cuisines: ["chinese"],
+      amenities: [],
+      nameHints: ["chinese", "szechuan", "sichuan", "dim sum"],
+    },
     { id: "thai", label: "Thai", cuisines: ["thai"], amenities: [], nameHints: ["thai", "pad thai"] },
-    { id: "asian", label: "Asian", cuisines: ["korean", "vietnamese", "asian", "poke", "filipino", "malaysian", "indonesian", "taiwanese"], amenities: [], nameHints: ["korean", "vietnamese", "asian", "pho", "filipino"] },
+    {
+      id: "asian",
+      label: "Asian",
+      cuisines: ["korean", "vietnamese", "asian", "poke", "filipino", "malaysian", "indonesian", "taiwanese"],
+      amenities: [],
+      nameHints: ["korean", "vietnamese", "asian", "pho", "filipino"],
+    },
     { id: "bbq", label: "BBQ", cuisines: ["barbecue"], amenities: [], nameHints: ["bbq", "barbecue", "barbeque"] },
-    { id: "seafood", label: "Seafood", cuisines: ["seafood", "sushi", "poke", "fish_and_chips"], amenities: ["seafood"], nameHints: ["seafood", "oyster", "lobster", "fish"] },
+    {
+      id: "seafood",
+      label: "Seafood",
+      cuisines: ["seafood", "sushi", "poke", "fish_and_chips"],
+      amenities: ["seafood"],
+      nameHints: ["seafood", "oyster", "lobster", "fish"],
+    },
     { id: "cafe", label: "Cafe", cuisines: ["coffee"], amenities: ["cafe"], nameHints: ["coffee", "espresso"] },
-    { id: "breakfast", label: "Breakfast", cuisines: ["breakfast", "diner"], amenities: [], nameHints: ["breakfast", "brunch", "diner", "pancake"] },
-    { id: "healthy", label: "Healthy", cuisines: ["vegan", "vegetarian", "salad", "juice", "smoothie", "poke"], amenities: [], dietAny: true, nameHints: ["salad", "vegan", "juice", "smoothie"] },
-    { id: "dessert", label: "Dessert", cuisines: ["ice_cream", "dessert", "gelato", "donut", "pastry", "cake"], amenities: ["ice_cream"], nameHints: ["ice cream", "gelato", "yogurt", "donut", "dessert"] },
-    { id: "italian", label: "Italian", cuisines: ["italian"], amenities: [], nameHints: ["italian", "trattoria", "pasta"] },
+    {
+      id: "breakfast",
+      label: "Breakfast",
+      cuisines: ["breakfast", "diner"],
+      amenities: [],
+      nameHints: ["breakfast", "brunch", "diner", "pancake"],
+    },
+    {
+      id: "healthy",
+      label: "Healthy",
+      cuisines: ["vegan", "vegetarian", "salad", "juice", "smoothie", "poke"],
+      amenities: [],
+      dietAny: true,
+      nameHints: ["salad", "vegan", "juice", "smoothie"],
+    },
+    {
+      id: "dessert",
+      label: "Dessert",
+      cuisines: ["ice_cream", "dessert", "gelato", "donut", "pastry", "cake"],
+      amenities: ["ice_cream"],
+      nameHints: ["ice cream", "gelato", "yogurt", "donut", "dessert"],
+    },
+    {
+      id: "italian",
+      label: "Italian",
+      cuisines: ["italian"],
+      amenities: [],
+      nameHints: ["italian", "trattoria", "pasta"],
+    },
     { id: "indian", label: "Indian", cuisines: ["indian"], amenities: [], nameHints: ["indian", "tandoor", "curry"] },
-    { id: "mediterranean", label: "Mediterranean", cuisines: ["mediterranean", "greek"], amenities: [], nameHints: ["mediterranean", "greek", "gyro", "souvlaki", "taverna"] },
+    {
+      id: "mediterranean",
+      label: "Mediterranean",
+      cuisines: ["mediterranean", "greek"],
+      amenities: [],
+      nameHints: ["mediterranean", "greek", "gyro", "souvlaki", "taverna"],
+    },
     { id: "american", label: "American", cuisines: ["american"], amenities: [], nameHints: ["american"] },
   ];
   const FOOD_CATEGORY_IDS = {};
-  FOOD_CATEGORIES.forEach(function (c) { FOOD_CATEGORY_IDS[c.id] = 1; });
+  FOOD_CATEGORIES.forEach(function (c) {
+    FOOD_CATEGORY_IDS[c.id] = 1;
+  });
   const FOOD_CATEGORY_FROM_TYPE = { cafe: "cafe", ice_cream: "dessert" };
   /** Hearts: osm id, name, address only — never lat/lng */
   const SAVED_KEY = "rb_saved";
@@ -125,7 +268,7 @@
   /** Fixed walking speed for walk-time chips — no routing API */
   const WALK_MPH = 3;
   const WALK_MIN_TO_MILES = {
-    5: (5 / 60) * WALK_MPH,   // 0.25 mi
+    5: (5 / 60) * WALK_MPH, // 0.25 mi
     10: (10 / 60) * WALK_MPH, // 0.5 mi
     15: (15 / 60) * WALK_MPH, // 0.75 mi
   };
@@ -364,7 +507,18 @@
       ? p.termsAccepted
       : "";
     uiPrefs.filtersOpen = false;
-    const hadLocation = ["lastPlaceQuery", "lastCity", "last_city", "searchHistory", "lat", "lng", "latitude", "longitude", "coords", "location"].some((k) => Object.prototype.hasOwnProperty.call(p, k));
+    const hadLocation = [
+      "lastPlaceQuery",
+      "lastCity",
+      "last_city",
+      "searchHistory",
+      "lat",
+      "lng",
+      "latitude",
+      "longitude",
+      "coords",
+      "location",
+    ].some((k) => Object.prototype.hasOwnProperty.call(p, k));
     const dealBtn = $("#filterDeal");
     if (dealBtn) dealBtn.classList.toggle("active", state.filters.hasDeal);
     const openBtn = $("#filterOpen");
@@ -412,9 +566,7 @@
     const toRad = (d) => (d * Math.PI) / 180;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
@@ -443,9 +595,7 @@
 
   function milesCountryFromHit(hit) {
     if (!hit) return true;
-    const code = String(
-      (hit.address && hit.address.country_code) || hit.country_code || ""
-    ).toLowerCase();
+    const code = String((hit.address && hit.address.country_code) || hit.country_code || "").toLowerCase();
     if (MILES_COUNTRY[code]) return true;
     if (code) return false;
     const dn = String(hit.display_name || hit.label || "").toLowerCase();
@@ -483,14 +633,18 @@
 
   function applyUnitsFromGeocode(hit) {
     try {
-      hoursCountry = String((hit && hit.address && hit.address.country_code) || (hit && hit.country_code) || "").toLowerCase();
-    } catch (_) { hoursCountry = ""; }
+      hoursCountry = String(
+        (hit && hit.address && hit.address.country_code) || (hit && hit.country_code) || "",
+      ).toLowerCase();
+    } catch (_) {
+      hoursCountry = "";
+    }
     setDistanceUnits(milesCountryFromHit(hit) ? "mi" : "km", { persist: true, rerender: false });
   }
 
   /** Nearest first (straight-line haversine from the search center or GPS). Ties by name. */
   function sortNearestFirst(list) {
-    return list.slice().sort((a, b) => (a.miles - b.miles) || String(a.name).localeCompare(String(b.name)));
+    return list.slice().sort((a, b) => a.miles - b.miles || String(a.name).localeCompare(String(b.name)));
   }
 
   function osmDietTagged(tags, key) {
@@ -499,7 +653,10 @@
   }
 
   function canonCuisine(raw) {
-    const t = String(raw || "").trim().toLowerCase().replace(/\s+/g, "_");
+    const t = String(raw || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_");
     if (!t) return "";
     if (CUISINE_ALIASES[t]) return CUISINE_ALIASES[t];
     if (CUISINE_CANON.indexOf(t) >= 0) return t;
@@ -512,15 +669,49 @@
 
   /* forge 20261003: readable OSM values. coffee_shop -> "Coffee shop"; small map for common cuisines. */
   const OSM_VALUE_LABELS = {
-    bbq: "BBQ", barbecue: "Barbecue", burger: "Burgers", pizza: "Pizza", sandwich: "Sandwiches",
-    chicken: "Chicken", fried_chicken: "Fried chicken", coffee_shop: "Coffee shop", ice_cream: "Ice cream",
-    donut: "Doughnuts", sushi: "Sushi", tex_mex: "Tex-Mex", american: "American", mexican: "Mexican",
-    italian: "Italian", chinese: "Chinese", japanese: "Japanese", thai: "Thai", indian: "Indian",
-    vietnamese: "Vietnamese", korean: "Korean", greek: "Greek", seafood: "Seafood", steak_house: "Steakhouse",
-    breakfast: "Breakfast", brunch: "Brunch", kebab: "Kebab", noodle: "Noodles", ramen: "Ramen",
-    hot_dog: "Hot dogs", bagel: "Bagels", juice: "Juice", bubble_tea: "Bubble tea", tea: "Tea",
-    regional: "Regional", diner: "Diner", southern: "Southern", soul_food: "Soul food", cajun: "Cajun",
-    mediterranean: "Mediterranean", middle_eastern: "Middle Eastern", french: "French", german: "German",
+    bbq: "BBQ",
+    barbecue: "Barbecue",
+    burger: "Burgers",
+    pizza: "Pizza",
+    sandwich: "Sandwiches",
+    chicken: "Chicken",
+    fried_chicken: "Fried chicken",
+    coffee_shop: "Coffee shop",
+    ice_cream: "Ice cream",
+    donut: "Doughnuts",
+    sushi: "Sushi",
+    tex_mex: "Tex-Mex",
+    american: "American",
+    mexican: "Mexican",
+    italian: "Italian",
+    chinese: "Chinese",
+    japanese: "Japanese",
+    thai: "Thai",
+    indian: "Indian",
+    vietnamese: "Vietnamese",
+    korean: "Korean",
+    greek: "Greek",
+    seafood: "Seafood",
+    steak_house: "Steakhouse",
+    breakfast: "Breakfast",
+    brunch: "Brunch",
+    kebab: "Kebab",
+    noodle: "Noodles",
+    ramen: "Ramen",
+    hot_dog: "Hot dogs",
+    bagel: "Bagels",
+    juice: "Juice",
+    bubble_tea: "Bubble tea",
+    tea: "Tea",
+    regional: "Regional",
+    diner: "Diner",
+    southern: "Southern",
+    soul_food: "Soul food",
+    cajun: "Cajun",
+    mediterranean: "Mediterranean",
+    middle_eastern: "Middle Eastern",
+    french: "French",
+    german: "German",
   };
   function prettyOsmValue(v) {
     const raw = String(v == null ? "" : v).trim();
@@ -534,17 +725,24 @@
   }
   function prettyCuisineList(c) {
     const seen = {};
-    return String(c || "").split(/[;,]/).map((t) => prettyOsmValue(t)).filter((t) => {
-      if (!t || seen[t.toLowerCase()]) return false;
-      seen[t.toLowerCase()] = 1; return true;
-    }).join(", ");
+    return String(c || "")
+      .split(/[;,]/)
+      .map((t) => prettyOsmValue(t))
+      .filter((t) => {
+        if (!t || seen[t.toLowerCase()]) return false;
+        seen[t.toLowerCase()] = 1;
+        return true;
+      })
+      .join(", ");
   }
   /** Display-only phone formatting. The tel: href is built separately from the raw digits. */
   function formatPhoneDisplay(phone) {
-    const raw = String(phone || "").split(/[;,]/)[0].trim();
+    const raw = String(phone || "")
+      .split(/[;,]/)[0]
+      .trim();
     if (!raw) return "";
     const d = raw.replace(/\D/g, "");
-    const nanp = d.length === 11 && d.charAt(0) === "1" ? d.slice(1) : (d.length === 10 && !/^\+/.test(raw) ? d : "");
+    const nanp = d.length === 11 && d.charAt(0) === "1" ? d.slice(1) : d.length === 10 && !/^\+/.test(raw) ? d : "";
     if (nanp && /^[2-9]\d{2}[2-9]\d{6}$/.test(nanp)) {
       return "(" + nanp.slice(0, 3) + ") " + nanp.slice(3, 6) + "-" + nanp.slice(6);
     }
@@ -552,12 +750,15 @@
   }
 
   function cuisineIconSvg(token) {
-    const svg = 'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+    const svg =
+      'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
     const inner = {
       american: '<path d="M4 14h16"/><path d="M6 10h12"/><path d="M7 7c3-3 7-3 10 0"/>',
-      barbecue: '<path d="M8 14c0 4 8 4 8 0"/><path d="M9 10c.5-2 1-4 3-5"/><path d="M15 10c-.5-2-1-4-3-5"/><path d="M8 14h8"/>',
+      barbecue:
+        '<path d="M8 14c0 4 8 4 8 0"/><path d="M9 10c.5-2 1-4 3-5"/><path d="M15 10c-.5-2-1-4-3-5"/><path d="M8 14h8"/>',
       burger: '<path d="M5 13h14"/><path d="M4 17h16"/><path d="M6 9c2-3 10-3 12 0"/>',
-      pizza: '<path d="M12 3 L21 20 H3 Z"/><circle cx="12" cy="12" r="0.8" fill="currentColor" stroke="none"/><circle cx="9.5" cy="15" r="0.8" fill="currentColor" stroke="none"/>',
+      pizza:
+        '<path d="M12 3 L21 20 H3 Z"/><circle cx="12" cy="12" r="0.8" fill="currentColor" stroke="none"/><circle cx="9.5" cy="15" r="0.8" fill="currentColor" stroke="none"/>',
       mexican: '<path d="M4 16c4-8 12-8 16 0"/><path d="M7 16h10"/><path d="M12 8v3"/>',
       chinese: '<path d="M7 10h10v8H7z"/><path d="M5 8h14"/><path d="M9 6l-2 2"/><path d="M17 6l2 2"/>',
       thai: '<path d="M12 5c2 3 2 6 0 8s-4 2-4-1 2-4 4-7z"/><path d="M12 13v6"/>',
@@ -567,16 +768,20 @@
       indian: '<path d="M12 4v2"/><path d="M8 10c0-3 8-3 8 0v8H8z"/>',
       italian: '<path d="M7 8c4 2 6 2 10 0"/><path d="M7 12c4 2 6 2 10 0"/><path d="M7 16c4 2 6 2 10 0"/>',
       greek: '<path d="M6 8h12"/><path d="M8 8v10"/><path d="M16 8v10"/><path d="M6 18h12"/>',
-      mediterranean: '<circle cx="12" cy="12" r="4"/><path d="M12 4v2"/><path d="M12 18v2"/><path d="M4 12h2"/><path d="M18 12h2"/>',
-      seafood: '<path d="M4 12c6-6 12-4 16 0-4 4-10 6-16 0z"/><circle cx="8" cy="11" r="0.8" fill="currentColor" stroke="none"/>',
+      mediterranean:
+        '<circle cx="12" cy="12" r="4"/><path d="M12 4v2"/><path d="M12 18v2"/><path d="M4 12h2"/><path d="M18 12h2"/>',
+      seafood:
+        '<path d="M4 12c6-6 12-4 16 0-4 4-10 6-16 0z"/><circle cx="8" cy="11" r="0.8" fill="currentColor" stroke="none"/>',
       sushi: '<ellipse cx="12" cy="12" rx="8" ry="4"/><path d="M8 12c1-2 7-2 8 0"/>',
-      chicken: '<path d="M15 8c2 0 4 2 4 4s-3 5-7 5-6-2-6-5 2-5 5-5h4z"/><circle cx="16" cy="9" r="0.7" fill="currentColor" stroke="none"/>',
+      chicken:
+        '<path d="M15 8c2 0 4 2 4 4s-3 5-7 5-6-2-6-5 2-5 5-5h4z"/><circle cx="16" cy="9" r="0.7" fill="currentColor" stroke="none"/>',
       sandwich: '<path d="M5 9h14l-1 4H6z"/><path d="M5 15h14"/><path d="M6 9V7h12v2"/>',
       breakfast: '<circle cx="12" cy="13" r="5"/><path d="M12 4v2"/><path d="M6 7l1.2 1.2"/><path d="M18 7l-1.2 1.2"/>',
       diner: '<path d="M8 7v10"/><path d="M8 11h5a3 3 0 0 1 0 6H8"/>',
       soul_food: '<path d="M6 14h12c0 4-3 5-6 5s-6-1-6-5z"/><path d="M9 10c1-3 5-3 6 0"/>',
       latin: '<path d="M8 7c4 1 4 5 0 8"/><path d="M12 5c4 2 5 7 1 11"/>',
-      caribbean: '<path d="M12 20V10"/><path d="M12 10c-4-1-6-4-6-4 2 0 5 1 6 4"/><path d="M12 10c4-1 6-4 6-4-2 0-5 1-6 4"/>',
+      caribbean:
+        '<path d="M12 20V10"/><path d="M12 10c-4-1-6-4-6-4 2 0 5 1 6 4"/><path d="M12 10c4-1 6-4 6-4-2 0-5 1-6 4"/>',
       middle_eastern: '<path d="M12 6c4 2 6 6 4 10H8c-2-4 0-8 4-10z"/>',
       ethiopian: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/>',
       french: '<path d="M5 16c3-8 11-8 14 0"/><path d="M7 16h10"/>',
@@ -620,12 +825,22 @@
       american: "american",
     };
     if (id === "dessert") {
-      const svg = 'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
-      return "<svg " + svg + '><path d="M12 3c2 2 3 4 3 6a3 3 0 1 1-6 0c0-2 1-4 3-6z"/><path d="M8 15c0 3 8 3 8 0"/><path d="M9 15h6"/></svg>';
+      const svg =
+        'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+      return (
+        "<svg " +
+        svg +
+        '><path d="M12 3c2 2 3 4 3 6a3 3 0 1 1-6 0c0-2 1-4 3-6z"/><path d="M8 15c0 3 8 3 8 0"/><path d="M9 15h6"/></svg>'
+      );
     }
     if (id === "cafe") {
-      const svg = 'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
-      return "<svg " + svg + '><path d="M6 9h10v6a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V9z"/><path d="M16 11h2a2 2 0 1 1 0 4h-2"/><path d="M9 5c.4 1 .4 2 0 3"/><path d="M12 5c.4 1 .4 2 0 3"/></svg>';
+      const svg =
+        'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+      return (
+        "<svg " +
+        svg +
+        '><path d="M6 9h10v6a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V9z"/><path d="M16 11h2a2 2 0 1 1 0 4h-2"/><path d="M9 5c.4 1 .4 2 0 3"/><path d="M12 5c.4 1 .4 2 0 3"/></svg>'
+      );
     }
     return cuisineIconSvg(tokenMap[id] || "american");
   }
@@ -636,7 +851,9 @@
 
   function nameHasFoodHint(name, hint) {
     const n = String(name || "").toLowerCase();
-    const h = String(hint || "").toLowerCase().trim();
+    const h = String(hint || "")
+      .toLowerCase()
+      .trim();
     if (!n || !h) return false;
     if (h.indexOf(" ") >= 0) return n.indexOf(h) >= 0;
     return new RegExp("(^|[^a-z0-9])" + escapeRegExp(h) + "([^a-z0-9]|$)", "i").test(n);
@@ -710,8 +927,7 @@
   function syncRadiusChipsUI() {
     $$(".chip[data-radius]").forEach((c) => {
       const mi = Number(c.dataset.radius);
-      const active =
-        state.walkMinutes == null && Math.abs(mi - state.radiusMiles) < 0.001;
+      const active = state.walkMinutes == null && Math.abs(mi - state.radiusMiles) < 0.001;
       c.classList.toggle("active", active);
     });
     $$(".chip-walk").forEach((c) => {
@@ -777,7 +993,9 @@
   /** Permanently closed OSM tags only. Missing hours is not closed. */
   function isPermanentlyClosed(tags) {
     if (!tags) return false;
-    const oh = String(tags.opening_hours || "").trim().toLowerCase();
+    const oh = String(tags.opening_hours || "")
+      .trim()
+      .toLowerCase();
     if (oh === "closed" || oh === "off") return true;
     // end_date (lifecycle) already passed → gone. Only full ISO dates/years; anything fuzzy is ignored.
     const end = String(tags.end_date || "").trim();
@@ -787,7 +1005,14 @@
       if (endMs < Date.now()) return true;
     }
     const yes = (v) => String(v || "").toLowerCase() === "yes";
-    if (yes(tags.disused) || yes(tags.abandoned) || yes(tags.closed) || yes(tags.permanently_closed) || yes(tags.demolished)) return true;
+    if (
+      yes(tags.disused) ||
+      yes(tags.abandoned) ||
+      yes(tags.closed) ||
+      yes(tags.permanently_closed) ||
+      yes(tags.demolished)
+    )
+      return true;
     if (String(tags.shop || "").toLowerCase() === "vacant") return true;
     for (const k of Object.keys(tags)) {
       // Lifecycle prefixes: disused:amenity, was:amenity, abandoned:shop, closed:*, removed:* …
@@ -821,8 +1046,14 @@
     if (zone === "device") return new Date();
     try {
       const fmt = new Intl.DateTimeFormat("en-US", {
-        timeZone: zone, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric",
-        hour: "numeric", minute: "numeric", second: "numeric",
+        timeZone: zone,
+        hourCycle: "h23",
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
       });
       const parts = {};
       for (const x of fmt.formatToParts(new Date())) parts[x.type] = x.value;
@@ -842,7 +1073,8 @@
    * Open/closed uses placeNow (US eastern/central zones, or the browser clock when the search is near the user). Cross-checked vs opening_hours.js. */
   const OH_DAY_IDX = { Su: 0, Mo: 1, Tu: 2, We: 3, Th: 4, Fr: 5, Sa: 6 };
   /** One selector item: a weekday with [n] (nth in month), or a weekday / weekday range / PH. */
-  const OH_SEL_ITEM = "(?:(?:Mo|Tu|We|Th|Fr|Sa|Su)\\[\\s*-?[1-5](?:\\s*,\\s*-?[1-5])*\\s*\\]|(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\\s*-\\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?)";
+  const OH_SEL_ITEM =
+    "(?:(?:Mo|Tu|We|Th|Fr|Sa|Su)\\[\\s*-?[1-5](?:\\s*,\\s*-?[1-5])*\\s*\\]|(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\\s*-\\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?)";
   const OH_SELECTOR_RE = new RegExp("^(" + OH_SEL_ITEM + "(?:\\s*,\\s*" + OH_SEL_ITEM + ")*)(?=\\s|$|:)");
   const OH_DAYLIST_ONLY_RE = new RegExp("^(?:" + OH_SEL_ITEM + "\\s*,?\\s*)+$");
   const ohCache = new Map();
@@ -851,7 +1083,8 @@
   function ohParseTime(s) {
     const m = /^(\d{1,2}):(\d{2})$/.exec(s);
     if (!m) return null;
-    const h = +m[1], mm = +m[2];
+    const h = +m[1],
+      mm = +m[2];
     if (mm > 59 || h > 48 || (h === 48 && mm)) return null;
     return h * 60 + mm;
   }
@@ -868,7 +1101,10 @@
       hadSelector = true;
       for (const piece of selM[1].split(/,(?![^[]*\])/)) {
         const p = piece.trim();
-        if (p === "PH") { ph = true; continue; }
+        if (p === "PH") {
+          ph = true;
+          continue;
+        }
         // 20261004b (Scout): nth weekday of the month, e.g. Sa[4], Su[-1], Mo[1,3].
         const nthM = /^(Mo|Tu|We|Th|Fr|Sa|Su)\[\s*(-?[1-5](?:\s*,\s*-?[1-5])*)\s*\]$/.exec(p);
         if (nthM) {
@@ -881,7 +1117,10 @@
         if (!r) return null;
         const a = OH_DAY_IDX[r[1]];
         const b = r[2] ? OH_DAY_IDX[r[2]] : a;
-        for (let i = a, n = 0; n < 7; n++, i = (i + 1) % 7) { days.add(i); if (i === b) break; }
+        for (let i = a, n = 0; n < 7; n++, i = (i + 1) % 7) {
+          days.add(i);
+          if (i === b) break;
+        }
       }
       rest = rest.slice(selM[0].length).trim();
       if (rest.startsWith(":")) rest = rest.slice(1).trim(); // "Mo-Fr: 09:00-17:00"
@@ -919,13 +1158,23 @@
     if (ohCache.has(raw)) return ohCache.get(raw);
     let rules = [];
     let ok = true;
-    const normal = raw.split(";").map((r) => r.trim()).filter(Boolean);
+    const normal = raw
+      .split(";")
+      .map((r) => r.trim())
+      .filter(Boolean);
     // [ ] are allowed only as an nth-weekday suffix (Sa[4]); any other bracket use is unsupported.
     const bracketsLeft = raw.replace(/(?:Mo|Tu|We|Th|Fr|Sa|Su)\[\s*-?[1-5](?:\s*,\s*-?[1-5])*\s*\]/g, "");
     if (!normal.length || /\|\||"|\+/.test(raw) || /\[|\]/.test(bracketsLeft)) ok = false;
     for (const part of ok ? normal : []) {
       if (/^24\/7$/.test(part)) {
-        rules.push({ additional: false, days: new Set([0, 1, 2, 3, 4, 5, 6]), ph: false, spans: [[0, 1440]], off: false, allDays: true });
+        rules.push({
+          additional: false,
+          days: new Set([0, 1, 2, 3, 4, 5, 6]),
+          ph: false,
+          spans: [[0, 1440]],
+          off: false,
+          allDays: true,
+        });
         continue;
       }
       // Split "Mo-Fr 08:00-17:00, Sa 09:00-12:00" into additional rules at ", <weekday|PH>"
@@ -939,7 +1188,10 @@
       }
       for (let i = 0; i < merged.length; i++) {
         const r = ohParseSelectorAndTimes(merged[i]);
-        if (!r) { ok = false; break; }
+        if (!r) {
+          ok = false;
+          break;
+        }
         r.additional = i > 0;
         rules.push(r);
       }
@@ -950,29 +1202,50 @@
     return out;
   }
 
-  function nthWeekday(y, m, wd, n) { // n>=1 nth, n=-1 last
-    if (n > 0) { const d = new Date(y, m, 1); return 1 + ((wd - d.getDay() + 7) % 7) + (n - 1) * 7; }
-    const last = new Date(y, m + 1, 0); return last.getDate() - ((last.getDay() - wd + 7) % 7);
+  function nthWeekday(y, m, wd, n) {
+    // n>=1 nth, n=-1 last
+    if (n > 0) {
+      const d = new Date(y, m, 1);
+      return 1 + ((wd - d.getDay() + 7) % 7) + (n - 1) * 7;
+    }
+    const last = new Date(y, m + 1, 0);
+    return last.getDate() - ((last.getDay() - wd + 7) % 7);
   }
   /** US federal holidays (observed dates), computed — no data file. */
   function isUsFederalHoliday(date) {
-    const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
-    const fixed = [[0, 1], [5, 19], [6, 4], [10, 11], [11, 25]];
+    const y = date.getFullYear(),
+      m = date.getMonth(),
+      d = date.getDate();
+    const fixed = [
+      [0, 1],
+      [5, 19],
+      [6, 4],
+      [10, 11],
+      [11, 25],
+    ];
     for (const [fm, fd] of fixed) {
       for (const yy of [y - 1, y, y + 1]) {
-        const h = new Date(yy, fm, fd); const wd = h.getDay();
+        const h = new Date(yy, fm, fd);
+        const wd = h.getDay();
         if (yy === y && fm === m && fd === d) return true; // the holiday itself
         const obs = new Date(yy, fm, fd + (wd === 6 ? -1 : wd === 0 ? 1 : 0)); // observed weekday
         if (obs.getFullYear() === y && obs.getMonth() === m && obs.getDate() === d) return true;
       }
     }
-    const floating = [[0, 1, 3], [1, 1, 3], [4, 1, -1], [8, 1, 1], [9, 1, 2], [10, 4, 4]];
+    const floating = [
+      [0, 1, 3],
+      [1, 1, 3],
+      [4, 1, -1],
+      [8, 1, 1],
+      [9, 1, 2],
+      [10, 4, 4],
+    ];
     for (const [fm, wd, n] of floating) if (m === fm && d === nthWeekday(y, fm, wd, n)) return true;
     return false;
   }
   function ohIsHoliday(date, lat, lng) {
     const cc = String(hoursCountry || "").toLowerCase();
-    const inUs = cc ? cc === "us" : (Number(lat) > 18 && Number(lat) < 72 && Number(lng) < -64 && Number(lng) > -180);
+    const inUs = cc ? cc === "us" : Number(lat) > 18 && Number(lat) < 72 && Number(lng) < -64 && Number(lng) > -180;
     return inUs && isUsFederalHoliday(date);
   }
 
@@ -986,7 +1259,10 @@
       const hits = (r.ph && hol) || (r.days.has(wd) && ohNthMatches(r, date));
       if (!hits) return;
       idx = i;
-      if (r.off) { spans = []; return; }
+      if (r.off) {
+        spans = [];
+        return;
+      }
       spans = r.additional ? spans.concat(r.spans) : r.spans.slice();
     });
     return { spans, idx };
@@ -1082,9 +1358,12 @@
       if (last && sp[0] <= last[1]) last[1] = Math.max(last[1], sp[1]);
       else merged.push(sp.slice());
     }
-    return "Today " + merged
-      .map(([a, b]) => (a === 0 && b >= 1440 ? "all day" : clockFromMinutes(a) + "–" + clockFromMinutes(b)))
-      .join(", ");
+    return (
+      "Today " +
+      merged
+        .map(([a, b]) => (a === 0 && b >= 1440 ? "all day" : clockFromMinutes(a) + "–" + clockFromMinutes(b)))
+        .join(", ")
+    );
   }
 
   /** Plain hours for cards. Never invents; only formats tagged OSM hours.
@@ -1121,7 +1400,9 @@
     let opens = "";
     if (r.nextOpenAt != null) {
       const dayOff = Math.floor(r.nextOpenAt / 1440);
-      opens = "Opens " + clockFromMinutes(r.nextOpenAt) +
+      opens =
+        "Opens " +
+        clockFromMinutes(r.nextOpenAt) +
         (dayOff === 0 ? "" : dayOff === 1 ? " tomorrow" : " " + OH_DAY_SHORT[(now.getDay() + dayOff) % 7]);
     }
     return "Tagged closed" + (opens ? " · " + opens : "") + " · " + today;
@@ -1194,8 +1475,8 @@
             id: String(x.id),
             name: String(x.name || "").slice(0, 120),
             address: String(x.address || "").slice(0, 160),
-          }))
-        )
+          })),
+        ),
       );
     } catch (_) {
       /* private mode — ok */
@@ -1416,7 +1697,13 @@
       !!state.filters.lateNight ||
       !!state.filters.cuisine ||
       !!state.filters.foodCategory ||
-      !!(state.filters.diet && (state.filters.diet.vegan || state.filters.diet.vegetarian || state.filters.diet.gluten_free || state.filters.diet.halal)) ||
+      !!(
+        state.filters.diet &&
+        (state.filters.diet.vegan ||
+          state.filters.diet.vegetarian ||
+          state.filters.diet.gluten_free ||
+          state.filters.diet.halal)
+      ) ||
       (state.filters.type && state.filters.type !== "all");
     btn.classList.toggle("is-active", nonDefault);
   }
@@ -1430,8 +1717,14 @@
       if (active && sheet.contains(active)) {
         const back = sheetOpener.get(sheet);
         const target = back && document.contains(back) && !back.closest("[inert]") ? back : $("#placeSearch");
-        try { target && target.focus({ preventScroll: true }); } catch (_) {}
-        if (sheet.contains(document.activeElement)) { try { active.blur(); } catch (_) {} }
+        try {
+          target && target.focus({ preventScroll: true });
+        } catch (_) {}
+        if (sheet.contains(document.activeElement)) {
+          try {
+            active.blur();
+          } catch (_) {}
+        }
       }
       sheet.setAttribute("inert", "");
       sheet.setAttribute("aria-hidden", "true");
@@ -1441,7 +1734,11 @@
       sheet.removeAttribute("inert");
       sheet.setAttribute("aria-hidden", "false");
       const closeBtn = sheet.querySelector(".sheet-close, button");
-      setTimeout(() => { try { closeBtn && closeBtn.focus({ preventScroll: true }); } catch (_) {} }, 30);
+      setTimeout(() => {
+        try {
+          closeBtn && closeBtn.focus({ preventScroll: true });
+        } catch (_) {}
+      }, 30);
     }
   }
 
@@ -1532,7 +1829,7 @@
       maxZoom: 18,
       updateWhenIdle: true,
       updateWhenZooming: false,
-      keepBuffer: 2
+      keepBuffer: 2,
     }).addTo(state.map);
 
     L.control.zoom({ position: "bottomright" }).addTo(state.map);
@@ -1542,7 +1839,11 @@
   /** 20261004b (Gate): every Leaflet marker gets an accessible name. Leaflet copies `title` onto the
    * marker element (role=button) and `alt` onto image icons, so pins are told apart by name. */
   function markerOptions(name, extra) {
-    const label = String(name || "").replace(/\s+/g, " ").trim().slice(0, 120) || "Place";
+    const label =
+      String(name || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 120) || "Place";
     return Object.assign({ title: label, alt: label, keyboard: true }, extra || {});
   }
 
@@ -1559,7 +1860,9 @@
       iconSize: [14, 14],
       iconAnchor: [7, 7],
     });
-    state.userMarker = L.marker([lat, lng], markerOptions("Search center", { icon, zIndexOffset: 1000 })).addTo(state.map);
+    state.userMarker = L.marker([lat, lng], markerOptions("Search center", { icon, zIndexOffset: 1000 })).addTo(
+      state.map,
+    );
     // Warm kitchen radius — not teal
     state.radiusCircle = L.circle([lat, lng], {
       radius: milesToMeters(radiusMi),
@@ -1607,7 +1910,7 @@
     try {
       card = document.querySelector(`.place-card[data-id="${CSS.escape(placeId)}"]`);
     } catch (_) {
-      card = document.querySelector('.place-card[data-id="' + placeId.replace(/"/g, '') + '"]');
+      card = document.querySelector('.place-card[data-id="' + placeId.replace(/"/g, "") + '"]');
     }
     if (card) {
       card.classList.add("selected");
@@ -1616,9 +1919,7 @@
       }
     }
     try {
-      const railCard = document.querySelector(
-        `.deal-rail-card[data-deal-open="${CSS.escape(placeId)}"]`
-      );
+      const railCard = document.querySelector(`.deal-rail-card[data-deal-open="${CSS.escape(placeId)}"]`);
       if (railCard) railCard.classList.add("selected");
     } catch (_) {
       /* ignore */
@@ -1660,13 +1961,11 @@
         iconAnchor: isSponsored ? [iconW / 2, size / 2] : [HIT / 2, HIT / 2],
       });
       const m = L.marker([p.lat, p.lng], markerOptions(p.name, { icon }));
-      const sponsoredPopup = isSponsored
-        ? `<br><span class="popup-sponsored">Sponsored</span>`
-        : "";
+      const sponsoredPopup = isSponsored ? `<br><span class="popup-sponsored">Sponsored</span>` : "";
       m.bindPopup(
         `<strong>${escapeHtml(p.name)}</strong><br>${formatMiles(p.miles)} · ${escapeHtml(p.cuisine ? prettyCuisineList(p.cuisine) : amenityLabel(p.amenity))}` +
           (p.deal ? `<br><span class="popup-deal">${escapeHtml(p.deal.label)}</span>` : "") +
-          sponsoredPopup
+          sponsoredPopup,
       );
       m.on("click", () => {
         highlightPlace(p.id, { openPopup: false, scrollCard: true, pan: false });
@@ -1695,14 +1994,22 @@
     // Pantries: amenity=food_bank|soup_kitchen, plus amenity=social_facility with social_facility=food_bank|soup_kitchen.
     // Copy must not claim office/worldwide.
     const food = "restaurant|fast_food|cafe|bar|pub|ice_cream|food_court|biergarten|food_bank|soup_kitchen";
-    return `[out:json][timeout:${t}];(` +
-      `node["amenity"~"^(` + food + `)$"]${named}${around};` +
-      `way["amenity"~"^(` + food + `)$"]${named}${around};` +
-      `relation["amenity"~"^(` + food + `)$"]${named}${around};` +
+    return (
+      `[out:json][timeout:${t}];(` +
+      `node["amenity"~"^(` +
+      food +
+      `)$"]${named}${around};` +
+      `way["amenity"~"^(` +
+      food +
+      `)$"]${named}${around};` +
+      `relation["amenity"~"^(` +
+      food +
+      `)$"]${named}${around};` +
       `node["shop"~"^(bakery|deli)$"]${named}${around};` +
       `way["shop"~"^(bakery|deli)$"]${named}${around};` +
       `nwr["amenity"="social_facility"]["social_facility"~"^(food_bank|soup_kitchen)$"]${named}${around};` +
-      `);out center;`;
+      `);out center;`
+    );
   }
 
   function overpassErrorMessage(err) {
@@ -1719,13 +2026,18 @@
   /** In-page cache key: the rounded search area only (centre to 3 decimals, the same rounding the query
    * uses, plus radius), so a hit is exactly the answer Overpass would give again. No visitor data. */
   function overpassCacheKey(lat, lng, radiusMiles) {
-    return roundCoord3(lat).toFixed(3) + "," + roundCoord3(lng).toFixed(3) + "," + Math.round(Number(radiusMiles) * 10) / 10;
+    return (
+      roundCoord3(lat).toFixed(3) + "," + roundCoord3(lng).toFixed(3) + "," + Math.round(Number(radiusMiles) * 10) / 10
+    );
   }
   const overpassCache = new Map(); // key -> { at, elements } (raw OSM elements; distances are recomputed per search)
   function overpassCacheGet(key, now) {
     const hit = overpassCache.get(key);
     if (!hit) return null;
-    if (now - hit.at > OVERPASS_CACHE_TTL_MS) { overpassCache.delete(key); return null; }
+    if (now - hit.at > OVERPASS_CACHE_TTL_MS) {
+      overpassCache.delete(key);
+      return null;
+    }
     return hit.elements;
   }
   function overpassCachePut(key, elements, now) {
@@ -1737,7 +2049,9 @@
   const overpassBusyUntil = new Map();
   function overpassBusyMs(res) {
     const ra = parseInt((res && res.headers && res.headers.get && res.headers.get("Retry-After")) || "", 10);
-    return Number.isFinite(ra) && ra > 0 ? Math.min(Math.max(ra * 1000, OVERPASS_BUSY_MS), OVERPASS_BUSY_MAX_MS) : OVERPASS_BUSY_MS;
+    return Number.isFinite(ra) && ra > 0
+      ? Math.min(Math.max(ra * 1000, OVERPASS_BUSY_MS), OVERPASS_BUSY_MAX_MS)
+      : OVERPASS_BUSY_MS;
   }
 
   /** 20261004b: ask the mirrors one at a time (never in parallel), each with its own AbortController,
@@ -1762,7 +2076,9 @@
 
     async function fetchOne(url, budgetMs) {
       const controller = new AbortController();
-      const timer = setTimeout(function () { controller.abort(); }, budgetMs);
+      const timer = setTimeout(function () {
+        controller.abort();
+      }, budgetMs);
       try {
         // referrerPolicy "origin": the proxy adds the identifying User-Agent/Referer for the mirror.
         const res = await fetch(url, {
@@ -1785,7 +2101,7 @@
         const data = await res.json();
         const remark = String((data && data.remark) || "");
         if (/timeout|error|out of memory/i.test(remark)) throw new Error("Overpass remark timeout");
-        return (data && Array.isArray(data.elements)) ? data.elements : [];
+        return data && Array.isArray(data.elements) ? data.elements : [];
       } finally {
         clearTimeout(timer);
       }
@@ -1793,10 +2109,17 @@
 
     for (let i = 0; i < mirrors.length; i++) {
       const url = mirrors[i].url;
-      if ((overpassBusyUntil.get(url) || 0) > now()) { busyCount++; continue; }
+      if ((overpassBusyUntil.get(url) || 0) > now()) {
+        busyCount++;
+        continue;
+      }
       const left = capMs - (now() - started);
       if (left < minTryMs) break;
-      if (tried > 0) { try { setStatus("OpenStreetMap is slow… trying another server"); } catch (_) {} }
+      if (tried > 0) {
+        try {
+          setStatus("OpenStreetMap is slow… trying another server");
+        } catch (_) {}
+      }
       tried++;
       try {
         const elements = await fetchOne(url, Math.min(perMs, left));
@@ -1922,8 +2245,18 @@
     max = max || 5;
     const settle = /^(city|town|village|municipality|hamlet|suburb)$/;
     const chosenName = normWord(chosen.name || String(chosen.display_name || "").split(",")[0]);
-    const region = (h) => { const a = (h && h.address) || {}; return String(a.country_code || "") + "|" + String(a["ISO3166-2-lvl4"] || a.state || ""); };
-    const seen = [{ label: geocodeShortLabel(chosen).toLowerCase(), region: region(chosen), lat: parseFloat(chosen.lat), lng: parseFloat(chosen.lon) }];
+    const region = (h) => {
+      const a = (h && h.address) || {};
+      return String(a.country_code || "") + "|" + String(a["ISO3166-2-lvl4"] || a.state || "");
+    };
+    const seen = [
+      {
+        label: geocodeShortLabel(chosen).toLowerCase(),
+        region: region(chosen),
+        lat: parseFloat(chosen.lat),
+        lng: parseFloat(chosen.lon),
+      },
+    ];
     const picks = [];
     data.forEach((h, i) => {
       if (!h || h === chosen) return;
@@ -1931,7 +2264,8 @@
       if (!settle.test(t)) return;
       if (normWord(h.name || String(h.display_name || "").split(",")[0]) !== chosenName) return;
       const label = geocodeShortLabel(h);
-      const lat = parseFloat(h.lat), lng = parseFloat(h.lon);
+      const lat = parseFloat(h.lat),
+        lng = parseFloat(h.lon);
       if (!label || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
       const key = label.toLowerCase();
       const reg = region(h);
@@ -1952,7 +2286,10 @@
   const GEOCODE_CACHE_MAX = 20;
   const geocodeCache = new Map();
   async function geocodePlace(q) {
-    const key = String(q || "").trim().toLowerCase().replace(/\s+/g, " ");
+    const key = String(q || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
     if (!key) return null;
     const hit = geocodeCache.get(key);
     if (hit && Date.now() - hit.at < GEOCODE_CACHE_TTL_MS) return hit.value;
@@ -1991,7 +2328,10 @@
         referrerPolicy: "origin",
         signal: ac.signal,
       });
-      if (res.status === 429 || res.status === 503) { noteNominatimBusy(res); throw nominatimBusyError(); }
+      if (res.status === 429 || res.status === 503) {
+        noteNominatimBusy(res);
+        throw nominatimBusyError();
+      }
       if (!res.ok) throw new Error("Nominatim HTTP " + res.status);
       let data = await res.json();
       if ((!data || !data.length) && !looksLikePostal(lookup)) {
@@ -2005,7 +2345,10 @@
           referrerPolicy: "origin",
           signal: ac.signal,
         });
-        if (res2.status === 429 || res2.status === 503) { noteNominatimBusy(res2); throw nominatimBusyError(); }
+        if (res2.status === 429 || res2.status === 503) {
+          noteNominatimBusy(res2);
+          throw nominatimBusyError();
+        }
         if (res2.ok) data = await res2.json();
       }
       if (!data || !data.length) return null;
@@ -2024,7 +2367,14 @@
   /** Same place mapped twice (node + building way/relation): same normalized name within ~130 m.
    * Keep one: node coords (the POI itself) over way/relation center; fill missing tags from the other. */
   function mergeDuplicateElements(elements) {
-    const norm = (n) => String(n || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[’'`]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const norm = (n) =>
+      String(n || "")
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[’'`]/g, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
     const rank = { node: 0, way: 1, relation: 2 };
     const kept = [];
     const rk = (t) => (Object.prototype.hasOwnProperty.call(rank, t) ? rank[t] : 3); // node is 0 — do not use || (0 is falsy)
@@ -2035,7 +2385,10 @@
       const name = String(tags.name || "").trim();
       const lat = el.lat != null ? el.lat : el.center && el.center.lat;
       const lng = el.lon != null ? el.lon : el.center && el.center.lon;
-      if (!name || lat == null || lng == null) { kept.push(el); continue; }
+      if (!name || lat == null || lng == null) {
+        kept.push(el);
+        continue;
+      }
       const key = norm(name);
       const prev = kept.find((k) => {
         const kt = k.tags || {};
@@ -2044,7 +2397,10 @@
         if (k.type === "node" && el.type === "node") return false; // two POI nodes = two places
         return klat != null && norm(kt.name) === key && haversineMiles(klat, klng, lat, lng) < 0.08;
       });
-      if (!prev) { kept.push(el); continue; }
+      if (!prev) {
+        kept.push(el);
+        continue;
+      }
       const merged = Object.assign({}, tags, prev.tags || {}); // keeper's tags win; fill gaps
       prev.tags = merged;
       // 20261004b (Scout): remember the dropped duplicate's id so closed-places can match either id.
@@ -2058,7 +2414,9 @@
 
     for (const el of mergeDuplicateElements(elements || [])) {
       const tags = el.tags || {};
-      const name = String(tags.name || "").replace(/\s+/g, " ").trim();
+      const name = String(tags.name || "")
+        .replace(/\s+/g, " ")
+        .trim();
       if (!name) continue; // never show a blank name
       if (isPermanentlyClosed(tags)) continue;
 
@@ -2072,13 +2430,12 @@
 
       const freeFood = isTaggedFreeFood(tags);
       let amenity = tags.amenity || tags.shop || "restaurant";
-      if (freeFood && amenity === "social_facility") amenity = String(tags.social_facility).toLowerCase() === "soup_kitchen" ? "soup_kitchen" : "food_bank";
+      if (freeFood && amenity === "social_facility")
+        amenity = String(tags.social_facility).toLowerCase() === "soup_kitchen" ? "soup_kitchen" : "food_bank";
       if (freeFood && amenity !== "soup_kitchen") amenity = "food_bank";
       const miles = haversineMiles(originLat, originLng, lat, lng);
       const deal =
-        !freeFood &&
-        window.RangeBitesDeals &&
-        typeof window.RangeBitesDeals.matchDeal === "function"
+        !freeFood && window.RangeBitesDeals && typeof window.RangeBitesDeals.matchDeal === "function"
           ? window.RangeBitesDeals.matchDeal({
               name,
               cuisine: tags.cuisine || "",
@@ -2160,7 +2517,10 @@
     if (closedLoading) return closedLoading;
     closedLoading = fetch(CLOSED_URL, { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { closedIds = new Set(Object.keys((j && j.places) || {})); return closedIds; })
+      .then((j) => {
+        closedIds = new Set(Object.keys((j && j.places) || {}));
+        return closedIds;
+      })
       .catch(() => closedIds);
     return closedLoading;
   }
@@ -2186,7 +2546,7 @@
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         const idx = new Map();
-        for (const row of (j && Array.isArray(j.rows) ? j.rows : [])) {
+        for (const row of j && Array.isArray(j.rows) ? j.rows : []) {
           if (!Array.isArray(row) || !row[0] || !row[3]) continue;
           const list = idx.get(row[0]) || [];
           list.push(row);
@@ -2195,7 +2555,10 @@
         atpIndex = idx;
         return idx;
       })
-      .catch(() => { atpIndex = new Map(); return atpIndex; });
+      .catch(() => {
+        atpIndex = new Map();
+        return atpIndex;
+      });
     return atpLoading;
   }
   function metersBetween(lat1, lng1, lat2, lng2) {
@@ -2231,7 +2594,10 @@
       let bestM = Infinity;
       for (const row of rows) {
         const m = metersBetween(p.lat, p.lng, row[1], row[2]);
-        if (m < bestM) { bestM = m; best = row; }
+        if (m < bestM) {
+          bestM = m;
+          best = row;
+        }
       }
       if (!best) continue;
       const fill = !p.hours && bestM <= ATP_FILL_M;
@@ -2289,8 +2655,15 @@
     }
     const cat = foodCategoryById(state.filters.foodCategory);
     if (cat) list = list.filter((p) => placeMatchesFoodCategory(p, cat));
-    const nq = String(state.nameQuery || "").trim().toLowerCase();
-    if (nq) list = list.filter((p) => String(p.name || "").toLowerCase().includes(nq));
+    const nq = String(state.nameQuery || "")
+      .trim()
+      .toLowerCase();
+    if (nq)
+      list = list.filter((p) =>
+        String(p.name || "")
+          .toLowerCase()
+          .includes(nq),
+      );
     list = sortNearestFirst(list).slice(0, MAX_RESULTS);
 
     return list;
@@ -2298,9 +2671,7 @@
 
   function mapsPlatform() {
     const ua = navigator.userAgent || "";
-    const iOS =
-      /iPhone|iPad|iPod/i.test(ua) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const iOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     if (iOS) return "apple";
     if (/Android/i.test(ua)) return "android";
     return "unknown";
@@ -2313,12 +2684,7 @@
     const q = encodeURIComponent(p.name || "restaurant");
     return {
       apple: "https://maps.apple.com/?daddr=" + lat + "," + lng + "&q=" + q,
-      google:
-        "https://www.google.com/maps/dir/?api=1&destination=" +
-        lat +
-        "," +
-        lng +
-        "&travelmode=driving",
+      google: "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng + "&travelmode=driving",
     };
   }
 
@@ -2378,7 +2744,9 @@
   }
 
   function telHref(phone) {
-    const raw = String(phone || "").split(/[;,]/)[0].trim(); // OSM may list several numbers
+    const raw = String(phone || "")
+      .split(/[;,]/)[0]
+      .trim(); // OSM may list several numbers
 
     if (!raw) return "";
     const digits = raw.replace(/[^\d+]/g, "");
@@ -2392,7 +2760,9 @@
    */
   function isFakeDemoPhone(phone) {
     // Only the reserved fictional range NXX-555-0100..0199. Real numbers can contain 555.
-    const d = String(phone || "").replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+    const d = String(phone || "")
+      .replace(/\D/g, "")
+      .replace(/^1(?=\d{10}$)/, "");
     return /^\d{3}55501\d{2}$/.test(d);
   }
 
@@ -2401,27 +2771,25 @@
     const tel = isFakeDemoPhone(p.phone) ? "" : telHref(p.phone);
     if (tel) {
       rows.push(
-        `<a class="contact-link" href="${escapeHtml(tel)}">Call <span class="contact-value">${escapeHtml(formatPhoneDisplay(p.phone))}</span></a>`
+        `<a class="contact-link" href="${escapeHtml(tel)}">Call <span class="contact-value">${escapeHtml(formatPhoneDisplay(p.phone))}</span></a>`,
       );
     }
     const menu = /example\.com/i.test(p.menuUrl || "") ? "" : absoluteUrl(p.menuUrl);
     if (menu) {
       rows.push(
-        `<a class="contact-link" href="${escapeHtml(menu)}" target="_blank" rel="noopener noreferrer">Menu</a>`
+        `<a class="contact-link" href="${escapeHtml(menu)}" target="_blank" rel="noopener noreferrer">Menu</a>`,
       );
     }
     const web = /example\.com/i.test(p.website || "") ? "" : absoluteUrl(p.website);
     if (web) {
       rows.push(
-        `<a class="contact-link" href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer" title="Link from the OpenStreetMap listing">Website</a>`
+        `<a class="contact-link" href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer" title="Link from the OpenStreetMap listing">Website</a>`,
       );
     }
     if (p.hours) {
-      const src = p.hoursSource === "atp"
-        ? " (chain store locator via AllThePlaces, CC0)"
-        : " (OpenStreetMap)";
+      const src = p.hoursSource === "atp" ? " (chain store locator via AllThePlaces, CC0)" : " (OpenStreetMap)";
       rows.push(
-        `<div class="contact-hours"><span class="contact-label">Hours</span> ${escapeHtml(p.hours)}${src}</div>`
+        `<div class="contact-hours"><span class="contact-label">Hours</span> ${escapeHtml(p.hours)}${src}</div>`,
       );
     }
     if (!rows.length) return "";
@@ -2502,9 +2870,7 @@
     rail.innerHTML = deals
       .slice(0, 12)
       .map((p, idx) => {
-        const sponsored = p.sponsored
-          ? `<span class="rail-sponsored">Sponsored</span>`
-          : "";
+        const sponsored = p.sponsored ? `<span class="rail-sponsored">Sponsored</span>` : "";
         return listItemHtml(`<button type="button" class="deal-rail-card" data-deal-open="${escapeHtml(p.id)}" data-rail-pos="${idx}">
   <span class="rail-deal">${escapeHtml(p.deal.label)}</span>
   <span class="rail-name">${escapeHtml(p.name)}</span>
@@ -2569,20 +2935,17 @@
     setListRole(track, OPEN_STRIP_LABEL, true);
     track.innerHTML = open
       .slice(0, 24)
-      .map(
-        (p) =>
-          listItemHtml(`<button type="button" class="open-pill" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">${hoursOriginLabel(p.hoursSource)}</span></button>`)
+      .map((p) =>
+        listItemHtml(
+          `<button type="button" class="open-pill" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">${hoursOriginLabel(p.hoursSource)}</span></button>`,
+        ),
       )
       .join("");
   }
 
   function opensSoonPlaces() {
     return (state.places || []).filter(
-      (p) =>
-        p.opensSoon &&
-        p.hours &&
-        String(p.hours).trim() &&
-        p.miles <= state.radiusMiles + 0.05
+      (p) => p.opensSoon && p.hours && String(p.hours).trim() && p.miles <= state.radiusMiles + 0.05,
     );
   }
 
@@ -2604,9 +2967,10 @@
     wrap.hidden = false;
     track.innerHTML = soon
       .slice(0, 24)
-      .map(
-        (p) =>
-          listItemHtml(`<button type="button" class="open-pill opens-soon-pill" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">Opens soon · ${hoursOriginLabel(p.hoursSource)}</span></button>`)
+      .map((p) =>
+        listItemHtml(
+          `<button type="button" class="open-pill opens-soon-pill" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">Opens soon · ${hoursOriginLabel(p.hoursSource)}</span></button>`,
+        ),
       )
       .join("");
   }
@@ -2662,7 +3026,10 @@
     if (state.places && state.places.length && state.filters.diet) {
       let cleared = false;
       Object.keys(state.filters.diet).forEach((k) => {
-        if (state.filters.diet[k] && !present[k]) { state.filters.diet[k] = false; cleared = true; }
+        if (state.filters.diet[k] && !present[k]) {
+          state.filters.diet[k] = false;
+          cleared = true;
+        }
       });
       if (cleared) persistUiPrefs();
     }
@@ -2694,11 +3061,7 @@
         if (count > 0) visible.push({ cat, count });
       }
     }
-    if (
-      hasPlaces &&
-      state.filters.foodCategory &&
-      !visible.some((row) => row.cat.id === state.filters.foodCategory)
-    ) {
+    if (hasPlaces && state.filters.foodCategory && !visible.some((row) => row.cat.id === state.filters.foodCategory)) {
       state.filters.foodCategory = null;
       persistUiPrefs();
     }
@@ -2802,15 +3165,12 @@
     if (nameWrap) nameWrap.hidden = !state.lat || !list.length;
     syncFiltersLaunch();
     if (countEl) {
-      countEl.textContent = list.length
-        ? `${list.length} restaurant${list.length === 1 ? "" : "s"}`
-        : "";
+      countEl.textContent = list.length ? `${list.length} restaurant${list.length === 1 ? "" : "s"}` : "";
     }
     if (dealCountEl) {
       if (dealCount > 0 && !state.loading) {
         dealCountEl.hidden = false;
-        dealCountEl.textContent =
-          dealCount === 1 ? "1 listing promo" : `${dealCount} listing promos`;
+        dealCountEl.textContent = dealCount === 1 ? "1 listing promo" : `${dealCount} listing promos`;
       } else {
         dealCountEl.hidden = true;
         dealCountEl.textContent = "";
@@ -2840,14 +3200,18 @@
       ul.classList.remove("list-appear");
       if (state.searchError) {
         ul.innerHTML = `<li class="empty"><strong>${escapeHtml(state.searchError)}</strong> We do not invent restaurants.</li>`;
-        requestAnimationFrame(function () { renderMarkers([]); });
+        requestAnimationFrame(function () {
+          renderMarkers([]);
+        });
         return;
       }
       if (state.filters.saved) {
         const saved = readSaved();
         if (!saved.length) {
           ul.innerHTML = `<li class="empty"><strong>No saved restaurants on this device.</strong> Heart a restaurant to remember it here. No GPS trail.</li>`;
-          requestAnimationFrame(function () { renderMarkers([]); });
+          requestAnimationFrame(function () {
+            renderMarkers([]);
+          });
           return;
         }
         ul.innerHTML = saved
@@ -2864,11 +3228,15 @@
 </li>`;
           })
           .join("");
-        requestAnimationFrame(function () { renderMarkers([]); });
+        requestAnimationFrame(function () {
+          renderMarkers([]);
+        });
         return;
       }
       ul.innerHTML = `<li class="empty">Tap Locate Me or search any city. Any type of food.</li>`;
-      requestAnimationFrame(function () { renderMarkers([]); });
+      requestAnimationFrame(function () {
+        renderMarkers([]);
+      });
       return;
     }
 
@@ -2880,19 +3248,21 @@
         : state.nameQuery.trim()
           ? `<li class="empty"><strong>No restaurants match that name in this list.</strong> Search food filters the current nearby list.</li>`
           : state.filters.saved
-          ? (readSaved().length
+            ? readSaved().length
               ? `<li class="empty"><strong>None of your saved restaurants are in this range.</strong> Widen it, or clear Saved.</li>`
-              : `<li class="empty"><strong>No saved restaurants on this device.</strong> Heart a restaurant to remember it here. No GPS trail.</li>`)
-          : state.filters.foodCategory
-          ? `<li class="empty"><strong>No ${escapeHtml((foodCategoryById(state.filters.foodCategory) || {}).label || "that type")} in this range.</strong> Matches OpenStreetMap cuisine and amenity tags, plus a few name words. Tap the chip again to show all.</li>`
-          : state.dietaryFilter === "freefood"
-          ? `<li class="empty"><strong>No tagged pantries in this range.</strong> In this search area, food banks and soup kitchens show only when OpenStreetMap tags them as a food bank or soup kitchen (amenity=food_bank or soup_kitchen, or social_facility=food_bank or soup_kitchen). Listings may be wrong or stale; confirm before you go.</li>`
-          : state.filters.hasDeal
-          ? `<li class="empty"><strong>No promo text here.</strong> Widen the range, or clear the promo filter.</li>`
-          : (state.filters.openNow && state.places && state.places.length
-          ? `<li class="empty"><strong>None tagged open.</strong> They show when OSM hours say open — verify.</li>`
-          : `<li class="empty"><strong>No tagged food in this range.</strong> Search another city.</li>`);
-      requestAnimationFrame(function () { renderMarkers([]); });
+              : `<li class="empty"><strong>No saved restaurants on this device.</strong> Heart a restaurant to remember it here. No GPS trail.</li>`
+            : state.filters.foodCategory
+              ? `<li class="empty"><strong>No ${escapeHtml((foodCategoryById(state.filters.foodCategory) || {}).label || "that type")} in this range.</strong> Matches OpenStreetMap cuisine and amenity tags, plus a few name words. Tap the chip again to show all.</li>`
+              : state.dietaryFilter === "freefood"
+                ? `<li class="empty"><strong>No tagged pantries in this range.</strong> In this search area, food banks and soup kitchens show only when OpenStreetMap tags them as a food bank or soup kitchen (amenity=food_bank or soup_kitchen, or social_facility=food_bank or soup_kitchen). Listings may be wrong or stale; confirm before you go.</li>`
+                : state.filters.hasDeal
+                  ? `<li class="empty"><strong>No promo text here.</strong> Widen the range, or clear the promo filter.</li>`
+                  : state.filters.openNow && state.places && state.places.length
+                    ? `<li class="empty"><strong>None tagged open.</strong> They show when OSM hours say open — verify.</li>`
+                    : `<li class="empty"><strong>No tagged food in this range.</strong> Search another city.</li>`;
+      requestAnimationFrame(function () {
+        renderMarkers([]);
+      });
       return;
     }
 
@@ -2903,26 +3273,31 @@
         const dealBadge = p.deal
           ? `<button type="button" class="badge badge-deal" data-deal-open="${escapeHtml(p.id)}" title="${escapeHtml(p.deal.detail)}">${escapeHtml(p.deal.label)}</button>`
           : "";
-        const sponsoredBadge = p.sponsored
-          ? `<span class="badge badge-sponsored">Sponsored</span>`
-          : "";
+        const sponsoredBadge = p.sponsored ? `<span class="badge badge-sponsored">Sponsored</span>` : "";
         let openBadge = "";
-        if (p.hours && p.openStatus === "open" && p.closesSoon) openBadge = `<span class="badge badge-soon">Closes soon · verify</span>`;
-        else if (p.hours && p.openStatus === "open") openBadge = `<span class="badge badge-open">Tagged open · verify</span>`;
-        else if (p.hours && p.openStatus === "closed") openBadge = `<span class="badge badge-closed">Closed · verify</span>`;
+        if (p.hours && p.openStatus === "open" && p.closesSoon)
+          openBadge = `<span class="badge badge-soon">Closes soon · verify</span>`;
+        else if (p.hours && p.openStatus === "open")
+          openBadge = `<span class="badge badge-open">Tagged open · verify</span>`;
+        else if (p.hours && p.openStatus === "closed")
+          openBadge = `<span class="badge badge-closed">Closed · verify</span>`;
         else if (p.hours && p.opensSoon) openBadge = "";
         const kitchenBadge = p.kitchenClosedDoorsOpen
           ? `<span class="badge badge-kitchen">Kitchen closed · OSM</span>`
           : "";
         const outdoorBadge = p.outdoorSeating ? `<span class="badge badge-tag">Outdoor seating</span>` : "";
-        const wheelchairBadge = p.wheelchair ? `<span class="badge badge-tag">Wheelchair access · OSM tag · call to confirm</span>` : "";
+        const wheelchairBadge = p.wheelchair
+          ? `<span class="badge badge-tag">Wheelchair access · OSM tag · call to confirm</span>`
+          : "";
         const takeoutBadge = p.takeout ? `<span class="badge badge-tag">Takeout</span>` : "";
         const deliveryBadge = p.delivery ? `<span class="badge badge-tag">Delivery · OSM tag · verify</span>` : "";
         const driveBadge = p.driveThru ? `<span class="badge badge-tag">Drive-thru</span>` : "";
         const restroomBadge = p.restroom ? `<span class="badge badge-tag">${escapeHtml("Restroom")}</span>` : "";
         const dogsBadge = p.dogsOk ? `<span class="badge badge-tag">${escapeHtml("Dogs OK")}</span>` : "";
         const acBadge = p.airConditioning ? `<span class="badge badge-tag">${escapeHtml("A/C")}</span>` : "";
-        const changingBadge = p.changingTable ? `<span class="badge badge-tag">${escapeHtml("Changing table")}</span>` : "";
+        const changingBadge = p.changingTable
+          ? `<span class="badge badge-tag">${escapeHtml("Changing table")}</span>`
+          : "";
         const smokeBadge = p.smokeFree ? `<span class="badge badge-tag">${escapeHtml("No smoking")}</span>` : "";
         const kidsBadge = p.kidsArea ? `<span class="badge badge-tag">${escapeHtml("Kids area")}</span>` : "";
         const cuisine = p.cuisine
@@ -2956,9 +3331,10 @@
         const contactHtml = contactBlockHtml(p);
         const reviewsHtml = reviewsBlockHtml(p);
         // forge 20261003 (Lens): Call / Menu / Website live once, in contactBlockHtml (no duplicate nav buttons).
-        const addrCta = (p.address && String(p.address).trim())
-          ? `<button type="button" class="nav-btn" data-copy-addr="${pid}">Copy address</button>`
-          : "";
+        const addrCta =
+          p.address && String(p.address).trim()
+            ? `<button type="button" class="nav-btn" data-copy-addr="${pid}">Copy address</button>`
+            : "";
         let hoursLine = "";
         const hoursText = p.hours ? friendlyHoursLine(p) : "";
         if (hoursText && p.openStatus === "open") {
@@ -3093,18 +3469,19 @@
   function sharePlace(place) {
     if (!place) return;
     const title = place.name || "RangeBites";
-    const text = place.deal && place.deal.label
-      ? title + " — " + place.deal.label
-      : title + " — food near you";
+    const text = place.deal && place.deal.label ? title + " — " + place.deal.label : title + " — food near you";
     const url = cityShareUrl();
     if (navigator.share) {
       navigator.share({ title: title, text: text, url: url }).catch(function () {});
       return;
     }
     if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      navigator.clipboard.writeText(text + " " + url).then(function () {
-        setStatus("Link copied · " + title);
-      }, function () {});
+      navigator.clipboard.writeText(text + " " + url).then(
+        function () {
+          setStatus("Link copied · " + title);
+        },
+        function () {},
+      );
     }
   }
 
@@ -3167,7 +3544,8 @@
     if (place.changingTable) tagBits.push("Changing table");
     if (place.smokeFree) tagBits.push("No smoking");
     if (place.kidsArea) tagBits.push("Kids area");
-    if (place.hours && place.openStatus === "open" && place.closesSoon) tagBits.push("Closes soon · " + hoursOriginLabel(place.hoursSource) + " · verify");
+    if (place.hours && place.openStatus === "open" && place.closesSoon)
+      tagBits.push("Closes soon · " + hoursOriginLabel(place.hoursSource) + " · verify");
     const tagLine = tagBits.length
       ? `<div class="badge-row sheet-tags">${tagBits.map((b) => `<span class="badge badge-tag">${escapeHtml(b)}</span>`).join("")}</div>`
       : "";
@@ -3209,9 +3587,13 @@
   function disclaimerLinesHtml(p) {
     const lines = [];
     if (p && p.freeFood) {
-      lines.push(`<div class="card-disclaimer pantry-caveat">${escapeHtml(disclaimerText("pantryCard", "Hours, eligibility & supply vary · call the pantry first"))}</div>`);
+      lines.push(
+        `<div class="card-disclaimer pantry-caveat">${escapeHtml(disclaimerText("pantryCard", "Hours, eligibility & supply vary · call the pantry first"))}</div>`,
+      );
     } else if (p && p.deal) {
-      lines.push(`<div class="card-disclaimer">${escapeHtml(disclaimerText("dealCard", "Promo from the listing · confirm before you order"))}</div>`);
+      lines.push(
+        `<div class="card-disclaimer">${escapeHtml(disclaimerText("dealCard", "Promo from the listing · confirm before you order"))}</div>`,
+      );
     } else {
       const t = disclaimerText("placeCard", "");
       if (t) lines.push(`<div class="card-disclaimer">${escapeHtml(t)}</div>`);
@@ -3224,8 +3606,13 @@
     const el = $("#firstSearchNotice");
     if (!el) return;
     let seen = false;
-    try { seen = localStorage.getItem(NOTICE_KEY) === "1"; } catch (_) {}
-    if (seen) { el.hidden = true; return; }
+    try {
+      seen = localStorage.getItem(NOTICE_KEY) === "1";
+    } catch (_) {}
+    if (seen) {
+      el.hidden = true;
+      return;
+    }
     const txt = $("#firstSearchNoticeText");
     if (txt && window.RB_DISCLAIMERS && window.RB_DISCLAIMERS.firstSearchNoticeHtml) {
       txt.innerHTML = window.RB_DISCLAIMERS.firstSearchNoticeHtml; // static string from our own file, not data
@@ -3235,15 +3622,27 @@
   function dismissFirstSearchNotice() {
     const el = $("#firstSearchNotice");
     if (el) el.hidden = true;
-    try { localStorage.setItem(NOTICE_KEY, "1"); } catch (_) {}
+    try {
+      localStorage.setItem(NOTICE_KEY, "1");
+    } catch (_) {}
     const list = $("#placeList");
-    if (list) { try { list.focus({ preventScroll: true }); } catch (_) {} }
+    if (list) {
+      try {
+        list.focus({ preventScroll: true });
+      } catch (_) {}
+    }
   }
 
   /* ---------- forge 20261003: resolved-place line (shows what the geocoder picked) ---------- */
 
   function normWord(s) {
-    return String(s || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+    return String(s || "")
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9 ]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
   /** True when the geocoder's place name does not match what was typed (likely a typo or wrong match). No network. */
   function geocodeLooksDifferent(typed, hit) {
@@ -3257,7 +3656,12 @@
   function setNearLine(text, warn) {
     const el = $("#nearLine");
     if (!el) return;
-    if (!text) { el.hidden = true; el.textContent = ""; el.classList.remove("is-warn"); return; }
+    if (!text) {
+      el.hidden = true;
+      el.textContent = "";
+      el.classList.remove("is-warn");
+      return;
+    }
     el.textContent = text;
     el.classList.toggle("is-warn", !!warn);
     el.hidden = false;
@@ -3266,10 +3670,21 @@
   /** forge 20261003 (QA #1): a new area starts with no food/cuisine/diet chip carried over. */
   function resetFoodChipsForNewArea() {
     let changed = false;
-    if (state.filters.foodCategory) { state.filters.foodCategory = null; changed = true; }
-    if (state.filters.cuisine) { state.filters.cuisine = null; changed = true; }
+    if (state.filters.foodCategory) {
+      state.filters.foodCategory = null;
+      changed = true;
+    }
+    if (state.filters.cuisine) {
+      state.filters.cuisine = null;
+      changed = true;
+    }
     const d = state.filters.diet || {};
-    Object.keys(d).forEach((k) => { if (d[k]) { d[k] = false; changed = true; } });
+    Object.keys(d).forEach((k) => {
+      if (d[k]) {
+        d[k] = false;
+        changed = true;
+      }
+    });
     if (changed) persistUiPrefs();
     return changed;
   }
@@ -3284,7 +3699,9 @@
         if (state.places === batch && batch.some(isCuratedClosed)) {
           for (let i = batch.length - 1; i >= 0; i--) if (isCuratedClosed(batch[i])) batch.splice(i, 1); // in place: keeps ATP's batch identity
           renderList();
-          try { renderMarkers(filteredPlaces()); } catch (_) {}
+          try {
+            renderMarkers(filteredPlaces());
+          } catch (_) {}
         }
       });
     }
@@ -3294,7 +3711,9 @@
       loadAtpHours().then(() => {
         if (state.places === batch && applyAtpHours(batch)) {
           renderList();
-          try { renderMarkers(filteredPlaces()); } catch (_) {}
+          try {
+            renderMarkers(filteredPlaces());
+          } catch (_) {}
         }
       });
     }
@@ -3321,16 +3740,19 @@
       setStatus(filterCountStatus(shown, true)); // 20261003i: matches the pantry list
     } else if (live) {
       if (!shown && places.length) {
-        setStatus(state.filters.openNow
-          ? "None tagged open. They show when OSM hours say open — verify."
-          : "No tagged food in this range.");
+        setStatus(
+          state.filters.openNow
+            ? "None tagged open. They show when OSM hours say open — verify."
+            : "No tagged food in this range.",
+        );
       } else if (!shown) {
         setStatus("No tagged food in this range.");
       } else {
         setStatus(
-          shown + (state.filters.openNow ? " tagged open" : " nearby") +
+          shown +
+            (state.filters.openNow ? " tagged open" : " nearby") +
             (places.length >= MAX_RESULTS ? " · nearest " + MAX_RESULTS : "") +
-            dealsHint
+            dealsHint,
         );
       }
     } else {
@@ -3377,13 +3799,20 @@
   function clearResultsForNewSearch() {
     state.places = [];
     state.fetchedRadiusMiles = null;
-    try { renderMarkers([]); } catch (_) {}
-    try { document.documentElement.classList.remove("has-places"); } catch (_) {}
+    try {
+      renderMarkers([]);
+    } catch (_) {}
+    try {
+      document.documentElement.classList.remove("has-places");
+    } catch (_) {}
     try {
       const countEl = $("#resultCount");
       if (countEl) countEl.textContent = "";
       const dealCountEl = $("#dealCount");
-      if (dealCountEl) { dealCountEl.hidden = true; dealCountEl.textContent = ""; }
+      if (dealCountEl) {
+        dealCountEl.hidden = true;
+        dealCountEl.textContent = "";
+      }
     } catch (_) {}
   }
 
@@ -3459,7 +3888,9 @@
         // Never stick on skeleton after this search ends (iOS hang / early return).
         if (state.loading) {
           state.loading = false;
-          try { renderList(); } catch (_) {}
+          try {
+            renderList();
+          } catch (_) {}
         }
       }
     }
@@ -3473,7 +3904,8 @@
       setStatus("Type any city.");
       return;
     }
-    if (cityInFlight && cityInFlight.q.toLowerCase() === q.toLowerCase() && cityInFlight.gen === state.searchGen) return;
+    if (cityInFlight && cityInFlight.q.toLowerCase() === q.toLowerCase() && cityInFlight.gen === state.searchGen)
+      return;
     // 20261003j: a new search token. Any older city lookup or Overpass response that lands later
     // fails its gen check and is ignored.
     const gen = ++state.searchGen;
@@ -3499,15 +3931,19 @@
       }
       resetFoodChipsForNewArea();
       applyUnitsFromGeocode(hit);
-      const near = hit.alternates && hit.alternates.length
-        ? geocodeShortLabel(hit)
-        : shortPlaceLabel(hit.label || hit.display_name, q);
+      const near =
+        hit.alternates && hit.alternates.length
+          ? geocodeShortLabel(hit)
+          : shortPlaceLabel(hit.label || hit.display_name, q);
       // forge 20261003 (Shade): the city is no longer written into the address bar (?q=).
       // Inbound shared links with ?q= still work; Share still builds its own link.
       const off = geocodeLooksDifferent(q, hit);
-      setNearLine(off
-        ? "Showing results near " + near + " · not what you meant? Check the spelling or add the state."
-        : "Showing results near " + near, off);
+      setNearLine(
+        off
+          ? "Showing results near " + near + " · not what you meant? Check the spelling or add the state."
+          : "Showing results near " + near,
+        off,
+      );
       renderPlaceAlternates(hit.alternates, Object.assign({}, hit, { shortLabel: near }));
       setStatus("Searching near " + near + "…");
       cityInFlight = null;
@@ -3527,7 +3963,8 @@
 
   function cityLookupErrorMessage(err) {
     if (err && err.busy) return "OpenStreetMap is busy. Try again in a moment.";
-    if (err && err.name === "AbortError") return "OpenStreetMap is busy (city lookup timed out). Try again in a moment.";
+    if (err && err.name === "AbortError")
+      return "OpenStreetMap is busy (city lookup timed out). Try again in a moment.";
     return "Couldn’t look up that city. Try again.";
   }
 
@@ -3540,10 +3977,19 @@
     placeAlternates = Array.isArray(list) ? list.slice() : [];
     const el = $("#placeAlts");
     if (!el) return;
-    if (!placeAlternates.length) { el.hidden = true; el.innerHTML = ""; return; }
-    el.innerHTML = `<span class="place-alts-label">Other places with this name:</span> ` + placeAlternates
-      .map((a, i) => `<button type="button" class="place-alt" data-alt="${i}">${escapeHtml(a.shortLabel || a.label)}</button>`)
-      .join(" ");
+    if (!placeAlternates.length) {
+      el.hidden = true;
+      el.innerHTML = "";
+      return;
+    }
+    el.innerHTML =
+      `<span class="place-alts-label">Other places with this name:</span> ` +
+      placeAlternates
+        .map(
+          (a, i) =>
+            `<button type="button" class="place-alt" data-alt="${i}">${escapeHtml(a.shortLabel || a.label)}</button>`,
+        )
+        .join(" ");
     el.hidden = false;
   }
   function pickPlaceAlternate(i) {
@@ -3566,7 +4012,8 @@
 
   function geoErrorMessage(err) {
     const code = err && err.code;
-    if (code === 1) return "Location is blocked for this site. Allow it in your browser or phone settings, or search any city.";
+    if (code === 1)
+      return "Location is blocked for this site. Allow it in your browser or phone settings, or search any city.";
     if (code === 2) return "Your device couldn’t find a location right now. Try again, or search any city.";
     if (code === 3) return "Location timed out. Try again, or search any city.";
     return "Couldn’t get your location. Try again, or search any city.";
@@ -3671,7 +4118,7 @@
         enableHighAccuracy: false,
         timeout: 20000,
         maximumAge: 60000,
-      }
+      },
     );
   }
 
@@ -3698,7 +4145,10 @@
     if (railWrap) {
       railWrap.hidden = true;
       const rail = $("#dealRail");
-      if (rail) { rail.innerHTML = ""; setListRole(rail, null, false); }
+      if (rail) {
+        rail.innerHTML = "";
+        setListRole(rail, null, false);
+      }
     }
     if (typeof renderList === "function") {
       try {
@@ -3748,12 +4198,39 @@
   let suggestAbort = null;
 
   const PLACE_HINT_CITIES = [
-    "Tokyo", "London", "Osaka", "Austin", "Cincinnati", "Nairobi",
-    "Paris", "Seoul", "Sydney", "Berlin", "Bangkok", "Madrid",
-    "Toronto", "Chicago", "Rome", "Lisbon", "Dublin", "Singapore",
-    "Mumbai", "Cape Town", "Buenos Aires", "Mexico City", "Kyoto",
-    "Amsterdam", "Barcelona", "Denver", "Miami", "Honolulu",
-    "Atlanta", "Seattle", "New Orleans", "Montreal", "Taipei"
+    "Tokyo",
+    "London",
+    "Osaka",
+    "Austin",
+    "Cincinnati",
+    "Nairobi",
+    "Paris",
+    "Seoul",
+    "Sydney",
+    "Berlin",
+    "Bangkok",
+    "Madrid",
+    "Toronto",
+    "Chicago",
+    "Rome",
+    "Lisbon",
+    "Dublin",
+    "Singapore",
+    "Mumbai",
+    "Cape Town",
+    "Buenos Aires",
+    "Mexico City",
+    "Kyoto",
+    "Amsterdam",
+    "Barcelona",
+    "Denver",
+    "Miami",
+    "Honolulu",
+    "Atlanta",
+    "Seattle",
+    "New Orleans",
+    "Montreal",
+    "Taipei",
   ];
 
   function pickPlaceHint() {
@@ -3790,7 +4267,9 @@
       suggestTimer = null;
     }
     if (suggestAbort) {
-      try { suggestAbort.abort(); } catch (_) {}
+      try {
+        suggestAbort.abort();
+      } catch (_) {}
       suggestAbort = null;
     }
     hidePlaceSuggest();
@@ -3931,7 +4410,11 @@
       if (state.lat != null && state.lng != null) updateMapCenter(state.lat, state.lng, mi);
       renderList();
       const n = filteredPlaces().length;
-      setStatus(state.lat != null ? filterCountStatus(n, pantryFilterOn()) : "Searching within " + formatRadiusChipLabel(state.radiusMiles) + ".");
+      setStatus(
+        state.lat != null
+          ? filterCountStatus(n, pantryFilterOn())
+          : "Searching within " + formatRadiusChipLabel(state.radiusMiles) + ".",
+      );
     }
 
     $$(".chip[data-radius]").forEach((chip) => {
@@ -3966,7 +4449,8 @@
         e.stopPropagation();
         const key = chip.getAttribute("data-diet");
         if (!UI_PREFS_DIET_OSM[key]) return;
-        if (!state.filters.diet) state.filters.diet = { vegan: false, vegetarian: false, gluten_free: false, halal: false };
+        if (!state.filters.diet)
+          state.filters.diet = { vegan: false, vegetarian: false, gluten_free: false, halal: false };
         state.filters.diet[key] = !state.filters.diet[key];
         persistUiPrefs();
         syncDietChipsUI();
@@ -3992,7 +4476,9 @@
         persistUiPrefs();
         renderList();
         const nSaved = filteredPlaces().length;
-        setStatus(filterCountStatus(nSaved, pantryFilterOn(), state.filters.saved ? nSaved + " saved in this list" : null));
+        setStatus(
+          filterCountStatus(nSaved, pantryFilterOn(), state.filters.saved ? nSaved + " saved in this list" : null),
+        );
       });
     }
 
@@ -4038,7 +4524,10 @@
         state.radiusMiles = 10;
         state.dietaryFilter = null;
         const pBtn = $("#filterPantries");
-        if (pBtn) { pBtn.classList.remove("active"); pBtn.setAttribute("aria-pressed", "false"); }
+        if (pBtn) {
+          pBtn.classList.remove("active");
+          pBtn.setAttribute("aria-pressed", "false");
+        }
         state.filters.openNow = false;
         state.filters.hasDeal = false;
         state.filters.saved = false;
@@ -4118,7 +4607,9 @@
       syncOpenNowUI();
       renderList();
       const nOpen = filteredPlaces().length;
-      setStatus(filterCountStatus(nOpen, pantryFilterOn(), nOpen + (state.filters.openNow ? " tagged open" : " nearby")));
+      setStatus(
+        filterCountStatus(nOpen, pantryFilterOn(), nOpen + (state.filters.openNow ? " tagged open" : " nearby")),
+      );
     }
     const filterOpen = $("#filterOpen");
     if (filterOpen) filterOpen.addEventListener("click", toggleOpenNow);
@@ -4178,11 +4669,7 @@
       if (!el) return;
       const aNav = analytics();
       if (aNav) {
-        aNav.navHandoff(
-          el.getAttribute("data-nav-deal"),
-          el.getAttribute("data-maps-app"),
-          state.radiusMiles
-        );
+        aNav.navHandoff(el.getAttribute("data-nav-deal"), el.getAttribute("data-maps-app"), state.radiusMiles);
       }
     }
 
@@ -4225,7 +4712,10 @@
         if (act === "locate") locateMe();
         if (act === "cityzip") {
           const inp = document.getElementById("placeSearch");
-          if (inp) { inp.focus(); inp.scrollIntoView({ behavior: "smooth", block: "center" }); }
+          if (inp) {
+            inp.focus();
+            inp.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
         }
         return;
       }
@@ -4341,7 +4831,9 @@
     const termsDismiss = $("#termsUpdatedDismiss");
     if (termsDismiss) {
       termsDismiss.addEventListener("click", () => {
-        try { localStorage.setItem("rb_terms_notice_seen", currentTermsVersion()); } catch (_) {}
+        try {
+          localStorage.setItem("rb_terms_notice_seen", currentTermsVersion());
+        } catch (_) {}
         const note = $("#termsUpdated");
         if (note) note.hidden = true;
       });
@@ -4403,7 +4895,9 @@
     if (!note) return;
     const version = currentTermsVersion();
     let seen = "";
-    try { seen = localStorage.getItem("rb_terms_notice_seen") || ""; } catch (_) {}
+    try {
+      seen = localStorage.getItem("rb_terms_notice_seen") || "";
+    } catch (_) {}
     note.hidden = !termsNoticePending(seen, version);
   }
 
@@ -4491,13 +4985,26 @@
     // Do not register a service worker. Old SWs on phones kept stale app.js
     // and left Search stuck on Finding food… / OSM timeout.
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function (regs) {
-        return Promise.all(regs.map(function (r) { return r.unregister(); }));
-      }).then(function () {
-        return caches.keys();
-      }).then(function (keys) {
-        return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-      }).catch(function () {});
+      navigator.serviceWorker
+        .getRegistrations()
+        .then(function (regs) {
+          return Promise.all(
+            regs.map(function (r) {
+              return r.unregister();
+            }),
+          );
+        })
+        .then(function () {
+          return caches.keys();
+        })
+        .then(function (keys) {
+          return Promise.all(
+            keys.map(function (k) {
+              return caches.delete(k);
+            }),
+          );
+        })
+        .catch(function () {});
     }
   }
 

@@ -22,14 +22,16 @@
       "rb_helped_done_selftest",
       "rb_found_pending_key",
       "rb_visitor",
-      "rb_install_id"
+      "rb_install_id",
     ];
     var looksLikeId = /device|visitor|install|pending_key|helped_done|helped_id|deviceId|device_id/i;
     function wipe(store) {
       if (!store || typeof store.removeItem !== "function") return;
       var i;
       for (i = 0; i < named.length; i++) {
-        try { store.removeItem(named[i]); } catch (_) {}
+        try {
+          store.removeItem(named[i]);
+        } catch (_) {}
       }
       if (typeof store.length !== "number" || typeof store.key !== "function") return;
       var found = [];
@@ -40,7 +42,9 @@
         }
       } catch (_) {}
       for (i = 0; i < found.length; i++) {
-        try { store.removeItem(found[i]); } catch (_) {}
+        try {
+          store.removeItem(found[i]);
+        } catch (_) {}
       }
     }
     wipe(localStore);
@@ -59,7 +63,7 @@
       "latitude",
       "longitude",
       "coords",
-      "location"
+      "location",
     ];
     function scrubStoredPrefs(raw) {
       try {
@@ -103,14 +107,17 @@
       "rb_count_target",
       "rb_no_count",
       "rb_visit_count",
-      "rb_visit_count_more"
+      "rb_visit_count_more",
     ];
-    var looksLikeLocation = /last.?city|last.?place|last.?query|search.?history|(^|[_-])(lat|lng)([_-]|$)|latitude|longitude|(^|[_-])coords([_-]|$)|(^|[_-])location([_-]|$)|geolocation|location_history/i;
+    var looksLikeLocation =
+      /last.?city|last.?place|last.?query|search.?history|(^|[_-])(lat|lng)([_-]|$)|latitude|longitude|(^|[_-])coords([_-]|$)|(^|[_-])location([_-]|$)|geolocation|location_history/i;
     function wipe(store) {
       if (!store || typeof store.removeItem !== "function") return;
       var i;
       for (i = 0; i < named.length; i++) {
-        try { store.removeItem(named[i]); } catch (_) {}
+        try {
+          store.removeItem(named[i]);
+        } catch (_) {}
       }
       if (typeof store.length === "number" && typeof store.key === "function") {
         var found = [];
@@ -122,7 +129,9 @@
           }
         } catch (_) {}
         for (i = 0; i < found.length; i++) {
-          try { store.removeItem(found[i]); } catch (_) {}
+          try {
+            store.removeItem(found[i]);
+          } catch (_) {}
         }
       }
       if (typeof store.getItem !== "function" || typeof store.setItem !== "function") return;
@@ -140,15 +149,24 @@
   function clearLegacyLocationDatabases() {
     try {
       if (!window.indexedDB || typeof window.indexedDB.databases !== "function") return;
-      window.indexedDB.databases().then(function (list) {
-        (list || []).forEach(function (db) {
-          var name = db && db.name;
-          if (!name) return;
-          if (/last.?city|last.?place|search.?history|latitude|longitude|geolocation|location_history|(^|[_-])(lat|lng|coords|location)([_-]|$)/i.test(name)) {
-            try { window.indexedDB.deleteDatabase(name); } catch (_) {}
-          }
-        });
-      }).catch(function () {});
+      window.indexedDB
+        .databases()
+        .then(function (list) {
+          (list || []).forEach(function (db) {
+            var name = db && db.name;
+            if (!name) return;
+            if (
+              /last.?city|last.?place|search.?history|latitude|longitude|geolocation|location_history|(^|[_-])(lat|lng|coords|location)([_-]|$)/i.test(
+                name,
+              )
+            ) {
+              try {
+                window.indexedDB.deleteDatabase(name);
+              } catch (_) {}
+            }
+          });
+        })
+        .catch(function () {});
     } catch (_) {}
   }
 
@@ -157,8 +175,12 @@
   };
 
   function boot() {
-    try { clearLegacyDeviceIds(window.localStorage, window.sessionStorage); } catch (_) {}
-    try { clearLegacyLocationKeys(window.localStorage, window.sessionStorage); } catch (_) {}
+    try {
+      clearLegacyDeviceIds(window.localStorage, window.sessionStorage);
+    } catch (_) {}
+    try {
+      clearLegacyLocationKeys(window.localStorage, window.sessionStorage);
+    } catch (_) {}
     clearLegacyLocationDatabases();
   }
 

@@ -10,5 +10,6 @@ window.RB_DISCLAIMERS = Object.freeze({
   // Layer 1 — pantry card line (MUST-HAVE, Gavel M3)
   pantryCard: "Hours, eligibility & supply vary · call the pantry first",
   // Layer 3 — first-search notice (MUST-HAVE). Static HTML from this file only (never data).
-  firstSearchNoticeHtml: '<strong>Quick heads-up:</strong> hours, deals and pantry details come from OpenStreetMap and other public data and can be out of date. Please call ahead before you make a trip. Using RangeBites means you agree to our <a href="/terms">Terms</a>.'
+  firstSearchNoticeHtml:
+    '<strong>Quick heads-up:</strong> hours, deals and pantry details come from OpenStreetMap and other public data and can be out of date. Please call ahead before you make a trip. Using RangeBites means you agree to our <a href="/terms">Terms</a>.',
 });

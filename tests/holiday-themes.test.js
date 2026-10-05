@@ -33,8 +33,14 @@ const BUILT = [
 ];
 
 t("registry order is the overlap rule, and every theme is built", () => {
-  assert.deepStrictEqual(themes.HOLIDAYS.map((h) => h.id), BUILT);
-  assert.deepStrictEqual(themes.HOLIDAYS.filter((h) => h.built).map((h) => h.id), BUILT);
+  assert.deepStrictEqual(
+    themes.HOLIDAYS.map((h) => h.id),
+    BUILT,
+  );
+  assert.deepStrictEqual(
+    themes.HOLIDAYS.filter((h) => h.built).map((h) => h.id),
+    BUILT,
+  );
   assert.deepStrictEqual(themes.painterIds.slice().sort(), BUILT.slice().sort());
 });
 
@@ -180,9 +186,15 @@ t("applyTheme sets the class and leaves a plain date alone", () => {
     function list() {
       const names = new Set();
       return {
-        add(c) { names.add(c); },
-        remove(c) { names.delete(c); },
-        contains(c) { return names.has(c); },
+        add(c) {
+          names.add(c);
+        },
+        remove(c) {
+          names.delete(c);
+        },
+        contains(c) {
+          return names.has(c);
+        },
       };
     }
     return {
@@ -207,12 +219,24 @@ t("a thrown class update falls back to the default theme", () => {
   const doc = {
     documentElement: {
       classList: {
-        add() { throw new Error("boom"); },
+        add() {
+          throw new Error("boom");
+        },
         remove() {},
-        contains() { return false; },
+        contains() {
+          return false;
+        },
       },
     },
-    body: { classList: { add() {}, remove() {}, contains() { return false; } } },
+    body: {
+      classList: {
+        add() {},
+        remove() {},
+        contains() {
+          return false;
+        },
+      },
+    },
   };
   assert.strictEqual(themes.applyTheme(doc, local(2026, 9, 4), {}), "default");
 });
@@ -220,7 +244,8 @@ t("a thrown class update falls back to the default theme", () => {
 t("theme source does not touch storage, network, or trackers", () => {
   const root = path.join(__dirname, "..");
   const files = ["themes/us-holidays.js", "themes/holiday-themes.js", "themes/holiday.css"];
-  const banned = /localStorage|sessionStorage|indexedDB|document\.cookie|sendBeacon|\bfetch\s*\(|XMLHttpRequest|https?:\/\//i;
+  const banned =
+    /localStorage|sessionStorage|indexedDB|document\.cookie|sendBeacon|\bfetch\s*\(|XMLHttpRequest|https?:\/\//i;
   for (const file of files) {
     const src = fs.readFileSync(path.join(root, file), "utf8");
     assert.ok(!banned.test(src), file);

@@ -6,19 +6,45 @@ html.theme-holiday {
   --holiday-ground: #241833;
 }
 
-html.theme-new-year { --holiday-ground: #10182e; }
-html.theme-mlk { --holiday-ground: #243044; }
-html.theme-valentines { --holiday-ground: #2a1520; }
-html.theme-presidents { --holiday-ground: #14243c; }
-html.theme-st-patricks { --holiday-ground: #123224; }
-html.theme-easter { --holiday-ground: #2a2030; }
-html.theme-memorial { --holiday-ground: #1a2744; }
-html.theme-independence { --holiday-ground: #10182e; }
-html.theme-labor { --holiday-ground: #1c2834; }
-html.theme-halloween { --holiday-ground: #241833; }
-html.theme-veterans { --holiday-ground: #1a2744; }
-html.theme-thanksgiving { --holiday-ground: #2a1810; }
-html.theme-christmas { --holiday-ground: #162028; }
+html.theme-new-year {
+  --holiday-ground: #10182e;
+}
+html.theme-mlk {
+  --holiday-ground: #243044;
+}
+html.theme-valentines {
+  --holiday-ground: #2a1520;
+}
+html.theme-presidents {
+  --holiday-ground: #14243c;
+}
+html.theme-st-patricks {
+  --holiday-ground: #123224;
+}
+html.theme-easter {
+  --holiday-ground: #2a2030;
+}
+html.theme-memorial {
+  --holiday-ground: #1a2744;
+}
+html.theme-independence {
+  --holiday-ground: #10182e;
+}
+html.theme-labor {
+  --holiday-ground: #1c2834;
+}
+html.theme-halloween {
+  --holiday-ground: #241833;
+}
+html.theme-veterans {
+  --holiday-ground: #1a2744;
+}
+html.theme-thanksgiving {
+  --holiday-ground: #2a1810;
+}
+html.theme-christmas {
+  --holiday-ground: #162028;
+}
 
 html.theme-new-year .header {
   background-color: #0e1428 !important;
@@ -169,101 +195,391 @@ html.theme-holiday .holiday-list-scene::before {
   pointer-events: none;
 }
 
-html.theme-holiday .hh-a { position: absolute; top: 4px; left: 4px; width: 40px; height: 40px; }
-html.theme-holiday .hh-b { position: absolute; top: 8px; left: 52px; width: 48px; height: 32px; }
-html.theme-holiday .hh-c { position: absolute; top: 2px; left: 108px; width: 40px; height: 40px; }
-html.theme-holiday .hh-d { position: absolute; bottom: -2px; left: 156px; width: 52px; height: 50px; }
-html.theme-holiday .hh-e { position: absolute; bottom: 2px; left: 214px; width: 46px; height: 44px; }
-html.theme-holiday .hh-f { position: absolute; inset: 0; width: 100%; height: 100%; }
-html.theme-holiday .hh-g { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 18px; }
+html.theme-holiday .hh-a {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 40px;
+  height: 40px;
+}
+html.theme-holiday .hh-b {
+  position: absolute;
+  top: 8px;
+  left: 52px;
+  width: 48px;
+  height: 32px;
+}
+html.theme-holiday .hh-c {
+  position: absolute;
+  top: 2px;
+  left: 108px;
+  width: 40px;
+  height: 40px;
+}
+html.theme-holiday .hh-d {
+  position: absolute;
+  bottom: -2px;
+  left: 156px;
+  width: 52px;
+  height: 50px;
+}
+html.theme-holiday .hh-e {
+  position: absolute;
+  bottom: 2px;
+  left: 214px;
+  width: 46px;
+  height: 44px;
+}
+html.theme-holiday .hh-f {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+html.theme-holiday .hh-g {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 18px;
+}
 
-html.theme-holiday .hl-a { position: absolute; left: 12px; top: 10px; width: 72px; height: 72px; }
-html.theme-holiday .hl-b { position: absolute; left: 100px; top: 16px; width: 88px; height: 56px; }
-html.theme-holiday .hl-c { position: absolute; left: 42%; bottom: 22px; width: 78px; height: 70px; }
-html.theme-holiday .hl-d { position: absolute; right: 86px; bottom: 8px; width: 92px; height: 84px; }
-html.theme-holiday .hl-e { position: absolute; right: 10px; bottom: 12px; width: 68px; height: 64px; }
-html.theme-holiday .hl-f { position: absolute; inset: 0; width: 100%; height: 100%; }
+html.theme-holiday .hl-a {
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  width: 72px;
+  height: 72px;
+}
+html.theme-holiday .hl-b {
+  position: absolute;
+  left: 100px;
+  top: 16px;
+  width: 88px;
+  height: 56px;
+}
+html.theme-holiday .hl-c {
+  position: absolute;
+  left: 42%;
+  bottom: 22px;
+  width: 78px;
+  height: 70px;
+}
+html.theme-holiday .hl-d {
+  position: absolute;
+  right: 86px;
+  bottom: 8px;
+  width: 92px;
+  height: 84px;
+}
+html.theme-holiday .hl-e {
+  position: absolute;
+  right: 10px;
+  bottom: 12px;
+  width: 68px;
+  height: 64px;
+}
+html.theme-holiday .hl-f {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
 
-html.theme-halloween .hh-stars { position: absolute; inset: 0; width: 100%; height: 100%; }
-html.theme-halloween .hh-skyline { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 16px; }
-html.theme-halloween .hh-moon { position: absolute; top: 4px; left: 4px; width: 40px; height: 40px; }
-html.theme-halloween .hh-bat-a { position: absolute; top: 10px; left: 48px; width: 44px; height: 18px; }
-html.theme-halloween .hh-bat-b { position: absolute; top: 4px; left: 96px; width: 30px; height: 14px; }
-html.theme-halloween .hh-ghost { position: absolute; bottom: 8px; left: 132px; width: 28px; height: 34px; }
-html.theme-halloween .hh-pumpkin-a { position: absolute; bottom: -4px; left: 164px; width: 52px; height: 50px; }
-html.theme-halloween .hh-pumpkin-b { position: absolute; bottom: 2px; left: 218px; width: 40px; height: 38px; }
-html.theme-halloween .hh-glow { opacity: 0.4; }
+html.theme-halloween .hh-stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+html.theme-halloween .hh-skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 16px;
+}
+html.theme-halloween .hh-moon {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 40px;
+  height: 40px;
+}
+html.theme-halloween .hh-bat-a {
+  position: absolute;
+  top: 10px;
+  left: 48px;
+  width: 44px;
+  height: 18px;
+}
+html.theme-halloween .hh-bat-b {
+  position: absolute;
+  top: 4px;
+  left: 96px;
+  width: 30px;
+  height: 14px;
+}
+html.theme-halloween .hh-ghost {
+  position: absolute;
+  bottom: 8px;
+  left: 132px;
+  width: 28px;
+  height: 34px;
+}
+html.theme-halloween .hh-pumpkin-a {
+  position: absolute;
+  bottom: -4px;
+  left: 164px;
+  width: 52px;
+  height: 50px;
+}
+html.theme-halloween .hh-pumpkin-b {
+  position: absolute;
+  bottom: 2px;
+  left: 218px;
+  width: 40px;
+  height: 38px;
+}
+html.theme-halloween .hh-glow {
+  opacity: 0.4;
+}
 
-html.theme-halloween .hl-skyline { position: absolute; left: 0; right: 0; bottom: 8px; width: 100%; height: 42px; }
-html.theme-halloween .hl-moon { position: absolute; left: 8px; top: 6px; width: 64px; height: 64px; }
-html.theme-halloween .hl-bat-a { position: absolute; left: 84px; top: 22px; width: 52px; height: 22px; }
-html.theme-halloween .hl-bat-b { position: absolute; left: 148px; top: 8px; width: 36px; height: 16px; }
-html.theme-halloween .hl-ghost { position: absolute; left: 46%; bottom: 28px; width: 42px; height: 52px; }
-html.theme-halloween .hl-pumpkin-a { position: absolute; right: 72px; bottom: 4px; width: 74px; height: 70px; }
-html.theme-halloween .hl-pumpkin-b { position: absolute; right: 6px; bottom: 10px; width: 54px; height: 50px; }
+html.theme-halloween .hl-skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  width: 100%;
+  height: 42px;
+}
+html.theme-halloween .hl-moon {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  width: 64px;
+  height: 64px;
+}
+html.theme-halloween .hl-bat-a {
+  position: absolute;
+  left: 84px;
+  top: 22px;
+  width: 52px;
+  height: 22px;
+}
+html.theme-halloween .hl-bat-b {
+  position: absolute;
+  left: 148px;
+  top: 8px;
+  width: 36px;
+  height: 16px;
+}
+html.theme-halloween .hl-ghost {
+  position: absolute;
+  left: 46%;
+  bottom: 28px;
+  width: 42px;
+  height: 52px;
+}
+html.theme-halloween .hl-pumpkin-a {
+  position: absolute;
+  right: 72px;
+  bottom: 4px;
+  width: 74px;
+  height: 70px;
+}
+html.theme-halloween .hl-pumpkin-b {
+  position: absolute;
+  right: 6px;
+  bottom: 10px;
+  width: 54px;
+  height: 50px;
+}
 
-html.theme-holiday .is-float { animation: rb-float 3.6s ease-in-out infinite; }
-html.theme-holiday .is-burst { animation: rb-burst 2.2s ease-in-out infinite; transform-origin: center; }
-html.theme-holiday .is-snow { animation: rb-snow 7s linear infinite; }
-html.theme-holiday .is-d2 { animation-delay: -1.5s; }
-html.theme-holiday .is-d3 { animation-delay: -2.8s; }
+html.theme-holiday .is-float {
+  animation: rb-float 3.6s ease-in-out infinite;
+}
+html.theme-holiday .is-burst {
+  animation: rb-burst 2.2s ease-in-out infinite;
+  transform-origin: center;
+}
+html.theme-holiday .is-snow {
+  animation: rb-snow 7s linear infinite;
+}
+html.theme-holiday .is-d2 {
+  animation-delay: -1.5s;
+}
+html.theme-holiday .is-d3 {
+  animation-delay: -2.8s;
+}
 html.theme-halloween .hh-bat,
-html.theme-halloween .hl-bat { animation: rb-bat-float 3.8s ease-in-out infinite; }
+html.theme-halloween .hl-bat {
+  animation: rb-bat-float 3.8s ease-in-out infinite;
+}
 html.theme-halloween .hh-bat-b,
-html.theme-halloween .hl-bat-b { animation-duration: 4.6s; animation-delay: -1.1s; }
-html.theme-halloween .hh-glow { animation: rb-pumpkin-glow 2.8s ease-in-out infinite; }
+html.theme-halloween .hl-bat-b {
+  animation-duration: 4.6s;
+  animation-delay: -1.1s;
+}
+html.theme-halloween .hh-glow {
+  animation: rb-pumpkin-glow 2.8s ease-in-out infinite;
+}
 
 @keyframes rb-float {
-  0%, 100% { transform: translate3d(0, 0, 0); }
-  50% { transform: translate3d(0, -4px, 0); }
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -4px, 0);
+  }
 }
 @keyframes rb-burst {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 @keyframes rb-snow {
-  0% { transform: translate3d(0, -8px, 0); }
-  100% { transform: translate3d(0, 18px, 0); }
+  0% {
+    transform: translate3d(0, -8px, 0);
+  }
+  100% {
+    transform: translate3d(0, 18px, 0);
+  }
 }
 @keyframes rb-bat-float {
-  0%, 100% { transform: translate3d(0, 0, 0); }
-  50% { transform: translate3d(0, -4px, 0); }
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -4px, 0);
+  }
 }
 @keyframes rb-pumpkin-glow {
-  0%, 100% { opacity: 0.28; }
-  50% { opacity: 0.62; }
+  0%,
+  100% {
+    opacity: 0.28;
+  }
+  50% {
+    opacity: 0.62;
+  }
 }
 
 @media (max-width: 767px) {
-  html.theme-holiday { --holiday-scene-h: 48px; }
-  html.theme-holiday .holiday-list-scene { opacity: 0.4; }
+  html.theme-holiday {
+    --holiday-scene-h: 48px;
+  }
+  html.theme-holiday .holiday-list-scene {
+    opacity: 0.4;
+  }
   html.theme-holiday .hl-b,
   html.theme-holiday .hl-c,
-  html.theme-holiday .hl-e { display: none; }
-  html.theme-holiday .hl-a { left: auto; right: 4px; top: 2px; width: 32px; height: 32px; }
-  html.theme-holiday .hl-d { right: auto; left: 8px; bottom: 0; width: 44px; height: 40px; }
-  html.theme-holiday .holiday-header-art { right: 92px; width: 104px; }
+  html.theme-holiday .hl-e {
+    display: none;
+  }
+  html.theme-holiday .hl-a {
+    left: auto;
+    right: 4px;
+    top: 2px;
+    width: 32px;
+    height: 32px;
+  }
+  html.theme-holiday .hl-d {
+    right: auto;
+    left: 8px;
+    bottom: 0;
+    width: 44px;
+    height: 40px;
+  }
+  html.theme-holiday .holiday-header-art {
+    right: 92px;
+    width: 104px;
+  }
   html.theme-holiday .hh-c,
   html.theme-holiday .hh-e,
-  html.theme-holiday .hh-g { display: none; }
-  html.theme-holiday .hh-a { left: auto; right: 0; top: 2px; width: 30px; height: 30px; }
-  html.theme-holiday .hh-b { left: 0; top: 8px; width: 34px; height: 22px; }
-  html.theme-holiday .hh-d { left: 36px; bottom: 0; width: 34px; height: 32px; }
+  html.theme-holiday .hh-g {
+    display: none;
+  }
+  html.theme-holiday .hh-a {
+    left: auto;
+    right: 0;
+    top: 2px;
+    width: 30px;
+    height: 30px;
+  }
+  html.theme-holiday .hh-b {
+    left: 0;
+    top: 8px;
+    width: 34px;
+    height: 22px;
+  }
+  html.theme-holiday .hh-d {
+    left: 36px;
+    bottom: 0;
+    width: 34px;
+    height: 32px;
+  }
 
   html.theme-halloween .hl-bat-b,
   html.theme-halloween .hl-ghost,
   html.theme-halloween .hl-skyline,
-  html.theme-halloween .hl-pumpkin-b { display: none; }
-  html.theme-halloween .hl-moon { left: auto; right: 4px; top: 2px; width: 32px; height: 32px; }
-  html.theme-halloween .hl-bat-a { left: 4px; top: 8px; width: 36px; height: 16px; }
-  html.theme-halloween .hl-pumpkin-a { right: auto; left: 48px; bottom: 0; width: 40px; height: 38px; }
+  html.theme-halloween .hl-pumpkin-b {
+    display: none;
+  }
+  html.theme-halloween .hl-moon {
+    left: auto;
+    right: 4px;
+    top: 2px;
+    width: 32px;
+    height: 32px;
+  }
+  html.theme-halloween .hl-bat-a {
+    left: 4px;
+    top: 8px;
+    width: 36px;
+    height: 16px;
+  }
+  html.theme-halloween .hl-pumpkin-a {
+    right: auto;
+    left: 48px;
+    bottom: 0;
+    width: 40px;
+    height: 38px;
+  }
   html.theme-halloween .hh-bat-b,
   html.theme-halloween .hh-ghost,
-  html.theme-halloween .hh-pumpkin-b { display: none; }
-  html.theme-halloween .hh-moon { left: auto; right: 0; top: 2px; width: 30px; height: 30px; }
-  html.theme-halloween .hh-bat-a { left: 0; top: 6px; width: 32px; height: 14px; }
-  html.theme-halloween .hh-pumpkin-a { left: 28px; bottom: 0; width: 36px; height: 34px; }
-  html.theme-halloween .hh-skyline { height: 12px; }
+  html.theme-halloween .hh-pumpkin-b {
+    display: none;
+  }
+  html.theme-halloween .hh-moon {
+    left: auto;
+    right: 0;
+    top: 2px;
+    width: 30px;
+    height: 30px;
+  }
+  html.theme-halloween .hh-bat-a {
+    left: 0;
+    top: 6px;
+    width: 32px;
+    height: 14px;
+  }
+  html.theme-halloween .hh-pumpkin-a {
+    left: 28px;
+    bottom: 0;
+    width: 36px;
+    height: 34px;
+  }
+  html.theme-halloween .hh-skyline {
+    height: 12px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -278,5 +594,7 @@ html.theme-halloween .hh-glow { animation: rb-pumpkin-glow 2.8s ease-in-out infi
   html.theme-halloween .hh-glow {
     animation: none !important;
   }
-  html.theme-halloween .hh-glow { opacity: 0.4; }
+  html.theme-halloween .hh-glow {
+    opacity: 0.4;
+  }
 }
