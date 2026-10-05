@@ -161,7 +161,7 @@ t("lists: role=list only while items exist; items are role=listitem wrappers", (
   assert.strictEqual(L.listItemHtml("<button>x</button>"), '<div class="rb-li" role="listitem"><button>x</button></div>');
   const html = read("index.html");
   assert.ok(!/id="openStripTrack"[^>]*role="list"/.test(html) && !/id="dealRail"[^>]*role="list"/.test(html));
-  assert.ok(!/role="listitem"/.test(read("app.js").replace(/function listItemHtml[\s\S]*?\n  \}/, "")), "buttons no longer carry role=listitem");
+  assert.ok(!/role="listitem"/.test(read("app.js").replace(/function listItemHtml[\s\S]*?\n {2}\}/, "")), "buttons no longer carry role=listitem");
   assert.ok(/\.rb-li\s*\{\s*display:\s*contents;\s*\}/.test(read("styles.css")));
 });
 
@@ -213,7 +213,7 @@ t("dedupe: a merged node+way pair keeps both ids in mergedIds", () => {
 /* ---------- hours: nth weekday ---------- */
 t("hours: Sa[4], Su[-1], Mo[1,3] match only those weeks (Oct 2026)", () => {
   const H = load("app.js", [
-    "expandOsmDays", "ohParseTime", "ohParseSelectorAndTimes", "ohParse", "nthWeekday", "isUsFederalHoliday",
+    "ohParseTime", "ohParseSelectorAndTimes", "ohParse", "nthWeekday", "isUsFederalHoliday",
     "ohIsHoliday", "ohNthMatches", "ohDaySpans",
   ], ["OH_DAY_IDX", "OH_SEL_ITEM", "OH_SELECTOR_RE", "OH_DAYLIST_ONLY_RE", "ohCache"], 'let hoursCountry = "us";');
   const spans = (s, y, m, d) => H.ohDaySpans(H.ohParse(s), new Date(y, m, d, 12), 36.9, -82.08).spans.length;

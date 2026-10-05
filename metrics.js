@@ -105,7 +105,7 @@
       "rb_visit_count",
       "rb_visit_count_more"
     ];
-    var looksLikeLocation = /last.?city|last.?place|last.?query|search.?history|(^|[_\-])(lat|lng)([_\-]|$)|latitude|longitude|(^|[_\-])coords([_\-]|$)|(^|[_\-])location([_\-]|$)|geolocation|location_history/i;
+    var looksLikeLocation = /last.?city|last.?place|last.?query|search.?history|(^|[_-])(lat|lng)([_-]|$)|latitude|longitude|(^|[_-])coords([_-]|$)|(^|[_-])location([_-]|$)|geolocation|location_history/i;
     function wipe(store) {
       if (!store || typeof store.removeItem !== "function") return;
       var i;
@@ -144,7 +144,7 @@
         (list || []).forEach(function (db) {
           var name = db && db.name;
           if (!name) return;
-          if (/last.?city|last.?place|search.?history|latitude|longitude|geolocation|location_history|(^|[_\-])(lat|lng|coords|location)([_\-]|$)/i.test(name)) {
+          if (/last.?city|last.?place|search.?history|latitude|longitude|geolocation|location_history|(^|[_-])(lat|lng|coords|location)([_-]|$)/i.test(name)) {
             try { window.indexedDB.deleteDatabase(name); } catch (_) {}
           }
         });

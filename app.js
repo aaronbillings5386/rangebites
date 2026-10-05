@@ -223,14 +223,6 @@
     };
   }
 
-  /** Headers the same-origin Overpass proxy must send upstream. The browser cannot set User-Agent. */
-  function overpassUpstreamHeaders() {
-    return {
-      Referer: "https://rangebites.com",
-      "User-Agent": "RangeBites/1.0 (+https://rangebites.com; rangebites@agentmail.to)",
-    };
-  }
-
   function looksLikeCoords(s) {
     return /[-+]?\d{1,3}\.\d+\s*[, ]\s*[-+]?\d{1,3}\.\d+/.test(String(s || ""));
   }
@@ -506,15 +498,6 @@
     return v === "yes" || v === "only" || v === "limited";
   }
 
-  function placeMatchesDietOsm(p) {
-    const d = state.filters.diet || {};
-    if (d.vegan && !p.dietVegan) return false;
-    if (d.vegetarian && !p.dietVegetarian) return false;
-    if (d.gluten_free && !p.dietGlutenFree) return false;
-    if (d.halal && !p.dietHalal) return false;
-    return true;
-  }
-
   function canonCuisine(raw) {
     const t = String(raw || "").trim().toLowerCase().replace(/\s+/g, "_");
     if (!t) return "";
@@ -717,8 +700,6 @@
     setStatus(filterCountStatus(n, pantryFilterOn(), cat ? n + " " + cat.label.toLowerCase() + " places" : null));
   }
 
-
-
   function syncTrustStrip() {
     const el = $("#trustStrip");
     if (!el) return;
@@ -793,9 +774,6 @@
     return amenity === "social_facility" && (sf === "food_bank" || sf === "soup_kitchen");
   }
 
-  const OSM_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
-
   /** Permanently closed OSM tags only. Missing hours is not closed. */
   function isPermanentlyClosed(tags) {
     if (!tags) return false;
@@ -817,67 +795,6 @@
     }
     return false;
   }
-
-
-  function parseMinutes(s) {
-    const m = String(s).trim().match(/^(\d{1,2}):(\d{2})$/);
-    if (!m) return null;
-    const hh = +m[1];
-    const mm = +m[2];
-    if (hh > 24 || mm > 59 || (hh === 24 && mm !== 0)) return null;
-    return hh * 60 + mm;
-  }
-
-  function expandOsmDays(spec) {
-    const out = new Set();
-    for (const piece of String(spec).split(",")) {
-      const p = piece.trim();
-      if (!p) continue;
-      const range = p.match(/^([A-Za-z]{2})-([A-Za-z]{2})$/);
-      if (range) {
-        const a = range[1][0].toUpperCase() + range[1][1].toLowerCase();
-        const b = range[2][0].toUpperCase() + range[2][1].toLowerCase();
-        const ia = OSM_DAYS.indexOf(a);
-        const ib = OSM_DAYS.indexOf(b);
-        if (ia < 0 || ib < 0) continue;
-        let i = ia;
-        for (let n = 0; n < 7; n++) {
-          out.add(OSM_DAYS[i]);
-          if (i === ib) break;
-          i = (i + 1) % 7;
-        }
-        continue;
-      }
-      const one = p.match(/^([A-Za-z]{2})$/);
-      if (one) {
-        const d = one[1][0].toUpperCase() + one[1][1].toLowerCase();
-        if (OSM_DAYS.includes(d)) out.add(d);
-      }
-    }
-    return out;
-  }
-
-  function minutesInSpan(nowMin, start, end) {
-    if (start == null || end == null || start === end) return false;
-    if (end > start) return nowMin >= start && nowMin < end;
-    return nowMin >= start || nowMin < end;
-  }
-
-
-  /** Civil clock at a longitude. Device TZ when lng is unused. Never stores GPS. */
-  function nowAtLng(lng) {
-    const n = Number(lng);
-    if (!Number.isFinite(n)) return new Date();
-    const crudeHours = Math.round(n / 15);
-    const deviceHours = -Math.round(new Date().getTimezoneOffset() / 60);
-    if (Math.abs(crudeHours - deviceHours) <= 1) return new Date();
-    const utcMs = Date.now();
-    const offsetMs = crudeHours * 3600000;
-    return new Date(utcMs + offsetMs + new Date().getTimezoneOffset() * 60000);
-  }
-
-
-
 
   /** Which clock may drive open/closed. America/New_York or America/Chicago only inside
    * the continental eastern/central US box (lon -104.5..-66.5, lat 24..49.5, split at -87.6).
@@ -1210,11 +1127,6 @@
     return "Tagged closed" + (opens ? " · " + opens : "") + " · " + today;
   }
 
-
-
-
-
-
   function walkMinutesApprox(miles) {
     const mi = Number(miles);
     if (!Number.isFinite(mi) || mi < 0) return 1;
@@ -1412,20 +1324,11 @@
     return /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   }
 
-  function isAndroidDevice() {
-    return /Android/i.test(navigator.userAgent || "");
-  }
-
   function detectDevice() {
     let device = "desktop";
     try {
-      const ua = navigator.userAgent || "";
-      const coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
       const narrow = !!(window.matchMedia && window.matchMedia("(max-width: 767px)").matches);
       const mid = !!(window.matchMedia && window.matchMedia("(max-width: 1099px)").matches);
-      const iosPhone = /iPhone|iPod/i.test(ua);
-      const iosPad = /iPad/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      const android = /Android/i.test(ua);
       if (narrow) device = "phone";
       else if (mid) device = "tablet";
       else device = "desktop";
@@ -1601,7 +1504,6 @@
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
   }
-
 
   function setMapLoading(on) {
     const wrap = document.querySelector(".map-wrap");
@@ -1926,7 +1828,6 @@
     const rest = parts.slice(1).find((p) => !skip.test(p));
     return rest ? city + ", " + rest : city;
   }
-
 
   function pickGeocodeHit(data) {
     if (!Array.isArray(data) || !data.length) return null;
@@ -2455,12 +2356,6 @@
       return plat;
     }
     return plat;
-  }
-
-  function openDealUrl(p) {
-    const web = p && p.website ? absoluteUrl(p.website) : "";
-    if (web) return web;
-    return mapsLinks(p).google;
   }
 
   function absoluteUrl(url) {
@@ -3195,17 +3090,6 @@
     }
   }
 
-  function rememberCityInUrl(q) {
-    const t = sanitizePlaceQuery(q);
-    if (!t) return;
-    try {
-      const u = new URL(window.location.href);
-      u.searchParams.set("q", t);
-      u.hash = "";
-      history.replaceState({}, "", u);
-    } catch (_) {}
-  }
-
   function sharePlace(place) {
     if (!place) return;
     const title = place.name || "RangeBites";
@@ -3850,24 +3734,11 @@
 
   /* ---------- Onboarding (UI pref on this device; no location) ---------- */
 
-  function onboardDismissed() {
-    return !!uiPrefs.onboardDismissed;
-  }
-
-  function setOnboardDismissed() {
-    uiPrefs.onboardDismissed = true;
-    persistUiPrefs();
-  }
-
   function hideOnboarding() {
     const el = $("#onboarding");
     if (!el) return;
     el.classList.remove("show");
     el.hidden = true;
-  }
-
-  function showOnboarding() {
-    hideOnboarding();
   }
 
   /* ---------- Bind ---------- */
@@ -3923,34 +3794,6 @@
       suggestAbort = null;
     }
     hidePlaceSuggest();
-  }
-
-  function shortenSuggestName(displayName) {
-    const parts = String(displayName || "")
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
-    if (!parts.length) return "";
-    if (parts.length <= 3) return parts.join(", ");
-    return [parts[0], parts[1], parts[parts.length - 1]].join(", ");
-  }
-
-  function renderPlaceSuggest(hits) {
-    const ul = $("#placeSuggest");
-    if (!ul) return;
-    const list = Array.isArray(hits) ? hits.slice(0, 5) : [];
-    if (!list.length) {
-      hidePlaceSuggest();
-      return;
-    }
-    ul.innerHTML = list
-      .map((h) => {
-        const label = shortenSuggestName(h.display_name) || String(h.display_name || "").slice(0, 80);
-        const q = sanitizePlaceQuery(label) || sanitizePlaceQuery(h.display_name);
-        return `<li role="option"><button type="button" class="place-suggest-item" data-q="${escapeHtml(q)}">${escapeHtml(label)}</button></li>`;
-      })
-      .join("");
-    ul.hidden = false;
   }
 
   function schedulePlaceSuggest(q) {
@@ -4043,7 +3886,6 @@
     });
     bindPlaceSuggest();
     bindPlaceAlternates();
-
 
     const placeForm = $("#placeSearchForm");
     if (placeForm) {
@@ -4507,7 +4349,6 @@
     syncDietChipsUI();
     syncRadiusChipsUI();
   }
-
 
   function openAgree() {
     const sheet = $("#agreeSheet");

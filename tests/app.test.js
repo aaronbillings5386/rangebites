@@ -120,7 +120,7 @@ t("geocoder mismatch warning (no network)", () => {
 const G = load("app.js", [
   "normWord", "haversineMiles", "looksLikePostal", "pickGeocodeHit", "geocodeHitToPlace", "geocodeShortLabel",
   "geocodeAlternates", "cityLookupErrorMessage", "osmStreetLine", "escapeHtml",
-  "expandOsmDays", "ohParseTime", "ohParseSelectorAndTimes", "ohParse", "nthWeekday", "isUsFederalHoliday",
+  "ohParseTime", "ohParseSelectorAndTimes", "ohParse", "nthWeekday", "isUsFederalHoliday",
   "ohIsHoliday", "ohNthMatches", "ohDaySpans", "isLateNightHours",
 ], ["OH_DAY_IDX", "OH_SEL_ITEM", "OH_SELECTOR_RE", "OH_DAYLIST_ONLY_RE", "ohCache"], 'let hoursCountry = "us"; const state = { lng: -82 }; function placeNow() { return new Date(); }');
 const bristol = JSON.parse(fs.readFileSync(path.join(__dirname, "fixture-nominatim-bristol.json"), "utf8"));
@@ -203,7 +203,7 @@ t("negated promo terms are not badges", () => {
 // No as-you-type geocoding: the unused fetchPlaceSuggest was removed in 20261004b.
 t("no Nominatim autocomplete path", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
-  const m = /function schedulePlaceSuggest\([^)]*\)\s*\{([\s\S]*?)\n  \}/.exec(src);
+  const m = /function schedulePlaceSuggest\([^)]*\)\s*\{([\s\S]*?)\n {2}\}/.exec(src);
   assert.ok(m && !/fetch\(|geocodePlace/.test(m[1]));
   assert.strictEqual((src.match(/fetchPlaceSuggest\(/g) || []).length, 0);
 });
@@ -217,7 +217,7 @@ t("metrics.js does not write a found record", () => {
   assert.ok(!/\bfetch\s*\(/.test(src));
 });
 const T = load("app.js", [
-  "termsAcceptedForVersion", "termsNoticePending", "screenshotBypassPrefs", "overpassUpstreamHeaders",
+  "termsAcceptedForVersion", "termsNoticePending", "screenshotBypassPrefs",
   "shouldShowContinueSheet",
 ]);
 const C = load("config.js", ["publishDateLabel"]);
@@ -233,7 +233,7 @@ t("shot=1 does not store terms acceptance", () => {
   const kept = T.screenshotBypassPrefs({ termsAcceptedVersion: "2026-10-03" });
   assert.strictEqual(kept.termsAcceptedVersion, "2026-10-03");
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
-  const shot = /if \(shot\) \{[\s\S]*?\n    \}/.exec(src);
+  const shot = /if \(shot\) \{[\s\S]*?\n {4}\}/.exec(src);
   assert.ok(shot, "shot block");
   assert.ok(!/termsAccepted\s*=\s*true/.test(shot[0]));
   assert.ok(/screenshotBypassPrefs\(/.test(shot[0]));
@@ -294,8 +294,11 @@ t("shipped JS does not store a device identifier", () => {
     const privacy = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
     assert.ok(privacy.includes("RangeBites does not create or store a device identifier."), page);
   }
-  const headers = T.overpassUpstreamHeaders();
+  // 20261004b: the proxy routes in .herenow/proxy.json carry the identifying headers (the browser cannot set User-Agent).
+  const proxy = JSON.parse(fs.readFileSync(path.join(__dirname, "..", ".herenow", "proxy.json"), "utf8"));
+  const headers = proxy.proxies["/api/overpass"].headers;
   const file = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "tools", "overpass-proxy.headers.json"), "utf8"));
+  for (const route of Object.keys(proxy.proxies)) assert.strictEqual(proxy.proxies[route].headers["User-Agent"], file["User-Agent"], route);
   assert.strictEqual(headers.Referer, "https://rangebites.com");
   assert.strictEqual(headers["User-Agent"], file["User-Agent"]);
   assert.strictEqual(headers.Referer, file.Referer);
@@ -406,7 +409,7 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   const cfg = fs.readFileSync(path.join(__dirname, "..", "config.js"), "utf8");
   assert.ok(/ASSENT_MODE:\s*"continue"/.test(cfg));
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
-  const fn = /function maybeShowAgree\(\) \{[\s\S]*?\n  \}/.exec(src);
+  const fn = /function maybeShowAgree\(\) \{[\s\S]*?\n {2}\}/.exec(src);
   assert.ok(fn, "maybeShowAgree");
   assert.ok(/shouldShowContinueSheet\(/.test(fn[0]));
   assert.ok(/openAgree\(\)/.test(fn[0]));
@@ -489,7 +492,7 @@ t("shipped site does not add visitor tracking", () => {
 t("no storage of location, last city, or visitor records", () => {
   const root = path.join(__dirname, "..");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
-  const persist = /function persistUiPrefs\(\) \{[\s\S]*?\n  \}/.exec(app);
+  const persist = /function persistUiPrefs\(\) \{[\s\S]*?\n {2}\}/.exec(app);
   assert.ok(persist, "persistUiPrefs");
   assert.ok(!/lastPlaceQuery\s*:/.test(persist[0]));
   assert.ok(/delete payload\.lastPlaceQuery/.test(persist[0]));
@@ -546,7 +549,7 @@ t("city switch (20261003i): new origin clears old cards/pins; late older respons
   assert.strictEqual(S.searchOriginChanged(37.27, -81.22, 37.27, -81.22), false); // same city, wider range
   // Simulate runSearch(Lebanon) then runSearch(Bluefield): Lebanon's late response must be dropped.
   const ctx = vm.createContext({ state: { searchGen: 0, lat: null, lng: null } });
-  vm.runInContext(src.match(/\n\s*function stillActiveSearch[\s\S]*?\n  \}\n/)[0], ctx);
+  vm.runInContext(src.match(/\n\s*function stillActiveSearch[\s\S]*?\n {2}\}\n/)[0], ctx);
   ctx.state.searchGen = 1; ctx.state.lat = 36.9; ctx.state.lng = -82.08; // Lebanon gen 1
   ctx.state.searchGen = 2; ctx.state.lat = 37.27; ctx.state.lng = -81.22; // Bluefield gen 2
   assert.strictEqual(vm.runInContext("stillActiveSearch(1, 36.9, -82.08)", ctx), false);
@@ -589,8 +592,8 @@ t("city switch (20261003j): a new city search clears old cards, pins and counts 
     renderMarkers: (list) => { if (!list.length) markersCleared++; },
     document: { documentElement: { classList: { remove: (c) => classes.delete(c) } } },
   });
-  vm.runInContext(src.match(/\n\s*function clearResultsForNewSearch[\s\S]*?\n  \}\n/)[0], ctx);
-  vm.runInContext(src.match(/\n\s*function stillActiveSearch[\s\S]*?\n  \}\n/)[0], ctx);
+  vm.runInContext(src.match(/\n\s*function clearResultsForNewSearch[\s\S]*?\n {2}\}\n/)[0], ctx);
+  vm.runInContext(src.match(/\n\s*function stillActiveSearch[\s\S]*?\n {2}\}\n/)[0], ctx);
   vm.runInContext("clearResultsForNewSearch()", ctx); // Abingdon VA showing -> Bristol TN search starts
   assert.strictEqual(ctx.state.places.length, 0);
   assert.strictEqual(ctx.state.fetchedRadiusMiles, null);

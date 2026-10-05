@@ -5,7 +5,7 @@
       "method": "POST",
       "headers": {
         "User-Agent": "RangeBites/1.0 (+https://rangebites.com; rangebites@agentmail.to)",
-        "Referer": "https://rangebites.com/"
+        "Referer": "https://rangebites.com"
       },
       "rateLimit": "200/hour/ip"
     },
@@ -14,7 +14,7 @@
       "method": "POST",
       "headers": {
         "User-Agent": "RangeBites/1.0 (+https://rangebites.com; rangebites@agentmail.to)",
-        "Referer": "https://rangebites.com/"
+        "Referer": "https://rangebites.com"
       },
       "rateLimit": "100/hour/ip"
     },
@@ -23,7 +23,7 @@
       "method": "POST",
       "headers": {
         "User-Agent": "RangeBites/1.0 (+https://rangebites.com; rangebites@agentmail.to)",
-        "Referer": "https://rangebites.com/"
+        "Referer": "https://rangebites.com"
       },
       "rateLimit": "100/hour/ip"
     },
@@ -32,7 +32,7 @@
       "method": "GET",
       "headers": {
         "User-Agent": "RangeBites/1.0 (+https://rangebites.com; rangebites@agentmail.to)",
-        "Referer": "https://rangebites.com/"
+        "Referer": "https://rangebites.com"
       },
       "rateLimit": "60/hour/ip"
     }
