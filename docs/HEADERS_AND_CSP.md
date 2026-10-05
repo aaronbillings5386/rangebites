@@ -2,7 +2,7 @@
 
 ## What the files ask for
 
-`_headers` (root) and `vercel.json` carry the same set:
+`_headers` (root) and `vercel.json` carry the same set. `vercel.json` also sets `Cache-Control`; it's kept for a possible Vercel mirror, and here.now ignores it:
 
 | Header | Value |
 | --- | --- |
@@ -13,11 +13,18 @@
 | Referrer-Policy | `strict-origin-when-cross-origin` |
 | Permissions-Policy | `geolocation=(self), camera=(), microphone=(), payment=()` |
 
-Each HTML page also has a CSP `<meta>` (the same policy minus `frame-ancestors`, which browsers ignore in a meta tag) and a `<meta name="referrer">`.
+Each HTML page also has a CSP `<meta>` and a `<meta name="referrer">` (checked by `tests/pr-20261004b.test.js`). Browsers ignore `frame-ancestors` in a meta tag, so the meta policy leaves it out. Most pages use the policy above without it, but two are deliberately stricter:
+
+| Page | Meta CSP differences | Why |
+| --- | --- | --- |
+| `metrics.html` | `script-src 'none'; img-src 'self'; connect-src 'none'; form-action 'none'`, with no `worker-src` or `manifest-src` | It's a static "No visit stats" page that runs no script and makes no requests |
+| `specials.html` | `form-action 'none'` | The submission form was removed in 20261003j, so nothing on the page posts |
+
+Meta referrer: `index.html` uses `origin`; every other page uses `no-referrer`. The `_headers` value `strict-origin-when-cross-origin` would apply only if the host honoured `_headers`. Today here.now sends `referrer-policy: no-referrer` itself.
 
 ## Rules
 
-- `script-src 'self'`: no inline scripts and no inline event handlers. The only inline `<script>` is JSON-LD, which isn't executable.
+- `script-src 'self'`: no inline scripts and no inline event handlers. The only inline `<script>` is JSON-LD in `index.html`, which isn't executable.
 - `connect-src 'self'`: every network call goes through same-origin `/api/*` proxy routes. A new upstream means a new route in `.herenow/proxy.json`, not a CSP change.
 - `style-src 'unsafe-inline'` remains because Leaflet and the holiday SVG art set inline styles.
 

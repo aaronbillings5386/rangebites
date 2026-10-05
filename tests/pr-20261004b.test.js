@@ -346,9 +346,35 @@ t("privacy: §1 Operator / §1a Non-tracking in the right places; new storage se
     assert.ok(read(f).includes(about), f);
     assert.ok(!read(f).includes("The host and those services see the search and your IP."), f);
   }
-  for (const f of ["index.html", "about.html", "about/index.html", "privacy.html", "privacy/index.html"]) {
-    assert.ok(!read(f).includes("does not store any information about you"), f + " has the old sentence");
+  // Proof: every HTML page, not just a fixed list. Any "does not store (any) information about you" must
+  // go on with "on its servers" (the device does keep some choices).
+  const htmlFiles = [];
+  (function walk(dir) {
+    for (const e of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+      if (/^(node_modules|\.git|vendor|shot|tests)$/.test(e.name)) continue;
+      const rel = dir ? dir + "/" + e.name : e.name;
+      if (e.isDirectory()) walk(rel);
+      else if (e.name.endsWith(".html")) htmlFiles.push(rel);
+    }
+  })("");
+  assert.ok(htmlFiles.length >= 20, "found " + htmlFiles.length + " pages");
+  for (const f of htmlFiles) {
+    const text = read(f)
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ");
+    const re = /does not store (?:any )?information about you(?! on its servers)/g;
+    assert.ok(!re.test(text), f + ": storage sentence must say 'on its servers'");
   }
+  for (const f of ["terms.html", "terms/index.html"]) {
+    assert.ok(
+      read(f).includes(
+        "It does not store information about you on its servers; some choices are kept only on this device.",
+      ),
+      f,
+    );
+  }
+  for (const f of htmlFiles)
+    assert.ok(/<meta name="referrer" content="[a-z-]+"/.test(read(f)), f + " has a meta referrer");
 });
 t("pantries: query and filter accept social_facility food_bank/soup_kitchen", () => {
   const A = load("app.js", ["roundCoord3", "buildOverpassQuery"], ["OVERPASS_TIMEOUT_S"]);
