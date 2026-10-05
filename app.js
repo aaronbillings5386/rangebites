@@ -31,10 +31,9 @@
   const MAX_RESULTS = 120;
   /** 20261004b: Overpass mirrors, tried one at a time in this order. Every route is a same-origin here.now
    * proxy (.herenow/proxy.json), so connect-src stays 'self' and the mirror sees the host, not the visitor.
-   * Never mail.ru (hangs). Operators are named in Privacy §5 and §9. */
+   * Never mail.ru (hangs). Only these two instances: another public instance's usage policy excludes AI fast-deployment hosts (Gavel gate 1). Operators are named in Privacy §5 and §9. */
   const OVERPASS_MIRRORS = [
     { url: "/api/overpass", operator: "Private.coffee" }, // overpass.private.coffee
-    { url: "/api/overpass-de", operator: "FOSSGIS e.V." }, // overpass-api.de
     { url: "/api/overpass-fr", operator: "OpenStreetMap France" }, // overpass.openstreetmap.fr
   ];
   /** Server-side Overpass [timeout:N]. Kept under the per-mirror client budget. */

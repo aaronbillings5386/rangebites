@@ -8,7 +8,7 @@
  * Terms-updated notice both come from it. The same date is also plain text
  * in the HTML (Terms, Privacy, and the home notice) so it shows without JS.
  */
-const PUBLISH_DATE = "2026-10-03";
+const PUBLISH_DATE = "2026-10-05";
 
 function publishDateLabel(iso) {
   const parts = String(iso || "").split("-");

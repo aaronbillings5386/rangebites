@@ -5,8 +5,7 @@ RangeBites is a static app. Everything runs in the browser, and the only server 
 ```
 browser ──/api/nominatim──▶ here.now proxy ──▶ nominatim.openstreetmap.org   (city → lat/lng)
         ──/api/overpass───▶ here.now proxy ──▶ overpass.private.coffee       (mirror 1)
-        ──/api/overpass-de▶ here.now proxy ──▶ overpass-api.de (FOSSGIS)     (mirror 2)
-        ──/api/overpass-fr▶ here.now proxy ──▶ overpass.openstreetmap.fr     (mirror 3)
+        ──/api/overpass-fr▶ here.now proxy ──▶ overpass.openstreetmap.fr     (mirror 2)
         ──tiles───────────▶ tile.openstreetmap.de
 ```
 
@@ -25,7 +24,7 @@ browser ──/api/nominatim──▶ here.now proxy ──▶ nominatim.openstr
 
 ## Storage
 
-See the README privacy rule. `localStorage` holds `rb_ui_prefs`, `rb_saved` (id, name and address only) and notice flags. `metrics.js` only deletes legacy device IDs and location keys.
+See the README privacy rule. `localStorage` holds `rb_ui_prefs`, `rb_saved` (id, name and address only) and notice flags. `legacy-cleanup.js` only deletes legacy device IDs and location keys.
 
 ## Accessibility notes
 

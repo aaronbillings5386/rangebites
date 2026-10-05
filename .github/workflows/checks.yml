@@ -18,7 +18,7 @@ jobs:
       - name: node --check every shipped script
         run: |
           set -e
-          for f in app.js deals.js metrics.js sw.js config.js disclaimers.js analytics.js themes/us-holidays.js themes/holiday-themes.js tests/*.js; do
+          for f in app.js deals.js legacy-cleanup.js sw.js config.js disclaimers.js analytics.js themes/us-holidays.js themes/holiday-themes.js tests/*.js; do
             [ -f "$f" ] && node --check "$f" && echo "ok $f"
           done
       - name: JSON configs parse

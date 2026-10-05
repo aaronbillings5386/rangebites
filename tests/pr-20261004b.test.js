@@ -144,38 +144,46 @@ const OK = (n) => ({
   json: { elements: Array.from({ length: n }, (_, i) => ({ type: "node", id: i + 1 })) },
 });
 
-t("mirrors: three same-origin routes, Private.coffee first; proxy.json has a route for each", () => {
+t("mirrors: two same-origin routes, Private.coffee then OSM France; no overpass-api.de anywhere (Gavel gate 1)", () => {
   const src = read("app.js");
   const proxy = JSON.parse(read(".herenow/proxy.json"));
   const urls = [...src.matchAll(/\{ url: "(\/api\/overpass[^"]*)", operator: "([^"]+)" \}/g)].map((m) => [m[1], m[2]]);
   assert.deepStrictEqual(urls, [
     ["/api/overpass", "Private.coffee"],
-    ["/api/overpass-de", "FOSSGIS e.V."],
     ["/api/overpass-fr", "OpenStreetMap France"],
   ]);
   const routes = JSON.stringify(proxy);
   for (const [u] of urls) assert.ok(routes.includes('"' + u + '"'), u);
-  assert.ok(
-    routes.includes("overpass.private.coffee") &&
-      routes.includes("overpass-api.de") &&
-      routes.includes("overpass.openstreetmap.fr"),
-  );
+  assert.ok(routes.includes("overpass.private.coffee") && routes.includes("overpass.openstreetmap.fr"));
+  assert.deepStrictEqual(Object.keys(proxy.proxies).sort(), ["/api/nominatim", "/api/overpass", "/api/overpass-fr"]);
+  for (const f of [
+    "app.js",
+    ".herenow/proxy.json",
+    "privacy.html",
+    "privacy/index.html",
+    "about.html",
+    "about/index.html",
+    "index.html",
+    "THIRD_PARTY_NOTICES.md",
+  ]) {
+    assert.ok(!/overpass-api\.de|overpass-de/.test(read(f)), f);
+  }
   assert.ok(!/mail\.ru/.test(routes), "never the mail.ru mirror");
 });
 t("mirrors: first hangs, second answers; tried one at a time, never in parallel", async () => {
-  const h = makeFetchPlaces({ "/api/overpass": "hang", "/api/overpass-de": OK(3), "/api/overpass-fr": OK(9) });
+  const h = makeFetchPlaces({ "/api/overpass": "hang", "/api/overpass-fr": OK(3) });
   const places = await h.run(h.fp(36.9009, -82.0801, 10));
   assert.strictEqual(places.length, 3);
   assert.deepStrictEqual(
     h.log.map((x) => x.url),
-    ["/api/overpass", "/api/overpass-de"],
+    ["/api/overpass", "/api/overpass-fr"],
   );
   assert.strictEqual(h.log[1].at, 11000, "second mirror starts when the first aborts at 11 s");
   assert.strictEqual(h.maxInFlight(), 1);
   assert.ok(decodeURIComponent(h.log[0].body).includes("[timeout:10]"));
 });
 t("mirrors: all hang -> clear timeout error under the 25 s cap (well under 40 s)", async () => {
-  const h = makeFetchPlaces({ "/api/overpass": "hang", "/api/overpass-de": "hang", "/api/overpass-fr": "hang" });
+  const h = makeFetchPlaces({ "/api/overpass": "hang", "/api/overpass-fr": "hang" });
   let err;
   try {
     await h.run(h.fp(37.2698, -81.2223, 10));
@@ -185,17 +193,17 @@ t("mirrors: all hang -> clear timeout error under the 25 s cap (well under 40 s)
   assert.ok(err && err.timedOut, String(err));
   assert.ok(h.now() <= 25000, "gave up at " + h.now());
   assert.strictEqual(h.F.overpassErrorMessage(err), "OpenStreetMap didn’t answer in time. Try again in a minute.");
-  // 11 s + 11 s used; 3 s left is under the 4 s minimum, so the third mirror is skipped.
+  // 11 s per mirror, both tried: the error lands at 22 s, under the 25 s cap.
+  assert.strictEqual(h.now(), 22000);
   assert.deepStrictEqual(
     h.log.map((x) => x.url),
-    ["/api/overpass", "/api/overpass-de"],
+    ["/api/overpass", "/api/overpass-fr"],
   );
 });
 t("mirrors: 429 moves on and cools that mirror for 30 s (Retry-After honoured, capped)", async () => {
   const h = makeFetchPlaces({
     "/api/overpass": { status: 429, json: {} },
-    "/api/overpass-de": OK(2),
-    "/api/overpass-fr": OK(1),
+    "/api/overpass-fr": OK(2),
   });
   assert.strictEqual((await h.run(h.fp(36.9, -82.08, 10))).length, 2);
   // Different area (no cache hit) 5 s later: the busy mirror is skipped.
@@ -203,7 +211,7 @@ t("mirrors: 429 moves on and cools that mirror for 30 s (Retry-After honoured, c
   await h.run(h.fp(37.27, -81.22, 10));
   assert.deepStrictEqual(
     h.log.map((x) => x.url),
-    ["/api/overpass", "/api/overpass-de", "/api/overpass-de"],
+    ["/api/overpass", "/api/overpass-fr", "/api/overpass-fr"],
   );
   assert.strictEqual(h.F.overpassBusyMs({ headers: { get: () => "90" } }), 90000);
   assert.strictEqual(h.F.overpassBusyMs({ headers: { get: () => "9999" } }), 120000);
@@ -213,8 +221,7 @@ t("mirrors: every mirror busy -> 'servers are busy' message", async () => {
   const busy = { status: 429, json: {} };
   const h = makeFetchPlaces({
     "/api/overpass": busy,
-    "/api/overpass-de": { status: 406, json: {} },
-    "/api/overpass-fr": busy,
+    "/api/overpass-fr": { status: 406, json: {} },
   });
   let err;
   try {
@@ -228,7 +235,7 @@ t("mirrors: every mirror busy -> 'servers are busy' message", async () => {
 t("mirrors: a healthy empty answer is a real empty list; Overpass timeout remark moves on", async () => {
   const h = makeFetchPlaces({
     "/api/overpass": { status: 200, json: { elements: [], remark: "runtime error: Query timed out" } },
-    "/api/overpass-de": { status: 200, json: { elements: [] } },
+    "/api/overpass-fr": { status: 200, json: { elements: [] } },
   });
   assert.deepStrictEqual(await h.run(h.fp(36.9, -82.08, 10)), []);
   assert.strictEqual(h.log.length, 2);
@@ -298,12 +305,30 @@ t("lists: role=list only while items exist; items are role=listitem wrappers", (
 /* ---------- copy ---------- */
 t("privacy: §1 Operator / §1a Non-tracking in the right places; new storage sentence; NEL disclosed", () => {
   const sentence = "does not store information about you on its servers; some choices are kept only on this device.";
+  // Gavel gate 1 (gavel/gate1-20261004b.md), verbatim.
   const nel =
-    "Our host (Cloudflare) may receive browser network-error reports if a page fails to load; RangeBites does not receive or keep them.";
+    "Files are hosted on here.now, which runs on Cloudflare. If a page fails to load, your browser may send Cloudflare a network-error report; RangeBites does not receive or keep it.";
+  const gavel = [
+    "The proxy asks one server at a time, in this order, until one answers: Private.coffee (overpass.private.coffee) and OpenStreetMap France (overpass.openstreetmap.fr).",
+    "Our host sees your IP address when it passes the search along. Because the request goes through our host, the Overpass and Nominatim servers see our host's address, not yours.",
+    "The host may keep its own connection log. The host also briefly counts requests from each IP address to stop overuse; RangeBites cannot see or keep those counts.",
+    "A city you type is looked up by the Nominatim geocoder run by the OpenStreetMap Foundation (nominatim.openstreetmap.org).",
+    "Restaurant names, hours, and maps come from OpenStreetMap (ODbL), and some chain hours come from AllThePlaces store-locator data (CC0). Both are used as-is and may be wrong.",
+    "which sees your IP address and the map area you view",
+  ];
+  const gone = [
+    "The host and those services also see your IP address.",
+    "The host sees the connection’s IP address on the proxied request.",
+    "which looks up a city you type",
+    "Hours combine OpenStreetMap (ODbL) with AllThePlaces (CC0).",
+  ];
   for (const f of ["privacy.html", "privacy/index.html"]) {
     const s = read(f);
     assert.ok(s.includes(sentence), f);
     assert.ok(s.includes(nel), f);
+    for (const g of gavel) assert.ok(s.includes(g), f + ": " + g.slice(0, 50));
+    for (const g of gone) assert.ok(!s.includes(g), f + " still has: " + g.slice(0, 50));
+    assert.ok(s.includes("Effective <span data-publish-date>October 5, 2026</span>"), f + " effective date");
     const op = s.indexOf("1. Operator"),
       nt = s.indexOf("1a.");
     assert.ok(op > 0 && nt > op, f + " heading order");
@@ -312,10 +337,14 @@ t("privacy: §1 Operator / §1a Non-tracking in the right places; new storage se
       !/does not track|no tracking|tracking/i.test(opBody.replace(/<h2[^>]*>.*?<\/h2>/, "")) || /operat/i.test(opBody),
       f,
     );
-    assert.ok(
-      /Private\.coffee/.test(s) && /FOSSGIS/.test(s) && /OpenStreetMap France/.test(s),
-      f + " names all three Overpass operators",
-    );
+    assert.ok(/Private\.coffee/.test(s) && /OpenStreetMap France/.test(s), f + " names both Overpass operators");
+    assert.ok(!/FOSSGIS e\.V\. \(overpass/.test(s), f + " FOSSGIS named only for tiles");
+  }
+  const about =
+    "Our host sees the search and your IP address; the Overpass and Nominatim servers see the search and our host's address.";
+  for (const f of ["about.html", "about/index.html", "index.html"]) {
+    assert.ok(read(f).includes(about), f);
+    assert.ok(!read(f).includes("The host and those services see the search and your IP."), f);
   }
   for (const f of ["index.html", "about.html", "about/index.html", "privacy.html", "privacy/index.html"]) {
     assert.ok(!read(f).includes("does not store any information about you"), f + " has the old sentence");

@@ -297,8 +297,8 @@ t("no Nominatim autocomplete path", () => {
   assert.ok(m && !/fetch\(|geocodePlace/.test(m[1]));
   assert.strictEqual((src.match(/fetchPlaceSuggest\(/g) || []).length, 0);
 });
-t("metrics.js does not write a found record", () => {
-  const src = fs.readFileSync(path.join(__dirname, "..", "metrics.js"), "utf8");
+t("legacy-cleanup.js does not write a found record", () => {
+  const src = fs.readFileSync(path.join(__dirname, "..", "legacy-cleanup.js"), "utf8");
   assert.ok(!/JSON\.stringify\(\{ kind: "found" \}\)/.test(src));
   assert.ok(!/kind:\s*"found"/.test(src));
   assert.ok(!/function markHelped/.test(src));
@@ -339,18 +339,18 @@ t("stored acceptance matches TERMS_VERSION only", () => {
   assert.strictEqual(T.termsNoticePending("2026-09-01", "2026-10-03"), true);
   assert.strictEqual(T.termsNoticePending("2026-10-03", "2026-10-03"), false);
   const cfg = fs.readFileSync(path.join(__dirname, "..", "config.js"), "utf8");
-  assert.ok(/const PUBLISH_DATE = "2026-10-03"/.test(cfg));
+  assert.ok(/const PUBLISH_DATE = "2026-10-05"/.test(cfg));
   assert.ok(/TERMS_VERSION: PUBLISH_DATE/.test(cfg));
   assert.strictEqual(C.publishDateLabel("2026-10-03"), "October 3, 2026");
   assert.strictEqual(C.publishDateLabel("2026-10-04"), "October 4, 2026");
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-  assert.ok(html.includes("Terms updated <span data-publish-date>October 3, 2026</span>"));
+  assert.ok(html.includes("Terms updated <span data-publish-date>October 5, 2026</span>"));
   assert.ok(html.includes('href="/terms"'));
   assert.ok(
     /By using RangeBites you agree to the <a href="\/terms">Terms<\/a> and <a href="\/privacy">Privacy<\/a>/.test(html),
   );
-  assert.strictEqual((cfg.match(/2026-10-03/g) || []).length, 1);
-  assert.strictEqual((cfg.match(/2026-10-04/g) || []).length, 0);
+  assert.strictEqual((cfg.match(/2026-10-05/g) || []).length, 1);
+  assert.strictEqual((cfg.match(/2026-10-0[34]/g) || []).length, 0);
   for (const page of ["index.html", "about.html", "about/index.html", "privacy.html", "privacy/index.html"]) {
     const pageSrc = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
     const bits = pageSrc.split("rounded to 3 decimal places");
@@ -360,11 +360,11 @@ t("stored acceptance matches TERMS_VERSION only", () => {
     }
   }
 });
-const M = load("metrics.js", ["clearLegacyDeviceIds", "clearLegacyLocationKeys"]);
+const M = load("legacy-cleanup.js", ["clearLegacyDeviceIds", "clearLegacyLocationKeys"]);
 t("shipped JS does not store a device identifier", () => {
   const files = [
     "app.js",
-    "metrics.js",
+    "legacy-cleanup.js",
     "analytics.js",
     "deals.js",
     "disclaimers.js",
@@ -385,7 +385,7 @@ t("shipped JS does not store a device identifier", () => {
     assert.ok(!/\.herenow\/data\/helped["'`]/.test(src), file);
     assert.ok(!/setItem\s*\([^)]*uuid\s*\(/.test(src), file);
   }
-  const metrics = fs.readFileSync(path.join(__dirname, "..", "metrics.js"), "utf8");
+  const metrics = fs.readFileSync(path.join(__dirname, "..", "legacy-cleanup.js"), "utf8");
   assert.ok(!/function markHelped/.test(metrics));
   assert.ok(!/kind:\s*"found"/.test(metrics));
   assert.ok(!/\.herenow\/data\//.test(metrics));
@@ -566,10 +566,10 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   assert.ok(terms.includes("by tapping Continue, or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
   assert.ok(terms.includes('src="/config.js?v=20261004b"'));
-  assert.ok(/Effective <span data-publish-date>October 3, 2026<\/span>/.test(terms));
+  assert.ok(/Effective <span data-publish-date>October 5, 2026<\/span>/.test(terms));
   for (const legal of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"]) {
     const legalSrc = fs.readFileSync(path.join(__dirname, "..", legal), "utf8");
-    assert.ok(legalSrc.includes("Effective <span data-publish-date>October 3, 2026</span>"), legal);
+    assert.ok(legalSrc.includes("Effective <span data-publish-date>October 5, 2026</span>"), legal);
   }
   const privacy = fs.readFileSync(path.join(__dirname, "..", "privacy.html"), "utf8");
   assert.ok(privacy.includes("RangeBites (rangebites.com), contact:"));
@@ -621,7 +621,7 @@ t("shipped site does not add visitor tracking", () => {
       assert.ok(!/<script[^>]+src=["']https?:/i.test(src), rel + " loads a third-party script");
     }
   }
-  const metrics = fs.readFileSync(path.join(root, "metrics.js"), "utf8");
+  const metrics = fs.readFileSync(path.join(root, "legacy-cleanup.js"), "utf8");
   assert.ok(!/userAgent/.test(metrics));
   assert.ok(!/Idempotency-Key/.test(metrics));
   assert.ok(!/webdriver/.test(metrics));
@@ -671,7 +671,7 @@ t("no storage of location, last city, or visitor records", () => {
   const putAt = sw.indexOf("c.put");
   const guardAt = sw.lastIndexOf("isStaticAsset", putAt);
   assert.ok(guardAt >= 0 && putAt > guardAt);
-  const files = ["app.js", "metrics.js", "sw.js", "analytics.js", "deals.js", "config.js"];
+  const files = ["app.js", "legacy-cleanup.js", "sw.js", "analytics.js", "deals.js", "config.js"];
   const locWrite =
     /(?:localStorage|sessionStorage)\.setItem\s*\(\s*["'][^"']*(?:lat|lng|latitude|longitude|lastCity|last_city|lastPlace|searchHistory|search_history)/i;
   for (const file of files) {
@@ -679,7 +679,7 @@ t("no storage of location, last city, or visitor records", () => {
     assert.ok(!locWrite.test(src), file);
     assert.ok(!/indexedDB\s*\.\s*open\s*\(/.test(src), file);
   }
-  const metrics = fs.readFileSync(path.join(root, "metrics.js"), "utf8");
+  const metrics = fs.readFileSync(path.join(root, "legacy-cleanup.js"), "utf8");
   assert.ok(/indexedDB\.deleteDatabase/.test(metrics));
   assert.ok(!/indexedDB\s*\.\s*open\s*\(/.test(metrics));
 });
@@ -822,7 +822,15 @@ t("specials (20261003j): no submission form and nothing posts or stores restaura
       'Restaurants can email <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a> about a special. Nothing is collected through this site.',
     ),
   );
-  for (const file of ["app.js", "metrics.js", "deals.js", "config.js", "sw.js", "disclaimers.js", "analytics.js"]) {
+  for (const file of [
+    "app.js",
+    "legacy-cleanup.js",
+    "deals.js",
+    "config.js",
+    "sw.js",
+    "disclaimers.js",
+    "analytics.js",
+  ]) {
     const src = fs.readFileSync(path.join(root, file), "utf8");
     assert.ok(!/specials_inbox/.test(src), file);
     assert.ok(!/\.herenow\/data\//.test(src), file);
@@ -854,9 +862,10 @@ t("terms (20261003k): Specials is an email address only; Terms version date unch
     assert.ok(!/submit[a-z]*[^.]{0,80}Specials/i.test(src), page);
     assert.ok(src.includes(line), page);
   }
-  // Not a material change: visitors are not re-prompted.
+  // 20261003k was not a material change. 20261004b changes the processor list (Gavel gate 1), so the
+  // effective date moves to the ship date and visitors see the terms-updated notice once.
   const cfg = fs.readFileSync(path.join(root, "config.js"), "utf8");
-  assert.ok(/const PUBLISH_DATE = "2026-10-03";/.test(cfg));
+  assert.ok(/const PUBLISH_DATE = "2026-10-05";/.test(cfg));
   assert.ok(/TERMS_VERSION: PUBLISH_DATE/.test(cfg));
 });
 console.log(`\n${pass} passed`);
