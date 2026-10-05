@@ -29,18 +29,28 @@
   /** Neutral map view until Locate Me — not a fake city of places */
   const MAP_DEFAULT = { lat: 20, lng: 0, zoom: 2 };
   const MAX_RESULTS = 120;
-  /** Same-origin Overpass only. Client URL list is /api/overpass only. Never mail.ru. lz4 is not in this list. */
-  const OVERPASS_URLS = [
-    "/api/overpass",
+  /** 20261004b: Overpass mirrors, tried one at a time in this order. Every route is a same-origin here.now
+   * proxy (.herenow/proxy.json), so connect-src stays 'self' and the mirror sees the host, not the visitor.
+   * Never mail.ru (hangs). Operators are named in Privacy §5 and §9. */
+  const OVERPASS_MIRRORS = [
+    { url: "/api/overpass", operator: "Private.coffee" },          // overpass.private.coffee
+    { url: "/api/overpass-de", operator: "FOSSGIS e.V." },         // overpass-api.de
+    { url: "/api/overpass-fr", operator: "OpenStreetMap France" }, // overpass.openstreetmap.fr
   ];
-  /** Server-side Overpass [timeout:N]; client abort is a little longer. */
-  const OVERPASS_TIMEOUT_S = 25;
-  const OVERPASS_FAST_TIMEOUT_S = 10;
-  /** Client abort: ~22s full radius, ~12s fast inner ring. Do not cut to 6-8s (slow mobile + busy Overpass). */
-  const OVERPASS_CLIENT_ABORT_MS = 22000;
-  const OVERPASS_FAST_ABORT_MS = 12000;
-  /** Progressive search: inner ring first (cards paint fast), then full radius. */
-  const FAST_RING_MILES = 3;
+  /** Server-side Overpass [timeout:N]. Kept under the per-mirror client budget. */
+  const OVERPASS_TIMEOUT_S = 10;
+  /** 20261004b: about 11 s per mirror, and the whole search gives up by 25 s, so a dead upstream shows a
+   * clear error well under 40 s. A mirror is only tried if at least 4 s of the budget are left. */
+  const OVERPASS_MIRROR_ABORT_MS = 11000;
+  const OVERPASS_TOTAL_CAP_MS = 25000;
+  const OVERPASS_MIN_TRY_MS = 4000;
+  /** Overpass policy: after a 429 or 406, pause at least 30 s before asking that server again. */
+  const OVERPASS_BUSY_MS = 30000;
+  const OVERPASS_BUSY_MAX_MS = 120000;
+  /** 20261004b: short in-page cache of public OSM results, keyed only by the rounded search area.
+   * Memory only (never localStorage), gone when the page unloads. */
+  const OVERPASS_CACHE_TTL_MS = 10 * 60 * 1000;
+  const OVERPASS_CACHE_MAX = 12;
   /** Status ping only — button stays Searching until Overpass finishes */
   const OVERPASS_SLOW_MS = 1800;
   const NOMINATIM_URL = "/api/nominatim";
@@ -775,9 +785,12 @@
   /** OSM tags only. Never invent a pantry from a restaurant name. */
   function isTaggedFreeFood(tags) {
     if (!tags) return false;
-    // Only amenity=food_bank|soup_kitchen (what the Overpass query asks for). No social_facility/office relabels.
+    // amenity=food_bank|soup_kitchen, or OSM's documented amenity=social_facility +
+    // social_facility=food_bank|soup_kitchen (20261004b, Scout: Elk Garden, way/1065546532). Same as the Overpass query.
     const amenity = String(tags.amenity || "").toLowerCase();
-    return amenity === "food_bank" || amenity === "soup_kitchen";
+    if (amenity === "food_bank" || amenity === "soup_kitchen") return true;
+    const sf = String(tags.social_facility || "").toLowerCase();
+    return amenity === "social_facility" && (sf === "food_bank" || sf === "soup_kitchen");
   }
 
   const OSM_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -911,6 +924,10 @@
    * "||", open-ended "+", "open"/"unknown") → null so the card says "Hours not listed" — never "Open".
    * Open/closed uses placeNow (US eastern/central zones, or the browser clock when the search is near the user). Cross-checked vs opening_hours.js. */
   const OH_DAY_IDX = { Su: 0, Mo: 1, Tu: 2, We: 3, Th: 4, Fr: 5, Sa: 6 };
+  /** One selector item: a weekday with [n] (nth in month), or a weekday / weekday range / PH. */
+  const OH_SEL_ITEM = "(?:(?:Mo|Tu|We|Th|Fr|Sa|Su)\\[\\s*-?[1-5](?:\\s*,\\s*-?[1-5])*\\s*\\]|(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\\s*-\\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?)";
+  const OH_SELECTOR_RE = new RegExp("^(" + OH_SEL_ITEM + "(?:\\s*,\\s*" + OH_SEL_ITEM + ")*)(?=\\s|$|:)");
+  const OH_DAYLIST_ONLY_RE = new RegExp("^(?:" + OH_SEL_ITEM + "\\s*,?\\s*)+$");
   const ohCache = new Map();
   let hoursCountry = ""; // ISO country from the last geocode; "" when unknown (Locate Me)
 
@@ -928,12 +945,21 @@
     const days = new Set();
     let ph = false;
     let hadSelector = false;
-    const selM = /^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\s*-\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?)(?:\s*,\s*(?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\s*-\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?))*)(?=\s|$|:)/.exec(rest);
+    const nth = {}; // weekday -> Set of nth-in-month (1..5, -1 = last); absent = every week
+    const selM = OH_SELECTOR_RE.exec(rest);
     if (selM) {
       hadSelector = true;
-      for (const piece of selM[1].split(",")) {
+      for (const piece of selM[1].split(/,(?![^[]*\])/)) {
         const p = piece.trim();
         if (p === "PH") { ph = true; continue; }
+        // 20261004b (Scout): nth weekday of the month, e.g. Sa[4], Su[-1], Mo[1,3].
+        const nthM = /^(Mo|Tu|We|Th|Fr|Sa|Su)\[\s*(-?[1-5](?:\s*,\s*-?[1-5])*)\s*\]$/.exec(p);
+        if (nthM) {
+          const wd = OH_DAY_IDX[nthM[1]];
+          days.add(wd);
+          nth[wd] = new Set(nthM[2].split(",").map((x) => +x.trim()));
+          continue;
+        }
         const r = /^(Mo|Tu|We|Th|Fr|Sa|Su)(?:\s*-\s*(Mo|Tu|We|Th|Fr|Sa|Su))?$/.exec(p);
         if (!r) return null;
         const a = OH_DAY_IDX[r[1]];
@@ -944,7 +970,7 @@
       if (rest.startsWith(":")) rest = rest.slice(1).trim(); // "Mo-Fr: 09:00-17:00"
     }
     if (!hadSelector) for (let i = 0; i < 7; i++) days.add(i);
-    if (/^(off|closed)$/i.test(rest)) return { days, ph, spans: [], off: true };
+    if (/^(off|closed)$/i.test(rest)) return { days, ph, nth, spans: [], off: true };
     if (!rest) return null; // "Mo-Fr" with no times: not supported
     const spans = [];
     for (const piece of rest.split(",")) {
@@ -957,7 +983,16 @@
       if (e - s > 1440) return null;
       spans.push([s, e]);
     }
-    return { days, ph, spans, off: false };
+    return { days, ph, nth, spans, off: false };
+  }
+
+  /** Does `date` fall on an allowed nth weekday of its month for this rule (true when the rule has no [n])? */
+  function ohNthMatches(rule, date) {
+    const want = rule.nth && rule.nth[date.getDay()];
+    if (!want) return true;
+    const d = date.getDate();
+    const dim = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    return want.has(Math.ceil(d / 7)) || (want.has(-1) && d + 7 > dim);
   }
 
   /** Parse full opening_hours → array of rules, or null if any part is unsupported. Cached. */
@@ -968,7 +1003,9 @@
     let rules = [];
     let ok = true;
     const normal = raw.split(";").map((r) => r.trim()).filter(Boolean);
-    if (!normal.length || /\|\||"|\+|\[|\]/.test(raw)) ok = false;
+    // [ ] are allowed only as an nth-weekday suffix (Sa[4]); any other bracket use is unsupported.
+    const bracketsLeft = raw.replace(/(?:Mo|Tu|We|Th|Fr|Sa|Su)\[\s*-?[1-5](?:\s*,\s*-?[1-5])*\s*\]/g, "");
+    if (!normal.length || /\|\||"|\+/.test(raw) || /\[|\]/.test(bracketsLeft)) ok = false;
     for (const part of ok ? normal : []) {
       if (/^24\/7$/.test(part)) {
         rules.push({ additional: false, days: new Set([0, 1, 2, 3, 4, 5, 6]), ph: false, spans: [[0, 1440]], off: false, allDays: true });
@@ -979,7 +1016,7 @@
       // Re-join chunks that were day lists ("Mo,We 10:00-12:00" split into "Mo" + "We 10:00-12:00")
       const merged = [];
       for (const c of chunks) {
-        if (merged.length && /^(?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\s*-\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?\s*,?\s*)+$/.test(merged[merged.length - 1])) {
+        if (merged.length && OH_DAYLIST_ONLY_RE.test(merged[merged.length - 1])) {
           merged[merged.length - 1] += "," + c;
         } else merged.push(c);
       }
@@ -1029,7 +1066,7 @@
     let spans = [];
     let idx = -1;
     rules.forEach((r, i) => {
-      const hits = (r.ph && hol) || r.days.has(wd);
+      const hits = (r.ph && hol) || (r.days.has(wd) && ohNthMatches(r, date));
       if (!hits) return;
       idx = i;
       if (r.off) { spans = []; return; }
@@ -1173,9 +1210,6 @@
     return "Tagged closed" + (opens ? " · " + opens : "") + " · " + today;
   }
 
-  function openIshStatus(hours) {
-    return parseOpeningHours(hours);
-  }
 
 
 
@@ -1603,6 +1637,13 @@
     state.markersLayer = L.layerGroup().addTo(state.map);
   }
 
+  /** 20261004b (Gate): every Leaflet marker gets an accessible name. Leaflet copies `title` onto the
+   * marker element (role=button) and `alt` onto image icons, so pins are told apart by name. */
+  function markerOptions(name, extra) {
+    const label = String(name || "").replace(/\s+/g, " ").trim().slice(0, 120) || "Place";
+    return Object.assign({ title: label, alt: label, keyboard: true }, extra || {});
+  }
+
   function updateMapCenter(lat, lng, radiusMi) {
     initMap();
     state.map.setView([lat, lng], radiusMi <= 10 ? 13 : radiusMi <= 20 ? 12 : 11, { animate: false });
@@ -1616,7 +1657,7 @@
       iconSize: [14, 14],
       iconAnchor: [7, 7],
     });
-    state.userMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(state.map);
+    state.userMarker = L.marker([lat, lng], markerOptions("Search center", { icon, zIndexOffset: 1000 })).addTo(state.map);
     // Warm kitchen radius — not teal
     state.radiusCircle = L.circle([lat, lng], {
       radius: milesToMeters(radiusMi),
@@ -1716,7 +1757,7 @@
         iconSize: [iconW, iconH],
         iconAnchor: isSponsored ? [iconW / 2, size / 2] : [HIT / 2, HIT / 2],
       });
-      const m = L.marker([p.lat, p.lng], { icon });
+      const m = L.marker([p.lat, p.lng], markerOptions(p.name, { icon }));
       const sponsoredPopup = isSponsored
         ? `<br><span class="popup-sponsored">Sponsored</span>`
         : "";
@@ -1741,15 +1782,16 @@
     return Math.round(Number(v) * 1000) / 1000;
   }
 
-  function buildOverpassQuery(lat, lng, radiusM, mode) {
+  function buildOverpassQuery(lat, lng, radiusM) {
     // +120 m pad so rounding the centre never drops a place near the edge; distances and the
     // radius cut-off still use the full-precision origin on this device (normalizeElements).
     const r = Math.round(radiusM) + 120;
-    const t = mode === "fast" ? OVERPASS_FAST_TIMEOUT_S : OVERPASS_TIMEOUT_S;
+    const t = OVERPASS_TIMEOUT_S;
     const around = `(around:${r},${roundCoord3(lat).toFixed(3)},${roundCoord3(lng).toFixed(3)})`;
     const named = '["name"]';
     // Lean query — same food types, fewer unions so phones finish before timeout.
-    // Pantries: amenity=food_bank|soup_kitchen only. Copy must not claim social_facility/office/worldwide.
+    // Pantries: amenity=food_bank|soup_kitchen, plus amenity=social_facility with social_facility=food_bank|soup_kitchen.
+    // Copy must not claim office/worldwide.
     const food = "restaurant|fast_food|cafe|bar|pub|ice_cream|food_court|biergarten|food_bank|soup_kitchen";
     return `[out:json][timeout:${t}];(` +
       `node["amenity"~"^(` + food + `)$"]${named}${around};` +
@@ -1757,12 +1799,14 @@
       `relation["amenity"~"^(` + food + `)$"]${named}${around};` +
       `node["shop"~"^(bakery|deli)$"]${named}${around};` +
       `way["shop"~"^(bakery|deli)$"]${named}${around};` +
+      `nwr["amenity"="social_facility"]["social_facility"~"^(food_bank|soup_kitchen)$"]${named}${around};` +
       `);out center;`;
   }
 
   function overpassErrorMessage(err) {
     if (!err) return "Couldn’t reach OpenStreetMap. Try again.";
-    if (err.name === "AbortError") return "OpenStreetMap timed out. Try again.";
+    if (err.allBusy) return "OpenStreetMap servers are busy right now. Try again in a minute.";
+    if (err.name === "AbortError" || err.timedOut) return "OpenStreetMap didn’t answer in time. Try again in a minute.";
     const m = String(err.message || "");
     if (/HTTP 429/.test(m)) return "OpenStreetMap is busy. Try again in a moment.";
     if (/HTTP 50[234]/.test(m)) return "OpenStreetMap is down. Try again.";
@@ -1770,40 +1814,56 @@
     return "Couldn’t reach OpenStreetMap. Try again.";
   }
 
-  function firstFulfilled(promises) {
-    return new Promise((resolve, reject) => {
-      let left = promises.length;
-      let lastErr = null;
-      if (!left) {
-        reject(new Error("Overpass unreachable"));
-        return;
-      }
-      promises.forEach((p) => {
-        Promise.resolve(p).then(resolve, (err) => {
-          lastErr = err;
-          left -= 1;
-          if (left === 0) reject(lastErr || new Error("Overpass unreachable"));
-        });
-      });
-    });
+  /** In-page cache key: the rounded search area only (centre to 3 decimals, the same rounding the query
+   * uses, plus radius), so a hit is exactly the answer Overpass would give again. No visitor data. */
+  function overpassCacheKey(lat, lng, radiusMiles) {
+    return roundCoord3(lat).toFixed(3) + "," + roundCoord3(lng).toFixed(3) + "," + Math.round(Number(radiusMiles) * 10) / 10;
+  }
+  const overpassCache = new Map(); // key -> { at, elements } (raw OSM elements; distances are recomputed per search)
+  function overpassCacheGet(key, now) {
+    const hit = overpassCache.get(key);
+    if (!hit) return null;
+    if (now - hit.at > OVERPASS_CACHE_TTL_MS) { overpassCache.delete(key); return null; }
+    return hit.elements;
+  }
+  function overpassCachePut(key, elements, now) {
+    overpassCache.delete(key);
+    overpassCache.set(key, { at: now, elements });
+    while (overpassCache.size > OVERPASS_CACHE_MAX) overpassCache.delete(overpassCache.keys().next().value);
+  }
+  /** Per-mirror cooldown after 429/406 (Overpass policy). url -> epoch ms. In memory only. */
+  const overpassBusyUntil = new Map();
+  function overpassBusyMs(res) {
+    const ra = parseInt((res && res.headers && res.headers.get && res.headers.get("Retry-After")) || "", 10);
+    return Number.isFinite(ra) && ra > 0 ? Math.min(Math.max(ra * 1000, OVERPASS_BUSY_MS), OVERPASS_BUSY_MAX_MS) : OVERPASS_BUSY_MS;
   }
 
+  /** 20261004b: ask the mirrors one at a time (never in parallel), each with its own AbortController,
+   * inside one total budget. A hang, 5xx, 429/406, bad JSON or an Overpass timeout remark moves on to
+   * the next mirror. An empty answer from a healthy mirror is a real empty list. */
   async function fetchPlaces(lat, lng, radiusMiles, opts) {
     opts = opts || {};
-    const mode = opts.mode || "full";
-    const urls = OVERPASS_URLS.slice();
-    const abortMs = mode === "fast" ? OVERPASS_FAST_ABORT_MS : OVERPASS_CLIENT_ABORT_MS;
-    const radiusM = milesToMeters(radiusMiles);
-    const query = buildOverpassQuery(lat, lng, radiusM, mode);
+    const now = opts.now || Date.now;
+    const mirrors = opts.mirrors || OVERPASS_MIRRORS;
+    const perMs = opts.perMs || OVERPASS_MIRROR_ABORT_MS;
+    const capMs = opts.capMs || OVERPASS_TOTAL_CAP_MS;
+    const minTryMs = opts.minTryMs == null ? OVERPASS_MIN_TRY_MS : opts.minTryMs;
+    const key = overpassCacheKey(lat, lng, radiusMiles);
+    const cached = overpassCacheGet(key, now());
+    if (cached) return normalizeElements(cached, lat, lng);
+    const query = buildOverpassQuery(lat, lng, milesToMeters(radiusMiles));
     const body = "data=" + encodeURIComponent(query);
+    const started = now();
+    let lastErr = null;
+    let busyCount = 0;
+    let tried = 0;
 
-    async function fetchOne(url) {
+    async function fetchOne(url, budgetMs) {
       const controller = new AbortController();
-      const timer = setTimeout(function () { controller.abort(); }, abortMs);
+      const timer = setTimeout(function () { controller.abort(); }, budgetMs);
       try {
-        // Upstream must send overpassUpstreamHeaders() (Referer + descriptive User-Agent).
-        // referrerPolicy "origin" is the browser Referer; User-Agent is set by the proxy.
-        let res = await fetch(url, {
+        // referrerPolicy "origin": the proxy adds the identifying User-Agent/Referer for the mirror.
+        const res = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -1813,43 +1873,46 @@
           signal: controller.signal,
           referrerPolicy: "origin",
         });
-        if (!res.ok && (res.status === 429 || res.status === 502 || res.status === 504)) {
-          try { setStatus("OpenStreetMap is busy… retrying"); } catch (_) {}
-          await new Promise(function (r) { setTimeout(r, 2500); });
-          res = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-              Accept: "application/json",
-            },
-            body: body,
-            signal: controller.signal,
-            referrerPolicy: "origin",
-          });
+        if (res.status === 429 || res.status === 406) {
+          overpassBusyUntil.set(url, now() + overpassBusyMs(res));
+          const e = new Error("Overpass HTTP " + res.status);
+          e.busy = true;
+          throw e;
         }
         if (!res.ok) throw new Error("Overpass HTTP " + res.status);
         const data = await res.json();
-        const remark = String(data.remark || "");
-        if (/timeout|error/i.test(remark)) throw new Error("Overpass remark timeout");
-        const places = normalizeElements(data.elements || [], lat, lng);
-        if (!places.length) throw new Error("Overpass empty");
-        return places;
+        const remark = String((data && data.remark) || "");
+        if (/timeout|error|out of memory/i.test(remark)) throw new Error("Overpass remark timeout");
+        return (data && Array.isArray(data.elements)) ? data.elements : [];
       } finally {
         clearTimeout(timer);
       }
     }
 
-    let lastErr = null;
-    for (let i = 0; i < urls.length; i++) {
+    for (let i = 0; i < mirrors.length; i++) {
+      const url = mirrors[i].url;
+      if ((overpassBusyUntil.get(url) || 0) > now()) { busyCount++; continue; }
+      const left = capMs - (now() - started);
+      if (left < minTryMs) break;
+      if (tried > 0) { try { setStatus("OpenStreetMap is slow… trying another server"); } catch (_) {} }
+      tried++;
       try {
-        return await fetchOne(urls[i]);
+        const elements = await fetchOne(url, Math.min(perMs, left));
+        overpassCachePut(key, elements, now());
+        return normalizeElements(elements, lat, lng);
       } catch (err) {
+        if (err && err.busy) busyCount++;
         lastErr = err;
-        // empty on this URL → try next in OVERPASS_URLS; empty on all → real empty list
       }
     }
-    if (lastErr && /empty/i.test(String(lastErr.message || ""))) return [];
-    throw lastErr || new Error("Overpass unreachable");
+    if (!lastErr || (busyCount && busyCount === mirrors.length)) {
+      const e = new Error("Overpass all mirrors busy");
+      e.allBusy = busyCount > 0;
+      e.timedOut = !e.allBusy;
+      throw e;
+    }
+    if (lastErr && lastErr.name === "AbortError") lastErr.timedOut = true;
+    throw lastErr;
   }
 
   function shortPlaceLabel(displayName, fallback) {
@@ -1982,7 +2045,24 @@
     return picks.slice(0, max).map((x) => Object.assign(geocodeHitToPlace(x.hit, x.label), { shortLabel: x.label }));
   }
 
+  /** 20261004b: in-page cache of city lookups, keyed only by the typed city text (lowercased).
+   * Memory only, dropped on unload; saves repeat Nominatim calls (OSMF policy asks apps to cache). */
+  const GEOCODE_CACHE_TTL_MS = 10 * 60 * 1000; // matches Privacy §5 ("up to 10 minutes")
+  const GEOCODE_CACHE_MAX = 20;
+  const geocodeCache = new Map();
   async function geocodePlace(q) {
+    const key = String(q || "").trim().toLowerCase().replace(/\s+/g, " ");
+    if (!key) return null;
+    const hit = geocodeCache.get(key);
+    if (hit && Date.now() - hit.at < GEOCODE_CACHE_TTL_MS) return hit.value;
+    const value = await geocodePlaceFromNetwork(q);
+    geocodeCache.delete(key);
+    geocodeCache.set(key, { at: Date.now(), value });
+    while (geocodeCache.size > GEOCODE_CACHE_MAX) geocodeCache.delete(geocodeCache.keys().next().value);
+    return value;
+  }
+
+  async function geocodePlaceFromNetwork(q) {
     const t = String(q || "").trim();
     if (!t) return null;
     // Mobile/OS often sends "24266, Lebanon, United States" — prefer the ZIP.
@@ -2047,7 +2127,8 @@
     const rank = { node: 0, way: 1, relation: 2 };
     const kept = [];
     const rk = (t) => (Object.prototype.hasOwnProperty.call(rank, t) ? rank[t] : 3); // node is 0 — do not use || (0 is falsy)
-    const sorted = elements.slice().sort((a, b) => rk(a.type) - rk(b.type));
+    // Shallow copies: merging reassigns tags/mergedIds, so cached Overpass elements are never changed.
+    const sorted = elements.map((e) => Object.assign({}, e)).sort((a, b) => rk(a.type) - rk(b.type));
     for (const el of sorted) {
       const tags = el.tags || {};
       const name = String(tags.name || "").trim();
@@ -2065,6 +2146,8 @@
       if (!prev) { kept.push(el); continue; }
       const merged = Object.assign({}, tags, prev.tags || {}); // keeper's tags win; fill gaps
       prev.tags = merged;
+      // 20261004b (Scout): remember the dropped duplicate's id so closed-places can match either id.
+      prev.mergedIds = (prev.mergedIds || []).concat(el.type + "/" + el.id, el.mergedIds || []);
     }
     return kept;
   }
@@ -2088,6 +2171,7 @@
 
       const freeFood = isTaggedFreeFood(tags);
       let amenity = tags.amenity || tags.shop || "restaurant";
+      if (freeFood && amenity === "social_facility") amenity = String(tags.social_facility).toLowerCase() === "soup_kitchen" ? "soup_kitchen" : "food_bank";
       if (freeFood && amenity !== "soup_kitchen") amenity = "food_bank";
       const miles = haversineMiles(originLat, originLng, lat, lng);
       const deal =
@@ -2117,6 +2201,7 @@
       const dietHalal = osmDietTagged(tags, "halal");
       places.push({
         id: el.type + "/" + el.id,
+        mergedIds: (el.mergedIds || []).slice(),
         name,
         lat,
         lng,
@@ -2178,7 +2263,12 @@
       .catch(() => closedIds);
     return closedLoading;
   }
-  function isCuratedClosed(p) { return !!(p && closedIds.has(String(p.id))); }
+  function isCuratedClosed(p) {
+    if (!p) return false;
+    if (closedIds.has(String(p.id))) return true;
+    // A node+way pair is merged under the node's id; an entry keyed on either id hides it (20261004b, Scout).
+    return Array.isArray(p.mergedIds) && p.mergedIds.some((id) => closedIds.has(String(id)));
+  }
 
   /* ---------- AllThePlaces chain hours (CC0, weekly store-locator scrape) ----------
    * data/atp-hours.json is built offline by tools/build-atp-hours.py (no key, no cost).
@@ -2507,23 +2597,25 @@
       wrap.hidden = true;
       wrap.classList.remove("is-empty");
       rail.innerHTML = "";
+      setListRole(rail, null, false);
       return;
     }
     wrap.hidden = false;
     wrap.classList.remove("is-empty");
     setDealRailLabel();
+    setListRole(rail, "Promo text from listings nearby", true);
     rail.innerHTML = deals
       .slice(0, 12)
       .map((p, idx) => {
         const sponsored = p.sponsored
           ? `<span class="rail-sponsored">Sponsored</span>`
           : "";
-        return `<button type="button" class="deal-rail-card" role="listitem" data-deal-open="${escapeHtml(p.id)}" data-rail-pos="${idx}">
+        return listItemHtml(`<button type="button" class="deal-rail-card" data-deal-open="${escapeHtml(p.id)}" data-rail-pos="${idx}">
   <span class="rail-deal">${escapeHtml(p.deal.label)}</span>
   <span class="rail-name">${escapeHtml(p.name)}</span>
   <span class="rail-meta">${formatMiles(p.miles)} · ${escapeHtml(amenityLabel(p.amenity))}</span>
   ${sponsored}
-</button>`;
+</button>`);
       })
       .join("");
   }
@@ -2544,6 +2636,22 @@
       .sort((x, y) => (x.miles || 0) - (y.miles || 0));
   }
 
+  /** 20261004b (Gate): a role=list only while it holds items, so an empty track is not an empty list. */
+  function setListRole(el, label, on) {
+    if (!el) return;
+    if (on) {
+      el.setAttribute("role", "list");
+      if (label) el.setAttribute("aria-label", label);
+    } else {
+      el.removeAttribute("role");
+      el.removeAttribute("aria-label");
+    }
+  }
+  function listItemHtml(inner) {
+    return `<div class="rb-li" role="listitem">${inner}</div>`;
+  }
+  const OPEN_STRIP_LABEL = "Places tagged open from OSM or chain store-locator hours — verify";
+
   function renderOpenStrip() {
     const wrap = $("#openStrip");
     const track = $("#openStripTrack");
@@ -2551,21 +2659,24 @@
     if (state.lat == null) {
       wrap.hidden = true;
       track.innerHTML = "";
+      setListRole(track, null, false);
       return;
     }
     wrap.hidden = false;
     const open = openNowPlaces();
     if (!open.length) {
+      setListRole(track, null, false);
       track.innerHTML = state.loading
         ? `<p class="open-strip-empty">Checking OSM hours…</p>`
         : `<p class="open-strip-empty">No tagged open restaurants in this range.</p>`;
       return;
     }
+    setListRole(track, OPEN_STRIP_LABEL, true);
     track.innerHTML = open
       .slice(0, 24)
       .map(
         (p) =>
-          `<button type="button" class="open-pill" role="listitem" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">${hoursOriginLabel(p.hoursSource)}</span></button>`
+          listItemHtml(`<button type="button" class="open-pill" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">${hoursOriginLabel(p.hoursSource)}</span></button>`)
       )
       .join("");
   }
@@ -2600,7 +2711,7 @@
       .slice(0, 24)
       .map(
         (p) =>
-          `<button type="button" class="open-pill opens-soon-pill" role="listitem" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">Opens soon · ${hoursOriginLabel(p.hoursSource)}</span></button>`
+          listItemHtml(`<button type="button" class="open-pill opens-soon-pill" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">Opens soon · ${hoursOriginLabel(p.hoursSource)}</span></button>`)
       )
       .join("");
   }
@@ -2880,7 +2991,7 @@
           : state.filters.foodCategory
           ? `<li class="empty"><strong>No ${escapeHtml((foodCategoryById(state.filters.foodCategory) || {}).label || "that type")} in this range.</strong> Matches OpenStreetMap cuisine and amenity tags, plus a few name words. Tap the chip again to show all.</li>`
           : state.dietaryFilter === "freefood"
-          ? `<li class="empty"><strong>No tagged pantries in this range.</strong> In this search area, food banks and soup kitchens show only when OpenStreetMap tags amenity=food_bank or soup_kitchen. Listings may be wrong or stale; confirm before you go.</li>`
+          ? `<li class="empty"><strong>No tagged pantries in this range.</strong> In this search area, food banks and soup kitchens show only when OpenStreetMap tags them as a food bank or soup kitchen (amenity=food_bank or soup_kitchen, or social_facility=food_bank or soup_kitchen). Listings may be wrong or stale; confirm before you go.</li>`
           : state.filters.hasDeal
           ? `<li class="empty"><strong>No promo text here.</strong> Widen the range, or clear the promo filter.</li>`
           : (state.filters.openNow && state.places && state.places.length
@@ -3416,7 +3527,7 @@
       }
     }, OVERPASS_SLOW_MS);
 
-    // Mobile failsafe: never leave "Finding food…" skeleton if fetch hangs past abort.
+    // Mobile failsafe: never leave "Finding food…" skeleton if fetch hangs past the total cap.
     const failSafe = setTimeout(() => {
       if (gen !== state.searchGen) return;
       if (!state.loading) return;
@@ -3427,44 +3538,21 @@
         renderList();
         return;
       }
-      state.searchError = "OpenStreetMap timed out. Try again.";
+      state.searchError = "OpenStreetMap didn’t answer in time. Try again in a minute.";
       setStatus(state.searchError);
       renderList();
-    }, OVERPASS_CLIENT_ABORT_MS + 4000); // fast and full now run in parallel
+    }, OVERPASS_TOTAL_CAP_MS + 2000);
 
     const fetchMi = state.radiusMiles;
-    // 20261003i: declared outside try so the catch below can still await the inner ring
-    // (inside try it was out of scope there and threw a ReferenceError).
-    let fastP = Promise.resolve([]);
 
     try {
-      // Progressive: inner ring and full radius start together (forge 20261003, Chip). The inner ring
-      // usually lands first and paints cards; the full pass replaces it. Worst case is one full abort
-      // (~22 s) instead of fast abort + full abort in series (~34 s). Same two POSTs per search.
-      let fullSettled = false;
-      if (fetchMi > FAST_RING_MILES) {
-        fastP = fetchPlaces(lat, lng, FAST_RING_MILES, { mode: "fast" }).catch(() => []);
-        fastP.then((near) => {
-          if (fullSettled || !stillActiveSearch(gen, lat, lng) || !near.length) return;
-          applyPlaces(near, { live: true, fetchedRadius: FAST_RING_MILES });
-          setStatus(filteredPlaces().length + " nearby · widening to " + formatRadiusChipLabel(fetchMi) + "…");
-        });
-      }
-      let places;
-      try {
-        places = await fetchPlaces(lat, lng, fetchMi, { mode: "full" });
-      } finally {
-        fullSettled = true;
-      }
+      // 20261004b: one Overpass request per search, mirrors in series (Overpass policy: no parallel
+      // queries). The old parallel inner-ring pass is gone; the total cap bounds the wait.
+      const places = await fetchPlaces(lat, lng, fetchMi);
       if (!stillActiveSearch(gen, lat, lng)) return;
       state.searchError = null;
       state.fetchedRadiusMiles = fetchMi;
       if (!places.length) {
-        if (state.places && state.places.length) {
-          state.loading = false;
-          setStatus(filteredPlaces().length + " nearby");
-          return;
-        }
         applyPlaces([], {
           live: true,
           fetchedRadius: fetchMi,
@@ -3475,19 +3563,6 @@
       applyPlaces(places, { live: true, fetchedRadius: fetchMi });
     } catch (err) {
       if (!stillActiveSearch(gen, lat, lng)) return;
-      // Full pass failed. If the inner ring is still in flight, give it its own (<= 12 s) chance.
-      if (!(state.places && state.places.length)) {
-        const near = await fastP;
-        if (!stillActiveSearch(gen, lat, lng)) return;
-        if (near && near.length) applyPlaces(near, { live: true, fetchedRadius: FAST_RING_MILES });
-      }
-      if (state.places && state.places.length) {
-        state.loading = false;
-        state.fetchedRadiusMiles = FAST_RING_MILES;
-        setStatus(filteredPlaces().length + " within " + formatRadiusChipLabel(FAST_RING_MILES) +
-          " · couldn’t load the full " + formatRadiusChipLabel(fetchMi) + ". Try again.");
-        return;
-      }
       const why = overpassErrorMessage(err);
       state.searchError = why;
       applyPlaces([], { live: false, statusMsg: why });
@@ -3739,7 +3814,7 @@
     if (railWrap) {
       railWrap.hidden = true;
       const rail = $("#dealRail");
-      if (rail) rail.innerHTML = "";
+      if (rail) { rail.innerHTML = ""; setListRole(rail, null, false); }
     }
     if (typeof renderList === "function") {
       try {
@@ -3878,53 +3953,13 @@
     ul.hidden = false;
   }
 
-  async function fetchPlaceSuggest(q) {
-    const t = String(q || "").trim();
-    if (t.length < 3) {
-      hidePlaceSuggest();
-      return;
-    }
-    if (suggestAbort) {
-      try { suggestAbort.abort(); } catch (_) {}
-    }
-    const ac = new AbortController();
-    suggestAbort = ac;
-    const params = new URLSearchParams();
-    params.set("format", "jsonv2");
-    params.set("limit", "5");
-    params.set("addressdetails", "1");
-    if (!looksLikePostal(t)) params.set("featureType", "settlement");
-    params.set("q", t);
-    try {
-      const res = await fetch(NOMINATIM_URL + "?" + params.toString(), {
-        headers: { Accept: "application/json" },
-        referrerPolicy: "origin",
-        signal: ac.signal,
-      });
-      if (!res.ok) {
-        hidePlaceSuggest();
-        return;
-      }
-      const data = await res.json();
-      if (suggestAbort !== ac) return;
-      if (!data || !data.length) {
-        hidePlaceSuggest();
-        return;
-      }
-      renderPlaceSuggest(data);
-    } catch (err) {
-      if (err && err.name === "AbortError") return;
-      hidePlaceSuggest();
-    }
-  }
-
   function schedulePlaceSuggest(q) {
     if (suggestTimer) {
       clearTimeout(suggestTimer);
       suggestTimer = null;
     }
     // forge 20261003 (Snitch/Shade): no Nominatim autocomplete. The OSMF usage policy forbids
-    // search-as-you-type, so the geocoder is called only on Search / Enter. fetchPlaceSuggest is unused.
+    // search-as-you-type, so the geocoder is called only on Search / Enter. (20261004b: the unused fetchPlaceSuggest was removed.)
     void q;
     hidePlaceSuggest();
   }

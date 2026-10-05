@@ -14,9 +14,13 @@
   a{color:var(--deal);text-decoration:none}
   li{margin:8px 0}
   .note{color:var(--muted);font-size:14px}
-  </style>
+  
+  /* 20261004b (a11y): links inside text are underlined, so they never rely on colour alone. */
+  p a{text-decoration:underline;text-underline-offset:2px}
+</style>
 </head>
 <body>
+  <main>
   <p class="note">RangeBites · Quiet Precision</p>
   <h1>Food near you by city</h1>
   <p class="note">No live coupon feed. Open the app and tap Locate Me for OpenStreetMap places around you. We don’t invent coupons.</p>
@@ -32,6 +36,7 @@
     <li><a href="vancouver/">Vancouver</a></li>
   </ul>
   <p><a href="../index.html">Open RangeBites app</a></p>
+  </main>
   <footer class="site-footer"><p class="legal-foot">RangeBites is an independent food finder run by one person in Virginia, not affiliated with or endorsed by any business, pantry, or map service shown. Listings come from OpenStreetMap and may be wrong, so check with the place before you go · Map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p></footer>
 </body>
 </html>

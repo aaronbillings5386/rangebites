@@ -10,7 +10,7 @@ Base: live 20261003b + hours.patch. Everything below ships in the site tree or t
 ## Data and services (not code; listed for attribution)
 | Name | Terms | Where credited |
 |---|---|---|
-| OpenStreetMap data (via Overpass at overpass.openstreetmap.fr, OSM France) | ODbL 1.0 | Map credit "Data © OpenStreetMap contributors (ODbL)", footers, Terms §8/§17 |
+| OpenStreetMap data (via Overpass at overpass.private.coffee (Private.coffee), overpass-api.de (FOSSGIS e.V.) and overpass.openstreetmap.fr (OSM France), tried in that order) | ODbL 1.0 | Map credit "Data © OpenStreetMap contributors (ODbL)", footers, Terms §8/§17 |
 | Map tiles tile.openstreetmap.de (FOSSGIS e.V. / OSM Deutschland) | CC-BY-SA 2.0 + FOSSGIS server terms (operator email required) | Map credit "Tiles CC-BY-SA 2.0 OSM Deutschland/FOSSGIS · Report a map error" |
 | Nominatim (nominatim.openstreetmap.org, OSMF) | OSMF Nominatim Usage Policy | Terms §17; no autocomplete; client ≥1.1 s between requests |
 | AllThePlaces chain hours (`data/atp-hours.json`, from hours.patch) | CC0-1.0 | Navi's hours copy (About/Privacy/contact row) |

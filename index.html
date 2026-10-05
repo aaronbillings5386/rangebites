@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- rb-build 20261004a -->
+  <!-- rb-build 20261004b -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#14110e" />
@@ -13,9 +13,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="RangeBites" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20261004a" />
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20261004a" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20261004a" />
+  <link rel="icon" href="favicon.ico?v=20261004b" sizes="48x48" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=20261004b" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=20261004b" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20261004b" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png?v=20261004b" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20261004b" />
   <link rel="canonical" href="https://rangebites.com/" />
   <meta name="description" content="Find restaurants, cafes, and food nearby. Search any city. No account." />
   <title>RangeBites — find food nearby</title>
@@ -23,24 +26,25 @@
   <meta property="og:url" content="https://rangebites.com/" />
   <meta property="og:title" content="RangeBites" />
   <meta property="og:description" content="Find restaurants, cafes, and food nearby. Search any city." />
-  <meta property="og:image" content="https://rangebites.com/icons/icon-512.png" />
+  <meta property="og:image" content="https://rangebites.com/og-image.png" />
   <meta property="og:image:type" content="image/png" />
-  <meta property="og:image:width" content="512" />
-  <meta property="og:image:height" content="512" />
-  <meta name="twitter:card" content="summary" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="RangeBites. Find restaurants, cafes, and food nearby. Search any city." />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="RangeBites" />
   <meta name="twitter:description" content="Find restaurants, cafes, and food nearby. Search any city." />
-  <meta name="twitter:image" content="https://rangebites.com/icons/icon-512.png" />
+  <meta name="twitter:image" content="https://rangebites.com/og-image.png" />
   <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"RangeBites","url":"https://rangebites.com/","potentialAction":{"@type":"SearchAction","target":"https://rangebites.com/?q={search_term_string}","query-input":"required name=search_term_string"}},{"@type":"WebApplication","name":"RangeBites","url":"https://rangebites.com/","applicationCategory":"LifestyleApplication","operatingSystem":"Web","description":"Find restaurants, cafes, and food nearby. Search any city."}]}</script>
-    <link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=20261004a" />
-  <link rel="stylesheet" href="styles.css?v=20261004a" />
-  <link rel="stylesheet" href="themes/halloween.css?v=20261004a" />
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=20261004b" />
+  <link rel="stylesheet" href="styles.css?v=20261004b" />
+  <link rel="stylesheet" href="themes/halloween.css?v=20261004b" />
 </head>
 <body>
   <div class="app">
     <header class="header">
       <div class="brand">
-        <img class="brand-logo" src="icons/logo-512.png?v=20261004a" srcset="icons/logo.png?v=20261004a 132w, icons/logo-512.png?v=20261004a 512w" sizes="44px" alt="" width="44" height="44">
+        <img class="brand-logo" src="icons/logo-512.png?v=20261004b" srcset="icons/logo.png?v=20261004b 132w, icons/logo-512.png?v=20261004b 512w" sizes="44px" alt="" width="44" height="44">
         <h1>RangeBites</h1>
       </div>
       <div class="header-right">
@@ -97,18 +101,18 @@
 
     <div class="open-strip first-open" id="openStrip" hidden>
       <div class="open-strip-label">Tagged open · verify</div>
-      <div class="open-strip-track" id="openStripTrack" role="list" aria-label="Places tagged open from OSM or chain store-locator hours — verify"></div>
+      <div class="open-strip-track" id="openStripTrack"></div>
     </div>
 
-    <div class="stage">
+    <main class="stage" id="main">
     <div class="map-wrap" role="region" aria-label="Map of nearby restaurants">
       <div id="map"></div>
     </div>
 
-    <section class="list-section">
+    <section class="list-section" aria-labelledby="nearbyFoodTitle">
       <div class="deal-rail-wrap" id="dealRailWrap" hidden>
         <div class="deal-rail-label">Promo text on this listing <span class="deal-rail-sub">Confirm with the restaurant</span></div>
-        <div class="deal-rail" id="dealRail" role="list" aria-label="Promo text from listings nearby"></div>
+        <div class="deal-rail" id="dealRail"></div>
       </div>
       <div class="name-search" id="nameSearchWrap" hidden>
         <label class="place-search-label" for="nameSearch">Search food</label>
@@ -116,7 +120,7 @@
       </div>
       <div class="list-header">
         <div class="list-header-left">
-          <h2>Nearby food</h2>
+          <h2 id="nearbyFoodTitle">Nearby food</h2>
           <span id="dealCount" class="deal-count" hidden></span>
         </div>
         <span id="resultCount"></span>
@@ -129,7 +133,7 @@
       <ul class="place-list" id="placeList" tabindex="-1"></ul>
       <p class="deal-note" id="dealNote" hidden>Promo text shows only if the listing already mentions a promo (e.g. description/note). Not a live coupon feed; confirm with the restaurant.</p>
     </section>
-    </div>
+    </main>
 
     <footer class="site-footer">
       <nav class="site-footer-nav" aria-label="Site">
@@ -147,7 +151,7 @@
 
   <!-- Filters: all options. Closed by default so first paint is locate + map. -->
   <div class="sheet-backdrop" id="filtersBackdrop" hidden></div>
-  <aside class="sheet filters-sheet" id="filtersSheet" role="dialog" aria-modal="true" inert aria-labelledby="filtersTitle" aria-hidden="true">
+  <div class="sheet filters-sheet" id="filtersSheet" role="dialog" aria-modal="true" inert aria-labelledby="filtersTitle" aria-hidden="true">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="sheet-header">
       <h2 id="filtersTitle">Filters</h2>
@@ -227,7 +231,7 @@
         <div class="filters" aria-label="Pantries">
           <button type="button" class="filter-toggle" id="filterPantries" aria-pressed="false">Pantries only (OSM tag)</button>
         </div>
-        <p class="free-food-links">In this search area, food banks and soup kitchens show only when OpenStreetMap tags amenity=food_bank or soup_kitchen. Listings may be wrong or stale; confirm before you go. Outside directories (not affiliated with RangeBites):
+        <p class="free-food-links">In this search area, food banks and soup kitchens show only when OpenStreetMap tags them as a food bank or soup kitchen (amenity=food_bank or soup_kitchen, or social_facility=food_bank or soup_kitchen). Listings may be wrong or stale; confirm before you go. Outside directories (not affiliated with RangeBites):
           <a href="https://www.feedingamerica.org/" target="_blank" rel="noopener noreferrer">Feeding America</a>
           /
           <a href="https://www.211.org/" target="_blank" rel="noopener noreferrer">211</a>.
@@ -244,7 +248,7 @@
       <button type="button" class="btn-filters-done" id="filtersDone">Done</button>
       <button type="button" class="btn-filters-clear" id="filtersClear">Clear</button>
     </div>
-  </aside>
+  </div>
 
   <div class="onboarding" id="onboarding" hidden></div>
   <span id="heroTip" hidden></span>
@@ -255,7 +259,7 @@
 
   <!-- First-open agreement (clickwrap). No IP log. Flag stays on this device only. -->
   <div class="sheet-backdrop" id="agreeBackdrop" hidden></div>
-  <aside class="sheet" id="agreeSheet" role="dialog" aria-modal="true" inert aria-labelledby="agreeTitle" aria-hidden="true">
+  <div class="sheet" id="agreeSheet" role="dialog" aria-modal="true" inert aria-labelledby="agreeTitle" aria-hidden="true">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="sheet-header">
       <h2 id="agreeTitle">Before you use RangeBites</h2>
@@ -266,11 +270,11 @@
       <p>Tap Continue if you agree to the <a href="/terms">Terms of Use</a> and <a href="/privacy">Privacy Policy</a>. If you do not agree, close the page.</p>
       <button type="button" class="btn-primary" id="agreeContinue">Continue</button>
     </div>
-  </aside>
+  </div>
 
   <!-- About sheet -->
   <div class="sheet-backdrop" id="aboutBackdrop" hidden></div>
-  <aside class="sheet" id="aboutSheet" role="dialog" aria-modal="true" inert aria-labelledby="aboutTitle" aria-hidden="true">
+  <div class="sheet" id="aboutSheet" role="dialog" aria-modal="true" inert aria-labelledby="aboutTitle" aria-hidden="true">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="sheet-header">
       <h2 id="aboutTitle">About &amp; privacy</h2>
@@ -282,9 +286,9 @@
       <p>Tap Locate Me or search any city. Listings and hours come from OpenStreetMap (some chain hours come from AllThePlaces store-locator data, CC0) and may be wrong or stale. Hours combine OpenStreetMap (ODbL) with AllThePlaces (CC0). The matching method is public in the GitHub repo: <a href="https://github.com/aaronbillings5386/rangebites/blob/main/tools/build-atp-hours.py">tools/build-atp-hours.py</a> and <a href="https://github.com/aaronbillings5386/rangebites/blob/main/app.js">app.js</a>. Directions open in Apple Maps or Google Maps. Reviews open in Google Maps. We do not invent hours, star ratings, or coupons.</p>
 
       <h3>Location</h3>
-      <p>RangeBites does not store any information about you. Location is used only to show nearby places and is not saved. Locate Me keeps your coordinate in memory for this search only. This device may remember saved restaurants, range, filter choices, and distance units (mi or km as text). Those stay on this device and are not sent. Filters includes Clear my saved data, which removes them from this device.</p>
+      <p>RangeBites does not store information about you on its servers; some choices are kept only on this device. Location is used only to show nearby places and is not saved. Locate Me keeps your coordinate in memory for this search only. This device may remember saved restaurants, range, filter choices, and distance units (mi or km as text). Those stay on this device and are not sent. Filters includes Clear my saved data, which removes them from this device.</p>
       <p>Tap the heart to save or unheart a restaurant. Hearts on this device are OpenStreetMap id, name, and address — not a GPS trail. Heart a place again to unsave it. That list stays on this device only.</p>
-      <p>To fetch restaurants, our host’s proxy sends the search to OpenStreetMap services: Overpass (run by OpenStreetMap France) and, for a city you type, Nominatim (run by the OpenStreetMap Foundation). With Locate Me, that search includes your coordinates rounded to 3 decimal places, which still places you within about 100 m. The host and those services see the search and your IP. Map images come from tile.openstreetmap.de (FOSSGIS e.V.), which sees your IP and the map area you view.</p>
+      <p>To fetch restaurants, our host’s proxy sends the search to OpenStreetMap services: Overpass, asking one server at a time until one answers (Private.coffee, then FOSSGIS e.V., then OpenStreetMap France) and, for a city you type, Nominatim (run by the OpenStreetMap Foundation). With Locate Me, that search includes your coordinates rounded to 3 decimal places, which still places you within about 100 m. The host and those services see the search and your IP. Map images come from tile.openstreetmap.de (FOSSGIS e.V.), which sees your IP and the map area you view.</p>
       <p>RangeBites is a free site that tracks nobody. It does not use device codes, analytics identifiers, visitor tracking, or third-party analytics or trackers. It does not log page views or taps. RangeBites does not create or store a device identifier. A city search or Locate Me is used only during that search, then dropped.</p>
       <h3>Contact &amp; accessibility</h3>
       <p>Questions, corrections, accessibility problems, or legal notices: RangeBites (rangebites.com), contact: <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>. We aim to meet WCAG 2.1 AA. If something doesn’t work for you, tell us at that address.</p>
@@ -301,11 +305,11 @@
       <p><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Use</a> · <a href="specials.html">Restaurant specials</a> · <a href="sitemap.html">Sitemap</a></p>
       <p class="fine">Map data © OpenStreetMap contributors.</p>
     </div>
-  </aside>
+  </div>
 
   <!-- Place / deal sheet -->
   <div class="sheet-backdrop" id="dealBackdrop" hidden></div>
-  <aside class="sheet" id="dealSheet" role="dialog" aria-modal="true" inert aria-labelledby="dealSheetTitle" aria-hidden="true">
+  <div class="sheet" id="dealSheet" role="dialog" aria-modal="true" inert aria-labelledby="dealSheetTitle" aria-hidden="true">
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="sheet-header">
       <h2 id="dealSheetTitle">Restaurant</h2>
@@ -314,14 +318,14 @@
     <div class="sheet-body" id="dealSheetBody">
       <!-- Filled by app.js -->
     </div>
-  </aside>
+  </div>
 
-  <script src="config.js?v=20261004a"></script>
-  <script src="disclaimers.js?v=20261004a"></script>
-  <script src="vendor/leaflet/leaflet.js?v=20261004a"></script>
-  <script src="metrics.js?v=20261004a"></script>
-  <script src="deals.js?v=20261004a"></script>
-  <script src="themes/holiday-themes.js?v=20261004a"></script>
-  <script src="app.js?v=20261004a"></script>
+  <script src="config.js?v=20261004b"></script>
+  <script src="disclaimers.js?v=20261004b"></script>
+  <script src="vendor/leaflet/leaflet.js?v=20261004b"></script>
+  <script src="metrics.js?v=20261004b"></script>
+  <script src="deals.js?v=20261004b"></script>
+  <script src="themes/holiday-themes.js?v=20261004b"></script>
+  <script src="app.js?v=20261004b"></script>
 </body>
 </html>

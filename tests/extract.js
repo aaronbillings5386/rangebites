@@ -57,10 +57,11 @@ function constDecl(src, name) {
   }
   return src.slice(m.index, src.indexOf(";", eq) + 1);
 }
-function load(file, fns, consts, extra) {
+/** globals: optional extra sandbox globals (e.g. a fake fetch, setTimeout, AbortController). */
+function load(file, fns, consts, extra, globals) {
   const src = fs.readFileSync(path.join(__dirname, "..", file), "utf8");
   const code = (extra || "") + "\n" + (consts || []).map((c) => constDecl(src, c)).join("\n") + "\n" +
     fns.map((f) => fn(src, f)).join("\n") + "\n;({" + fns.join(",") + "})";
-  return vm.runInNewContext(code, { console, Math, Number, String, Object, Array, RegExp, JSON, Date, Intl });
+  return vm.runInNewContext(code, Object.assign({ console, Math, Number, String, Object, Array, RegExp, JSON, Date, Intl, Map, Set }, globals || {}));
 }
 module.exports = { load };

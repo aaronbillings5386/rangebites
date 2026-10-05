@@ -3245,3 +3245,6 @@ html, body, .app {
   font-weight: 800;
 }
 .first-search-notice[hidden] { display: none !important; }
+
+/* 20261004b (a11y): list-item wrappers around rail/strip buttons. No box of their own, so layout is unchanged. */
+.rb-li { display: contents; }

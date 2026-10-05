@@ -12,7 +12,7 @@ const A = load("app.js", [
   "isFakeDemoPhone", "telHref", "formatPhoneDisplay", "prettyOsmValue", "prettyCuisineList",
   "geoErrorMessage", "normWord", "geocodeLooksDifferent", "looksLikePostal", "milesToMeters",
   "hoursTimeZone", "placeNow", "friendlyHoursLine", "hoursOriginLabel",
-], ["OVERPASS_TIMEOUT_S", "OVERPASS_FAST_TIMEOUT_S", "OSM_VALUE_LABELS"]);
+], ["OVERPASS_TIMEOUT_S", "OSM_VALUE_LABELS"]);
 
 t("haversine: 1 deg latitude ~ 69.1 mi; zero distance", () => {
   assert.ok(Math.abs(A.haversineMiles(37, -81, 38, -81) - 69.1) < 0.2);
@@ -25,8 +25,8 @@ t("Overpass query: coordinates rounded to 3 decimals, radius padded 120 m", () =
   const q = A.buildOverpassQuery(37.2698123, -81.2223456, 16093.4, "full");
   assert.ok(q.includes("(around:16213,37.270,-81.222)"), q.slice(0, 300));
   assert.ok(!/37\.2698/.test(q) && !/81\.2223/.test(q));
-  assert.ok(q.startsWith("[out:json][timeout:25]"));
-  assert.ok(A.buildOverpassQuery(1, 2, 100, "fast").startsWith("[out:json][timeout:10]"));
+  // 20261004b: one query shape; [timeout:10] stays under the ~11 s per-mirror client budget.
+  assert.ok(q.startsWith("[out:json][timeout:10]"));
   assert.strictEqual(A.roundCoord3(-0.0004), -0);
 });
 t("dedupe: node + way same name nearby merge; two nodes (chain branches) stay", () => {
@@ -121,8 +121,8 @@ const G = load("app.js", [
   "normWord", "haversineMiles", "looksLikePostal", "pickGeocodeHit", "geocodeHitToPlace", "geocodeShortLabel",
   "geocodeAlternates", "cityLookupErrorMessage", "osmStreetLine", "escapeHtml",
   "expandOsmDays", "ohParseTime", "ohParseSelectorAndTimes", "ohParse", "nthWeekday", "isUsFederalHoliday",
-  "ohIsHoliday", "ohDaySpans", "isLateNightHours",
-], ["OH_DAY_IDX", "ohCache"], 'let hoursCountry = "us"; const state = { lng: -82 }; function placeNow() { return new Date(); }');
+  "ohIsHoliday", "ohNthMatches", "ohDaySpans", "isLateNightHours",
+], ["OH_DAY_IDX", "OH_SEL_ITEM", "OH_SELECTOR_RE", "OH_DAYLIST_ONLY_RE", "ohCache"], 'let hoursCountry = "us"; const state = { lng: -82 }; function placeNow() { return new Date(); }');
 const bristol = JSON.parse(fs.readFileSync(path.join(__dirname, "fixture-nominatim-bristol.json"), "utf8"));
 t("G2 Bristol: picks VA; alternates deduped, US first, TN offered, no counties", () => {
   const hit = G.pickGeocodeHit(bristol);
@@ -200,13 +200,12 @@ t("negated promo terms are not badges", () => {
   assert.strictEqual(D.matchDeal({ description: "" }), null);
 });
 
-// No as-you-type geocoding: schedulePlaceSuggest must never call fetchPlaceSuggest.
+// No as-you-type geocoding: the unused fetchPlaceSuggest was removed in 20261004b.
 t("no Nominatim autocomplete path", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   const m = /function schedulePlaceSuggest\([^)]*\)\s*\{([\s\S]*?)\n  \}/.exec(src);
-  assert.ok(m && !/fetchPlaceSuggest\(/.test(m[1]));
-  const calls = src.match(/fetchPlaceSuggest\(/g) || [];
-  assert.strictEqual(calls.length, 1, "only the (unused) definition may remain");
+  assert.ok(m && !/fetch\(|geocodePlace/.test(m[1]));
+  assert.strictEqual((src.match(/fetchPlaceSuggest\(/g) || []).length, 0);
 });
 t("metrics.js does not write a found record", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "metrics.js"), "utf8");
@@ -415,7 +414,7 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   const terms = fs.readFileSync(path.join(__dirname, "..", "terms.html"), "utf8");
   assert.ok(terms.includes("by tapping Continue, or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
-  assert.ok(terms.includes('src="/config.js?v=20261004a"'));
+  assert.ok(terms.includes('src="/config.js?v=20261004b"'));
   assert.ok(/Effective <span data-publish-date>October 3, 2026<\/span>/.test(terms));
   for (const legal of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"]) {
     const legalSrc = fs.readFileSync(path.join(__dirname, "..", legal), "utf8");
@@ -484,7 +483,7 @@ t("shipped site does not add visitor tracking", () => {
     const privacy = fs.readFileSync(path.join(root, page), "utf8");
     assert.ok(privacy.includes("RangeBites is a free site that tracks nobody."), page);
     assert.ok(privacy.includes("RangeBites does not create or store a device identifier."), page);
-    assert.ok(privacy.includes("RangeBites does not store any information about you. Location is used only to show nearby places and is not saved."), page);
+    assert.ok(privacy.includes("RangeBites does not store information about you on its servers; some choices are kept only on this device. Location is used only to show nearby places and is not saved."), page);
   }
 });
 t("no storage of location, last city, or visitor records", () => {
@@ -496,7 +495,7 @@ t("no storage of location, last city, or visitor records", () => {
   assert.ok(/delete payload\.lastPlaceQuery/.test(persist[0]));
   assert.ok(!/markHelped/.test(app));
   assert.ok(!/\.herenow\/data\/(found|hits|helped)/.test(app));
-  const sentence = "RangeBites does not store any information about you. Location is used only to show nearby places and is not saved.";
+  const sentence = "RangeBites does not store information about you on its servers; some choices are kept only on this device. Location is used only to show nearby places and is not saved.";
   for (const page of ["privacy.html", "privacy/index.html", "about.html", "about/index.html", "index.html"]) {
     const src = fs.readFileSync(path.join(root, page), "utf8");
     assert.ok(src.includes(sentence), page);
@@ -557,9 +556,10 @@ t("city switch (20261003i): new origin clears old cards/pins; late older respons
   assert.ok(/if \(searchOriginChanged\(state\.lat, state\.lng, lat, lng\)\) clearResultsForNewSearch\(\);/.test(rs));
   assert.ok(rs.indexOf("clearResultsForNewSearch();") < rs.indexOf("state.lat = lat;"));
   assert.ok(rs.indexOf("renderList();") > rs.indexOf("clearResultsForNewSearch();"));
-  // The catch path awaits the inner ring; fastP must be declared outside the try block.
+  // 20261004b: one sequential Overpass pass per search; no parallel inner ring.
   const body = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
-  assert.ok(body.indexOf("let fastP") >= 0 && body.indexOf("let fastP") < body.indexOf("    try {\n"));
+  assert.strictEqual((body.match(/fetchPlaces\(/g) || []).length, 1);
+  assert.ok(!/fastP|firstFulfilled|Promise\.(any|race)/.test(body));
 });
 t("pantries status (20261003i): count matches the pantry list; other filters unchanged", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
@@ -617,10 +617,9 @@ t("city switch (20261003j): a new city search clears old cards, pins and counts 
   // Picking an "Other places with this name" alternate also clears before the new search.
   const pa = src.slice(src.indexOf("function pickPlaceAlternate("), src.indexOf("function geoErrorMessage"));
   assert.ok(pa.indexOf("clearResultsForNewSearch();") > 0 && pa.indexOf("clearResultsForNewSearch();") < pa.indexOf("runSearch("));
-  // runSearch: late fast-ring and full responses check the token before painting.
+  // runSearch: a late Overpass answer checks the token before painting.
   const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
-  assert.ok(/fastP\.then\(\(near\) => \{\s*\n\s*if \(fullSettled \|\| !stillActiveSearch\(gen, lat, lng\)/.test(rs));
-  assert.ok(/await fetchPlaces\(lat, lng, fetchMi, \{ mode: "full" \}\);[\s\S]*?if \(!stillActiveSearch\(gen, lat, lng\)\) return;/.test(rs));
+  assert.ok(/await fetchPlaces\(lat, lng, fetchMi\);\s*\n\s*if \(!stillActiveSearch\(gen, lat, lng\)\) return;/.test(rs));
 });
 t("specials (20261003j): no submission form and nothing posts or stores restaurant data", () => {
   const root = path.join(__dirname, "..");
