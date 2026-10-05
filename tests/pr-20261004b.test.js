@@ -538,6 +538,29 @@ t("operator line: the approved wording (no personal name) on every page (Navi, r
     "RangeBites is designed, published, and operated by an individual website developer in Virginia, USA (the “Operator”), not a restaurant.";
   for (const f of ["index.html", "about.html", "about/index.html"]) assert.ok(read(f).includes(about), f);
 });
+t("shipped HTML does not name the operator GitHub account (plain public-source wording)", () => {
+  // Joined so this test file does not contain the handle as one string.
+  const handle = ["aaron", "billings", "5386"].join("");
+  const disclosure =
+    "The matching method is documented in the project's public source repository (tools/build-atp-hours.py and app.js).";
+  const pages = ["index.html", "about.html", "about/index.html", "privacy.html", "privacy/index.html"];
+  for (const f of pages) {
+    const s = read(f);
+    assert.ok(s.includes(disclosure), f);
+    assert.ok(!s.toLowerCase().includes(handle), f);
+    assert.ok(!/github\.com/i.test(s), f + " still links github.com");
+  }
+  const htmlHits = [];
+  (function walk(dir) {
+    for (const e of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+      if (/^(node_modules|\.git|vendor)$/.test(e.name)) continue;
+      const rel = dir ? dir + "/" + e.name : e.name;
+      if (e.isDirectory()) walk(rel);
+      else if (/\.html$/i.test(e.name) && read(rel).toLowerCase().includes(handle)) htmlHits.push(rel);
+    }
+  })("");
+  assert.deepStrictEqual(htmlHits, [], "handle in shipped HTML: " + htmlHits.join(", "));
+});
 t("no personal surname in any shipped or docs file (Navi)", () => {
   const surname = ["Bill", "ings"].join(""); // built at runtime so this test file never contains it
   const hits = [];
