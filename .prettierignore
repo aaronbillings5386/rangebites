@@ -1,0 +1,12 @@
+# Generated, vendored or published-as-is files. HTML is hand-tuned (inline whitespace affects layout), so it is not reformatted.
+node_modules/
+vendor/
+data/
+shot/
+icons/
+*.html
+*.md
+*.png
+*.ico
+package-lock.json
+sitemap.xml

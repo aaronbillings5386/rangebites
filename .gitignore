@@ -4,4 +4,8 @@ node_modules/
 .env
 .env.*
 config.local.js
-.herenow/
+# here.now: proxy.json and data.json are site config and are tracked; local publish state is not.
+.herenow/*
+!.herenow/proxy.json
+!.herenow/data.json
+__pycache__/

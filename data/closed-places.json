@@ -1,6 +1,6 @@
 {
   "note": "Curated permanently-closed places hidden from results even if OSM still tags them. Key = OSM type/id. Remove an entry once OSM is fixed and the fix has propagated.",
-  "updated": "2026-10-03",
+  "updated": "2026-10-04",
   "places": {
     "way/580777677": {
       "name": "Wendy's",
@@ -17,6 +17,24 @@
       "status": "permanently_closed",
       "source": "https://wcyb.com/news/local/lebanon-applebees-shuts-its-doors; applebees.com/en/restaurants-lebanon-va/89-elliott-drive-83046 returns 404 (checked 2026-10-03)",
       "added": "2026-10-03"
+    },
+    "node/10202814796": {
+      "name": "Out of Town Café",
+      "address": "733 Pioneer Dr, Lebanon, VA 24266",
+      "closed": "2024-12-20",
+      "status": "permanently_closed",
+      "source": "https://inspections.myhealthdepartment.com/va-cumberland-plateau/permit/?permitID=2D48EEC3-9637-4B6B-89E1-D778E477A7BF (VDH Cumberland Plateau: 'Status: Business Closed', last inspection 2024-12-20; checked 2026-10-04 by Scout)",
+      "added": "2026-10-04",
+      "note": "OSM has this place as both a node and a way; both ids are listed."
+    },
+    "way/1023825062": {
+      "name": "Out of Town Café",
+      "address": "733 Pioneer Dr, Lebanon, VA 24266",
+      "closed": "2024-12-20",
+      "status": "permanently_closed",
+      "source": "https://inspections.myhealthdepartment.com/va-cumberland-plateau/permit/?permitID=2D48EEC3-9637-4B6B-89E1-D778E477A7BF (VDH Cumberland Plateau: 'Status: Business Closed', last inspection 2024-12-20; checked 2026-10-04 by Scout)",
+      "added": "2026-10-04",
+      "note": "OSM has this place as both a node and a way; both ids are listed."
     }
   }
 }

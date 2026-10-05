@@ -1,0 +1,22 @@
+{
+  "name": "rangebites",
+  "private": true,
+  "description": "RangeBites static web app (rangebites.com). Dev tooling only; nothing here ships.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node tests/app.test.js && node tests/t.js && node tests/holiday-themes.test.js && node tests/holiday-registry.test.js && node tests/pr-20261004b.test.js && python3 tests/test_build_atp_hours.py",
+    "serve": "python3 -m http.server 8765"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "globals": "17.13.0",
+    "prettier": "3.9.9"
+  }
+}

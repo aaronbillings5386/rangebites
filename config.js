@@ -8,14 +8,27 @@
  * Terms-updated notice both come from it. The same date is also plain text
  * in the HTML (Terms, Privacy, and the home notice) so it shows without JS.
  */
-const PUBLISH_DATE = "2026-10-03";
+const PUBLISH_DATE = "2026-10-05";
 
 function publishDateLabel(iso) {
   const parts = String(iso || "").split("-");
   const y = Number(parts[0]);
   const m = Number(parts[1]);
   const d = Number(parts[2]);
-  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
   if (!y || !m || !d || !months[m - 1]) return "";
   return months[m - 1] + " " + d + ", " + y;
 }

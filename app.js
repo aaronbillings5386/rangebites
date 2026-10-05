@@ -29,18 +29,30 @@
   /** Neutral map view until Locate Me — not a fake city of places */
   const MAP_DEFAULT = { lat: 20, lng: 0, zoom: 2 };
   const MAX_RESULTS = 120;
-  /** Same-origin Overpass only. Client URL list is /api/overpass only. Never mail.ru. lz4 is not in this list. */
-  const OVERPASS_URLS = [
-    "/api/overpass",
-  ];
-  /** Server-side Overpass [timeout:N]; client abort is a little longer. */
-  const OVERPASS_TIMEOUT_S = 25;
-  const OVERPASS_FAST_TIMEOUT_S = 10;
-  /** Client abort: ~22s full radius, ~12s fast inner ring. Do not cut to 6-8s (slow mobile + busy Overpass). */
-  const OVERPASS_CLIENT_ABORT_MS = 22000;
-  const OVERPASS_FAST_ABORT_MS = 12000;
-  /** Progressive search: inner ring first (cards paint fast), then full radius. */
-  const FAST_RING_MILES = 3;
+  /** 20261004b: the one Overpass server. It is a same-origin here.now proxy route (.herenow/proxy.json),
+   * so connect-src stays 'self' and the server gets the request from the host, not the visitor.
+   * Only Private.coffee: another public instance's usage policy excludes AI fast-deployment hosts (Gavel
+   * gate 1), and the French instance has been whitelist-only since Apr 2026 (Navi gate 3). Named in Privacy §5 and §9. */
+  const OVERPASS_SERVER = { url: "/api/overpass", operator: "Private.coffee" }; // overpass.private.coffee
+  /** Server-side Overpass [timeout:N]. Kept under the per-attempt client budget. */
+  const OVERPASS_TIMEOUT_S = 10;
+  /** 20261004b: one attempt of up to 11 s. After a timeout, 5xx or Overpass timeout remark, wait a backoff
+   * (3 s + 0-500 ms jitter, or the server's Retry-After), then one retry on the same server, but only if at
+   * least 8 s of the 25 s cap are still left after the backoff. The retry's budget is what is left of the
+   * cap, so the clear error always shows by 25 s (the failsafe is at 27 s). */
+  const OVERPASS_ATTEMPT_ABORT_MS = 11000;
+  const OVERPASS_TOTAL_CAP_MS = 25000;
+  const OVERPASS_RETRY_MIN_MS = 8000;
+  /** Gate MED (868f800): pause before the single retry instead of retrying within milliseconds. */
+  const OVERPASS_RETRY_BACKOFF_MS = 3000;
+  const OVERPASS_RETRY_JITTER_MS = 500;
+  /** Overpass policy: after a 429 or 406, pause at least 30 s before asking the server again. */
+  const OVERPASS_BUSY_MS = 30000;
+  const OVERPASS_BUSY_MAX_MS = 120000;
+  /** 20261004b: short in-page cache of public OSM results, keyed only by the rounded search area.
+   * Memory only (never localStorage), gone when the page unloads. */
+  const OVERPASS_CACHE_TTL_MS = 10 * 60 * 1000;
+  const OVERPASS_CACHE_MAX = 12;
   /** Status ping only — button stays Searching until Overpass finishes */
   const OVERPASS_SLOW_MS = 1800;
   const NOMINATIM_URL = "/api/nominatim";
@@ -51,34 +63,114 @@
   const UI_PREFS_KEY = "rb_ui_prefs";
   const UI_PREFS_TYPES = { all: 1, restaurant: 1, fast_food: 1, cafe: 1, bar: 1 };
   const UI_PREFS_MILES = { 10: 1, 25: 1, 50: 1 };
-  const UI_PREFS_TAGS = { takeaway: 1, delivery: 1, driveThrough: 1, wheelchair: 1, outdoorSeating: 1, restroom: 1, dogsOk: 1, airConditioning: 1, changingTable: 1, smokeFree: 1, kidsArea: 1 };
-  const TAG_PLACE_KEY = { takeaway: "takeout", delivery: "delivery", driveThrough: "driveThru", wheelchair: "wheelchair", outdoorSeating: "outdoorSeating", restroom: "restroom", dogsOk: "dogsOk", airConditioning: "airConditioning", changingTable: "changingTable", smokeFree: "smokeFree", kidsArea: "kidsArea" };
+  const UI_PREFS_TAGS = {
+    takeaway: 1,
+    delivery: 1,
+    driveThrough: 1,
+    wheelchair: 1,
+    outdoorSeating: 1,
+    restroom: 1,
+    dogsOk: 1,
+    airConditioning: 1,
+    changingTable: 1,
+    smokeFree: 1,
+    kidsArea: 1,
+  };
+  const TAG_PLACE_KEY = {
+    takeaway: "takeout",
+    delivery: "delivery",
+    driveThrough: "driveThru",
+    wheelchair: "wheelchair",
+    outdoorSeating: "outdoorSeating",
+    restroom: "restroom",
+    dogsOk: "dogsOk",
+    airConditioning: "airConditioning",
+    changingTable: "changingTable",
+    smokeFree: "smokeFree",
+    kidsArea: "kidsArea",
+  };
   const UI_PREFS_DIET_OSM = { vegan: 1, vegetarian: 1, gluten_free: 1, halal: 1 };
   const CUISINE_CANON = [
-    "american", "barbecue", "burger", "pizza", "mexican", "chinese", "thai",
-    "japanese", "korean", "vietnamese", "indian", "italian", "greek",
-    "mediterranean", "seafood", "sushi", "chicken", "sandwich", "breakfast",
-    "diner", "soul_food", "latin", "caribbean", "middle_eastern", "ethiopian",
-    "french", "german", "irish", "tex-mex", "ramen", "poke", "vegan", "vegetarian",
+    "american",
+    "barbecue",
+    "burger",
+    "pizza",
+    "mexican",
+    "chinese",
+    "thai",
+    "japanese",
+    "korean",
+    "vietnamese",
+    "indian",
+    "italian",
+    "greek",
+    "mediterranean",
+    "seafood",
+    "sushi",
+    "chicken",
+    "sandwich",
+    "breakfast",
+    "diner",
+    "soul_food",
+    "latin",
+    "caribbean",
+    "middle_eastern",
+    "ethiopian",
+    "french",
+    "german",
+    "irish",
+    "tex-mex",
+    "ramen",
+    "poke",
+    "vegan",
+    "vegetarian",
   ];
   const CUISINE_ALIASES = {
-    bbq: "barbecue", barbeque: "barbecue", burgers: "burger", hamburger: "burger",
-    texmex: "tex-mex", tex_mex: "tex-mex", soulfood: "soul_food", "soul-food": "soul_food",
-    latin_american: "latin", "latin-american": "latin",
-    "middle-eastern": "middle_eastern", middleeastern: "middle_eastern",
+    bbq: "barbecue",
+    barbeque: "barbecue",
+    burgers: "burger",
+    hamburger: "burger",
+    texmex: "tex-mex",
+    tex_mex: "tex-mex",
+    soulfood: "soul_food",
+    "soul-food": "soul_food",
+    latin_american: "latin",
+    "latin-american": "latin",
+    "middle-eastern": "middle_eastern",
+    middleeastern: "middle_eastern",
     fish: "seafood",
-    taco: "mexican", tacos: "mexican", burrito: "mexican",
-    coffee: "coffee", coffee_shop: "coffee",
-    icecream: "ice_cream", "ice-cream": "ice_cream",
-    "fish-and-chips": "fish_and_chips", fishandchips: "fish_and_chips",
-    brunch: "breakfast", pancake: "breakfast", pancakes: "breakfast",
-    pasta: "italian", curry: "indian",
-    doughnut: "donut", donuts: "donut",
-    fried_chicken: "chicken", "fried-chicken": "chicken",
-    szechuan: "chinese", sichuan: "chinese", szechwan: "chinese", cantonese: "chinese",
-    dim_sum: "chinese", dimsum: "chinese", "dim-sum": "chinese",
-    gyro: "greek", gyros: "greek", souvlaki: "greek",
-    izakaya: "japanese", teriyaki: "japanese", udon: "japanese", sashimi: "sushi",
+    taco: "mexican",
+    tacos: "mexican",
+    burrito: "mexican",
+    coffee: "coffee",
+    coffee_shop: "coffee",
+    icecream: "ice_cream",
+    "ice-cream": "ice_cream",
+    "fish-and-chips": "fish_and_chips",
+    fishandchips: "fish_and_chips",
+    brunch: "breakfast",
+    pancake: "breakfast",
+    pancakes: "breakfast",
+    pasta: "italian",
+    curry: "indian",
+    doughnut: "donut",
+    donuts: "donut",
+    fried_chicken: "chicken",
+    "fried-chicken": "chicken",
+    szechuan: "chinese",
+    sichuan: "chinese",
+    szechwan: "chinese",
+    cantonese: "chinese",
+    dim_sum: "chinese",
+    dimsum: "chinese",
+    "dim-sum": "chinese",
+    gyro: "greek",
+    gyros: "greek",
+    souvlaki: "greek",
+    izakaya: "japanese",
+    teriyaki: "japanese",
+    udon: "japanese",
+    sashimi: "sushi",
   };
   /**
    * Food-type chips. Rendered only for categories with ≥1 match in the current search (in-range places).
@@ -89,24 +181,87 @@
   const FOOD_CATEGORIES = [
     { id: "pizza", label: "Pizza", cuisines: ["pizza"], amenities: [], nameHints: ["pizza", "pizzeria"] },
     { id: "burgers", label: "Burgers", cuisines: ["burger"], amenities: [], nameHints: ["burger", "hamburger"] },
-    { id: "mexican", label: "Mexican", cuisines: ["mexican", "tex-mex"], amenities: [], nameHints: ["mexican", "taco", "burrito", "taqueria"] },
-    { id: "japanese", label: "Japanese", cuisines: ["japanese", "sushi", "ramen"], amenities: [], nameHints: ["japanese", "sushi", "ramen", "izakaya", "teriyaki", "udon", "sashimi"] },
-    { id: "chinese", label: "Chinese", cuisines: ["chinese"], amenities: [], nameHints: ["chinese", "szechuan", "sichuan", "dim sum"] },
+    {
+      id: "mexican",
+      label: "Mexican",
+      cuisines: ["mexican", "tex-mex"],
+      amenities: [],
+      nameHints: ["mexican", "taco", "burrito", "taqueria"],
+    },
+    {
+      id: "japanese",
+      label: "Japanese",
+      cuisines: ["japanese", "sushi", "ramen"],
+      amenities: [],
+      nameHints: ["japanese", "sushi", "ramen", "izakaya", "teriyaki", "udon", "sashimi"],
+    },
+    {
+      id: "chinese",
+      label: "Chinese",
+      cuisines: ["chinese"],
+      amenities: [],
+      nameHints: ["chinese", "szechuan", "sichuan", "dim sum"],
+    },
     { id: "thai", label: "Thai", cuisines: ["thai"], amenities: [], nameHints: ["thai", "pad thai"] },
-    { id: "asian", label: "Asian", cuisines: ["korean", "vietnamese", "asian", "poke", "filipino", "malaysian", "indonesian", "taiwanese"], amenities: [], nameHints: ["korean", "vietnamese", "asian", "pho", "filipino"] },
+    {
+      id: "asian",
+      label: "Asian",
+      cuisines: ["korean", "vietnamese", "asian", "poke", "filipino", "malaysian", "indonesian", "taiwanese"],
+      amenities: [],
+      nameHints: ["korean", "vietnamese", "asian", "pho", "filipino"],
+    },
     { id: "bbq", label: "BBQ", cuisines: ["barbecue"], amenities: [], nameHints: ["bbq", "barbecue", "barbeque"] },
-    { id: "seafood", label: "Seafood", cuisines: ["seafood", "sushi", "poke", "fish_and_chips"], amenities: ["seafood"], nameHints: ["seafood", "oyster", "lobster", "fish"] },
+    {
+      id: "seafood",
+      label: "Seafood",
+      cuisines: ["seafood", "sushi", "poke", "fish_and_chips"],
+      amenities: ["seafood"],
+      nameHints: ["seafood", "oyster", "lobster", "fish"],
+    },
     { id: "cafe", label: "Cafe", cuisines: ["coffee"], amenities: ["cafe"], nameHints: ["coffee", "espresso"] },
-    { id: "breakfast", label: "Breakfast", cuisines: ["breakfast", "diner"], amenities: [], nameHints: ["breakfast", "brunch", "diner", "pancake"] },
-    { id: "healthy", label: "Healthy", cuisines: ["vegan", "vegetarian", "salad", "juice", "smoothie", "poke"], amenities: [], dietAny: true, nameHints: ["salad", "vegan", "juice", "smoothie"] },
-    { id: "dessert", label: "Dessert", cuisines: ["ice_cream", "dessert", "gelato", "donut", "pastry", "cake"], amenities: ["ice_cream"], nameHints: ["ice cream", "gelato", "yogurt", "donut", "dessert"] },
-    { id: "italian", label: "Italian", cuisines: ["italian"], amenities: [], nameHints: ["italian", "trattoria", "pasta"] },
+    {
+      id: "breakfast",
+      label: "Breakfast",
+      cuisines: ["breakfast", "diner"],
+      amenities: [],
+      nameHints: ["breakfast", "brunch", "diner", "pancake"],
+    },
+    {
+      id: "healthy",
+      label: "Healthy",
+      cuisines: ["vegan", "vegetarian", "salad", "juice", "smoothie", "poke"],
+      amenities: [],
+      dietAny: true,
+      nameHints: ["salad", "vegan", "juice", "smoothie"],
+    },
+    {
+      id: "dessert",
+      label: "Dessert",
+      cuisines: ["ice_cream", "dessert", "gelato", "donut", "pastry", "cake"],
+      amenities: ["ice_cream"],
+      nameHints: ["ice cream", "gelato", "yogurt", "donut", "dessert"],
+    },
+    {
+      id: "italian",
+      label: "Italian",
+      cuisines: ["italian"],
+      amenities: [],
+      nameHints: ["italian", "trattoria", "pasta"],
+    },
     { id: "indian", label: "Indian", cuisines: ["indian"], amenities: [], nameHints: ["indian", "tandoor", "curry"] },
-    { id: "mediterranean", label: "Mediterranean", cuisines: ["mediterranean", "greek"], amenities: [], nameHints: ["mediterranean", "greek", "gyro", "souvlaki", "taverna"] },
+    {
+      id: "mediterranean",
+      label: "Mediterranean",
+      cuisines: ["mediterranean", "greek"],
+      amenities: [],
+      nameHints: ["mediterranean", "greek", "gyro", "souvlaki", "taverna"],
+    },
     { id: "american", label: "American", cuisines: ["american"], amenities: [], nameHints: ["american"] },
   ];
   const FOOD_CATEGORY_IDS = {};
-  FOOD_CATEGORIES.forEach(function (c) { FOOD_CATEGORY_IDS[c.id] = 1; });
+  FOOD_CATEGORIES.forEach(function (c) {
+    FOOD_CATEGORY_IDS[c.id] = 1;
+  });
   const FOOD_CATEGORY_FROM_TYPE = { cafe: "cafe", ice_cream: "dessert" };
   /** Hearts: osm id, name, address only — never lat/lng */
   const SAVED_KEY = "rb_saved";
@@ -115,7 +270,7 @@
   /** Fixed walking speed for walk-time chips — no routing API */
   const WALK_MPH = 3;
   const WALK_MIN_TO_MILES = {
-    5: (5 / 60) * WALK_MPH,   // 0.25 mi
+    5: (5 / 60) * WALK_MPH, // 0.25 mi
     10: (10 / 60) * WALK_MPH, // 0.5 mi
     15: (15 / 60) * WALK_MPH, // 0.75 mi
   };
@@ -171,6 +326,8 @@
     glowTimer: null,
     /** Honest Overpass / geocode error, or null */
     searchError: null,
+    /** True only for a typed-city origin; Locate Me searches are never cached (Shade R3) */
+    searchCacheable: false,
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -210,14 +367,6 @@
       heroTipHidden: true,
       a2hsDismissed: true,
       termsAcceptedVersion: typeof prev.termsAcceptedVersion === "string" ? prev.termsAcceptedVersion : "",
-    };
-  }
-
-  /** Headers the same-origin Overpass proxy must send upstream. The browser cannot set User-Agent. */
-  function overpassUpstreamHeaders() {
-    return {
-      Referer: "https://rangebites.com",
-      "User-Agent": "RangeBites/1.0 (+https://rangebites.com; rangebites@agentmail.to)",
     };
   }
 
@@ -362,7 +511,18 @@
       ? p.termsAccepted
       : "";
     uiPrefs.filtersOpen = false;
-    const hadLocation = ["lastPlaceQuery", "lastCity", "last_city", "searchHistory", "lat", "lng", "latitude", "longitude", "coords", "location"].some((k) => Object.prototype.hasOwnProperty.call(p, k));
+    const hadLocation = [
+      "lastPlaceQuery",
+      "lastCity",
+      "last_city",
+      "searchHistory",
+      "lat",
+      "lng",
+      "latitude",
+      "longitude",
+      "coords",
+      "location",
+    ].some((k) => Object.prototype.hasOwnProperty.call(p, k));
     const dealBtn = $("#filterDeal");
     if (dealBtn) dealBtn.classList.toggle("active", state.filters.hasDeal);
     const openBtn = $("#filterOpen");
@@ -410,9 +570,7 @@
     const toRad = (d) => (d * Math.PI) / 180;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
@@ -441,9 +599,7 @@
 
   function milesCountryFromHit(hit) {
     if (!hit) return true;
-    const code = String(
-      (hit.address && hit.address.country_code) || hit.country_code || ""
-    ).toLowerCase();
+    const code = String((hit.address && hit.address.country_code) || hit.country_code || "").toLowerCase();
     if (MILES_COUNTRY[code]) return true;
     if (code) return false;
     const dn = String(hit.display_name || hit.label || "").toLowerCase();
@@ -481,14 +637,18 @@
 
   function applyUnitsFromGeocode(hit) {
     try {
-      hoursCountry = String((hit && hit.address && hit.address.country_code) || (hit && hit.country_code) || "").toLowerCase();
-    } catch (_) { hoursCountry = ""; }
+      hoursCountry = String(
+        (hit && hit.address && hit.address.country_code) || (hit && hit.country_code) || "",
+      ).toLowerCase();
+    } catch (_) {
+      hoursCountry = "";
+    }
     setDistanceUnits(milesCountryFromHit(hit) ? "mi" : "km", { persist: true, rerender: false });
   }
 
   /** Nearest first (straight-line haversine from the search center or GPS). Ties by name. */
   function sortNearestFirst(list) {
-    return list.slice().sort((a, b) => (a.miles - b.miles) || String(a.name).localeCompare(String(b.name)));
+    return list.slice().sort((a, b) => a.miles - b.miles || String(a.name).localeCompare(String(b.name)));
   }
 
   function osmDietTagged(tags, key) {
@@ -496,17 +656,11 @@
     return v === "yes" || v === "only" || v === "limited";
   }
 
-  function placeMatchesDietOsm(p) {
-    const d = state.filters.diet || {};
-    if (d.vegan && !p.dietVegan) return false;
-    if (d.vegetarian && !p.dietVegetarian) return false;
-    if (d.gluten_free && !p.dietGlutenFree) return false;
-    if (d.halal && !p.dietHalal) return false;
-    return true;
-  }
-
   function canonCuisine(raw) {
-    const t = String(raw || "").trim().toLowerCase().replace(/\s+/g, "_");
+    const t = String(raw || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_");
     if (!t) return "";
     if (CUISINE_ALIASES[t]) return CUISINE_ALIASES[t];
     if (CUISINE_CANON.indexOf(t) >= 0) return t;
@@ -519,15 +673,49 @@
 
   /* forge 20261003: readable OSM values. coffee_shop -> "Coffee shop"; small map for common cuisines. */
   const OSM_VALUE_LABELS = {
-    bbq: "BBQ", barbecue: "Barbecue", burger: "Burgers", pizza: "Pizza", sandwich: "Sandwiches",
-    chicken: "Chicken", fried_chicken: "Fried chicken", coffee_shop: "Coffee shop", ice_cream: "Ice cream",
-    donut: "Doughnuts", sushi: "Sushi", tex_mex: "Tex-Mex", american: "American", mexican: "Mexican",
-    italian: "Italian", chinese: "Chinese", japanese: "Japanese", thai: "Thai", indian: "Indian",
-    vietnamese: "Vietnamese", korean: "Korean", greek: "Greek", seafood: "Seafood", steak_house: "Steakhouse",
-    breakfast: "Breakfast", brunch: "Brunch", kebab: "Kebab", noodle: "Noodles", ramen: "Ramen",
-    hot_dog: "Hot dogs", bagel: "Bagels", juice: "Juice", bubble_tea: "Bubble tea", tea: "Tea",
-    regional: "Regional", diner: "Diner", southern: "Southern", soul_food: "Soul food", cajun: "Cajun",
-    mediterranean: "Mediterranean", middle_eastern: "Middle Eastern", french: "French", german: "German",
+    bbq: "BBQ",
+    barbecue: "Barbecue",
+    burger: "Burgers",
+    pizza: "Pizza",
+    sandwich: "Sandwiches",
+    chicken: "Chicken",
+    fried_chicken: "Fried chicken",
+    coffee_shop: "Coffee shop",
+    ice_cream: "Ice cream",
+    donut: "Doughnuts",
+    sushi: "Sushi",
+    tex_mex: "Tex-Mex",
+    american: "American",
+    mexican: "Mexican",
+    italian: "Italian",
+    chinese: "Chinese",
+    japanese: "Japanese",
+    thai: "Thai",
+    indian: "Indian",
+    vietnamese: "Vietnamese",
+    korean: "Korean",
+    greek: "Greek",
+    seafood: "Seafood",
+    steak_house: "Steakhouse",
+    breakfast: "Breakfast",
+    brunch: "Brunch",
+    kebab: "Kebab",
+    noodle: "Noodles",
+    ramen: "Ramen",
+    hot_dog: "Hot dogs",
+    bagel: "Bagels",
+    juice: "Juice",
+    bubble_tea: "Bubble tea",
+    tea: "Tea",
+    regional: "Regional",
+    diner: "Diner",
+    southern: "Southern",
+    soul_food: "Soul food",
+    cajun: "Cajun",
+    mediterranean: "Mediterranean",
+    middle_eastern: "Middle Eastern",
+    french: "French",
+    german: "German",
   };
   function prettyOsmValue(v) {
     const raw = String(v == null ? "" : v).trim();
@@ -541,17 +729,24 @@
   }
   function prettyCuisineList(c) {
     const seen = {};
-    return String(c || "").split(/[;,]/).map((t) => prettyOsmValue(t)).filter((t) => {
-      if (!t || seen[t.toLowerCase()]) return false;
-      seen[t.toLowerCase()] = 1; return true;
-    }).join(", ");
+    return String(c || "")
+      .split(/[;,]/)
+      .map((t) => prettyOsmValue(t))
+      .filter((t) => {
+        if (!t || seen[t.toLowerCase()]) return false;
+        seen[t.toLowerCase()] = 1;
+        return true;
+      })
+      .join(", ");
   }
   /** Display-only phone formatting. The tel: href is built separately from the raw digits. */
   function formatPhoneDisplay(phone) {
-    const raw = String(phone || "").split(/[;,]/)[0].trim();
+    const raw = String(phone || "")
+      .split(/[;,]/)[0]
+      .trim();
     if (!raw) return "";
     const d = raw.replace(/\D/g, "");
-    const nanp = d.length === 11 && d.charAt(0) === "1" ? d.slice(1) : (d.length === 10 && !/^\+/.test(raw) ? d : "");
+    const nanp = d.length === 11 && d.charAt(0) === "1" ? d.slice(1) : d.length === 10 && !/^\+/.test(raw) ? d : "";
     if (nanp && /^[2-9]\d{2}[2-9]\d{6}$/.test(nanp)) {
       return "(" + nanp.slice(0, 3) + ") " + nanp.slice(3, 6) + "-" + nanp.slice(6);
     }
@@ -559,12 +754,15 @@
   }
 
   function cuisineIconSvg(token) {
-    const svg = 'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+    const svg =
+      'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
     const inner = {
       american: '<path d="M4 14h16"/><path d="M6 10h12"/><path d="M7 7c3-3 7-3 10 0"/>',
-      barbecue: '<path d="M8 14c0 4 8 4 8 0"/><path d="M9 10c.5-2 1-4 3-5"/><path d="M15 10c-.5-2-1-4-3-5"/><path d="M8 14h8"/>',
+      barbecue:
+        '<path d="M8 14c0 4 8 4 8 0"/><path d="M9 10c.5-2 1-4 3-5"/><path d="M15 10c-.5-2-1-4-3-5"/><path d="M8 14h8"/>',
       burger: '<path d="M5 13h14"/><path d="M4 17h16"/><path d="M6 9c2-3 10-3 12 0"/>',
-      pizza: '<path d="M12 3 L21 20 H3 Z"/><circle cx="12" cy="12" r="0.8" fill="currentColor" stroke="none"/><circle cx="9.5" cy="15" r="0.8" fill="currentColor" stroke="none"/>',
+      pizza:
+        '<path d="M12 3 L21 20 H3 Z"/><circle cx="12" cy="12" r="0.8" fill="currentColor" stroke="none"/><circle cx="9.5" cy="15" r="0.8" fill="currentColor" stroke="none"/>',
       mexican: '<path d="M4 16c4-8 12-8 16 0"/><path d="M7 16h10"/><path d="M12 8v3"/>',
       chinese: '<path d="M7 10h10v8H7z"/><path d="M5 8h14"/><path d="M9 6l-2 2"/><path d="M17 6l2 2"/>',
       thai: '<path d="M12 5c2 3 2 6 0 8s-4 2-4-1 2-4 4-7z"/><path d="M12 13v6"/>',
@@ -574,16 +772,20 @@
       indian: '<path d="M12 4v2"/><path d="M8 10c0-3 8-3 8 0v8H8z"/>',
       italian: '<path d="M7 8c4 2 6 2 10 0"/><path d="M7 12c4 2 6 2 10 0"/><path d="M7 16c4 2 6 2 10 0"/>',
       greek: '<path d="M6 8h12"/><path d="M8 8v10"/><path d="M16 8v10"/><path d="M6 18h12"/>',
-      mediterranean: '<circle cx="12" cy="12" r="4"/><path d="M12 4v2"/><path d="M12 18v2"/><path d="M4 12h2"/><path d="M18 12h2"/>',
-      seafood: '<path d="M4 12c6-6 12-4 16 0-4 4-10 6-16 0z"/><circle cx="8" cy="11" r="0.8" fill="currentColor" stroke="none"/>',
+      mediterranean:
+        '<circle cx="12" cy="12" r="4"/><path d="M12 4v2"/><path d="M12 18v2"/><path d="M4 12h2"/><path d="M18 12h2"/>',
+      seafood:
+        '<path d="M4 12c6-6 12-4 16 0-4 4-10 6-16 0z"/><circle cx="8" cy="11" r="0.8" fill="currentColor" stroke="none"/>',
       sushi: '<ellipse cx="12" cy="12" rx="8" ry="4"/><path d="M8 12c1-2 7-2 8 0"/>',
-      chicken: '<path d="M15 8c2 0 4 2 4 4s-3 5-7 5-6-2-6-5 2-5 5-5h4z"/><circle cx="16" cy="9" r="0.7" fill="currentColor" stroke="none"/>',
+      chicken:
+        '<path d="M15 8c2 0 4 2 4 4s-3 5-7 5-6-2-6-5 2-5 5-5h4z"/><circle cx="16" cy="9" r="0.7" fill="currentColor" stroke="none"/>',
       sandwich: '<path d="M5 9h14l-1 4H6z"/><path d="M5 15h14"/><path d="M6 9V7h12v2"/>',
       breakfast: '<circle cx="12" cy="13" r="5"/><path d="M12 4v2"/><path d="M6 7l1.2 1.2"/><path d="M18 7l-1.2 1.2"/>',
       diner: '<path d="M8 7v10"/><path d="M8 11h5a3 3 0 0 1 0 6H8"/>',
       soul_food: '<path d="M6 14h12c0 4-3 5-6 5s-6-1-6-5z"/><path d="M9 10c1-3 5-3 6 0"/>',
       latin: '<path d="M8 7c4 1 4 5 0 8"/><path d="M12 5c4 2 5 7 1 11"/>',
-      caribbean: '<path d="M12 20V10"/><path d="M12 10c-4-1-6-4-6-4 2 0 5 1 6 4"/><path d="M12 10c4-1 6-4 6-4-2 0-5 1-6 4"/>',
+      caribbean:
+        '<path d="M12 20V10"/><path d="M12 10c-4-1-6-4-6-4 2 0 5 1 6 4"/><path d="M12 10c4-1 6-4 6-4-2 0-5 1-6 4"/>',
       middle_eastern: '<path d="M12 6c4 2 6 6 4 10H8c-2-4 0-8 4-10z"/>',
       ethiopian: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/>',
       french: '<path d="M5 16c3-8 11-8 14 0"/><path d="M7 16h10"/>',
@@ -627,12 +829,22 @@
       american: "american",
     };
     if (id === "dessert") {
-      const svg = 'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
-      return "<svg " + svg + '><path d="M12 3c2 2 3 4 3 6a3 3 0 1 1-6 0c0-2 1-4 3-6z"/><path d="M8 15c0 3 8 3 8 0"/><path d="M9 15h6"/></svg>';
+      const svg =
+        'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+      return (
+        "<svg " +
+        svg +
+        '><path d="M12 3c2 2 3 4 3 6a3 3 0 1 1-6 0c0-2 1-4 3-6z"/><path d="M8 15c0 3 8 3 8 0"/><path d="M9 15h6"/></svg>'
+      );
     }
     if (id === "cafe") {
-      const svg = 'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
-      return "<svg " + svg + '><path d="M6 9h10v6a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V9z"/><path d="M16 11h2a2 2 0 1 1 0 4h-2"/><path d="M9 5c.4 1 .4 2 0 3"/><path d="M12 5c.4 1 .4 2 0 3"/></svg>';
+      const svg =
+        'xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+      return (
+        "<svg " +
+        svg +
+        '><path d="M6 9h10v6a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V9z"/><path d="M16 11h2a2 2 0 1 1 0 4h-2"/><path d="M9 5c.4 1 .4 2 0 3"/><path d="M12 5c.4 1 .4 2 0 3"/></svg>'
+      );
     }
     return cuisineIconSvg(tokenMap[id] || "american");
   }
@@ -643,7 +855,9 @@
 
   function nameHasFoodHint(name, hint) {
     const n = String(name || "").toLowerCase();
-    const h = String(hint || "").toLowerCase().trim();
+    const h = String(hint || "")
+      .toLowerCase()
+      .trim();
     if (!n || !h) return false;
     if (h.indexOf(" ") >= 0) return n.indexOf(h) >= 0;
     return new RegExp("(^|[^a-z0-9])" + escapeRegExp(h) + "([^a-z0-9]|$)", "i").test(n);
@@ -707,8 +921,6 @@
     setStatus(filterCountStatus(n, pantryFilterOn(), cat ? n + " " + cat.label.toLowerCase() + " places" : null));
   }
 
-
-
   function syncTrustStrip() {
     const el = $("#trustStrip");
     if (!el) return;
@@ -719,8 +931,7 @@
   function syncRadiusChipsUI() {
     $$(".chip[data-radius]").forEach((c) => {
       const mi = Number(c.dataset.radius);
-      const active =
-        state.walkMinutes == null && Math.abs(mi - state.radiusMiles) < 0.001;
+      const active = state.walkMinutes == null && Math.abs(mi - state.radiusMiles) < 0.001;
       c.classList.toggle("active", active);
     });
     $$(".chip-walk").forEach((c) => {
@@ -775,18 +986,20 @@
   /** OSM tags only. Never invent a pantry from a restaurant name. */
   function isTaggedFreeFood(tags) {
     if (!tags) return false;
-    // Only amenity=food_bank|soup_kitchen (what the Overpass query asks for). No social_facility/office relabels.
+    // amenity=food_bank|soup_kitchen, or OSM's documented amenity=social_facility +
+    // social_facility=food_bank|soup_kitchen (20261004b, Scout: Elk Garden, way/1065546532). Same as the Overpass query.
     const amenity = String(tags.amenity || "").toLowerCase();
-    return amenity === "food_bank" || amenity === "soup_kitchen";
+    if (amenity === "food_bank" || amenity === "soup_kitchen") return true;
+    const sf = String(tags.social_facility || "").toLowerCase();
+    return amenity === "social_facility" && (sf === "food_bank" || sf === "soup_kitchen");
   }
-
-  const OSM_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
 
   /** Permanently closed OSM tags only. Missing hours is not closed. */
   function isPermanentlyClosed(tags) {
     if (!tags) return false;
-    const oh = String(tags.opening_hours || "").trim().toLowerCase();
+    const oh = String(tags.opening_hours || "")
+      .trim()
+      .toLowerCase();
     if (oh === "closed" || oh === "off") return true;
     // end_date (lifecycle) already passed → gone. Only full ISO dates/years; anything fuzzy is ignored.
     const end = String(tags.end_date || "").trim();
@@ -796,7 +1009,14 @@
       if (endMs < Date.now()) return true;
     }
     const yes = (v) => String(v || "").toLowerCase() === "yes";
-    if (yes(tags.disused) || yes(tags.abandoned) || yes(tags.closed) || yes(tags.permanently_closed) || yes(tags.demolished)) return true;
+    if (
+      yes(tags.disused) ||
+      yes(tags.abandoned) ||
+      yes(tags.closed) ||
+      yes(tags.permanently_closed) ||
+      yes(tags.demolished)
+    )
+      return true;
     if (String(tags.shop || "").toLowerCase() === "vacant") return true;
     for (const k of Object.keys(tags)) {
       // Lifecycle prefixes: disused:amenity, was:amenity, abandoned:shop, closed:*, removed:* …
@@ -804,67 +1024,6 @@
     }
     return false;
   }
-
-
-  function parseMinutes(s) {
-    const m = String(s).trim().match(/^(\d{1,2}):(\d{2})$/);
-    if (!m) return null;
-    const hh = +m[1];
-    const mm = +m[2];
-    if (hh > 24 || mm > 59 || (hh === 24 && mm !== 0)) return null;
-    return hh * 60 + mm;
-  }
-
-  function expandOsmDays(spec) {
-    const out = new Set();
-    for (const piece of String(spec).split(",")) {
-      const p = piece.trim();
-      if (!p) continue;
-      const range = p.match(/^([A-Za-z]{2})-([A-Za-z]{2})$/);
-      if (range) {
-        const a = range[1][0].toUpperCase() + range[1][1].toLowerCase();
-        const b = range[2][0].toUpperCase() + range[2][1].toLowerCase();
-        const ia = OSM_DAYS.indexOf(a);
-        const ib = OSM_DAYS.indexOf(b);
-        if (ia < 0 || ib < 0) continue;
-        let i = ia;
-        for (let n = 0; n < 7; n++) {
-          out.add(OSM_DAYS[i]);
-          if (i === ib) break;
-          i = (i + 1) % 7;
-        }
-        continue;
-      }
-      const one = p.match(/^([A-Za-z]{2})$/);
-      if (one) {
-        const d = one[1][0].toUpperCase() + one[1][1].toLowerCase();
-        if (OSM_DAYS.includes(d)) out.add(d);
-      }
-    }
-    return out;
-  }
-
-  function minutesInSpan(nowMin, start, end) {
-    if (start == null || end == null || start === end) return false;
-    if (end > start) return nowMin >= start && nowMin < end;
-    return nowMin >= start || nowMin < end;
-  }
-
-
-  /** Civil clock at a longitude. Device TZ when lng is unused. Never stores GPS. */
-  function nowAtLng(lng) {
-    const n = Number(lng);
-    if (!Number.isFinite(n)) return new Date();
-    const crudeHours = Math.round(n / 15);
-    const deviceHours = -Math.round(new Date().getTimezoneOffset() / 60);
-    if (Math.abs(crudeHours - deviceHours) <= 1) return new Date();
-    const utcMs = Date.now();
-    const offsetMs = crudeHours * 3600000;
-    return new Date(utcMs + offsetMs + new Date().getTimezoneOffset() * 60000);
-  }
-
-
-
 
   /** Which clock may drive open/closed. America/New_York or America/Chicago only inside
    * the continental eastern/central US box (lon -104.5..-66.5, lat 24..49.5, split at -87.6).
@@ -891,8 +1050,14 @@
     if (zone === "device") return new Date();
     try {
       const fmt = new Intl.DateTimeFormat("en-US", {
-        timeZone: zone, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric",
-        hour: "numeric", minute: "numeric", second: "numeric",
+        timeZone: zone,
+        hourCycle: "h23",
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
       });
       const parts = {};
       for (const x of fmt.formatToParts(new Date())) parts[x.type] = x.value;
@@ -911,13 +1076,19 @@
    * "||", open-ended "+", "open"/"unknown") → null so the card says "Hours not listed" — never "Open".
    * Open/closed uses placeNow (US eastern/central zones, or the browser clock when the search is near the user). Cross-checked vs opening_hours.js. */
   const OH_DAY_IDX = { Su: 0, Mo: 1, Tu: 2, We: 3, Th: 4, Fr: 5, Sa: 6 };
+  /** One selector item: a weekday with [n] (nth in month), or a weekday / weekday range / PH. */
+  const OH_SEL_ITEM =
+    "(?:(?:Mo|Tu|We|Th|Fr|Sa|Su)\\[\\s*-?[1-5](?:\\s*,\\s*-?[1-5])*\\s*\\]|(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\\s*-\\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?)";
+  const OH_SELECTOR_RE = new RegExp("^(" + OH_SEL_ITEM + "(?:\\s*,\\s*" + OH_SEL_ITEM + ")*)(?=\\s|$|:)");
+  const OH_DAYLIST_ONLY_RE = new RegExp("^(?:" + OH_SEL_ITEM + "\\s*,?\\s*)+$");
   const ohCache = new Map();
   let hoursCountry = ""; // ISO country from the last geocode; "" when unknown (Locate Me)
 
   function ohParseTime(s) {
     const m = /^(\d{1,2}):(\d{2})$/.exec(s);
     if (!m) return null;
-    const h = +m[1], mm = +m[2];
+    const h = +m[1],
+      mm = +m[2];
     if (mm > 59 || h > 48 || (h === 48 && mm)) return null;
     return h * 60 + mm;
   }
@@ -928,23 +1099,38 @@
     const days = new Set();
     let ph = false;
     let hadSelector = false;
-    const selM = /^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\s*-\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?)(?:\s*,\s*(?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\s*-\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?))*)(?=\s|$|:)/.exec(rest);
+    const nth = {}; // weekday -> Set of nth-in-month (1..5, -1 = last); absent = every week
+    const selM = OH_SELECTOR_RE.exec(rest);
     if (selM) {
       hadSelector = true;
-      for (const piece of selM[1].split(",")) {
+      for (const piece of selM[1].split(/,(?![^[]*\])/)) {
         const p = piece.trim();
-        if (p === "PH") { ph = true; continue; }
+        if (p === "PH") {
+          ph = true;
+          continue;
+        }
+        // 20261004b (Scout): nth weekday of the month, e.g. Sa[4], Su[-1], Mo[1,3].
+        const nthM = /^(Mo|Tu|We|Th|Fr|Sa|Su)\[\s*(-?[1-5](?:\s*,\s*-?[1-5])*)\s*\]$/.exec(p);
+        if (nthM) {
+          const wd = OH_DAY_IDX[nthM[1]];
+          days.add(wd);
+          nth[wd] = new Set(nthM[2].split(",").map((x) => +x.trim()));
+          continue;
+        }
         const r = /^(Mo|Tu|We|Th|Fr|Sa|Su)(?:\s*-\s*(Mo|Tu|We|Th|Fr|Sa|Su))?$/.exec(p);
         if (!r) return null;
         const a = OH_DAY_IDX[r[1]];
         const b = r[2] ? OH_DAY_IDX[r[2]] : a;
-        for (let i = a, n = 0; n < 7; n++, i = (i + 1) % 7) { days.add(i); if (i === b) break; }
+        for (let i = a, n = 0; n < 7; n++, i = (i + 1) % 7) {
+          days.add(i);
+          if (i === b) break;
+        }
       }
       rest = rest.slice(selM[0].length).trim();
       if (rest.startsWith(":")) rest = rest.slice(1).trim(); // "Mo-Fr: 09:00-17:00"
     }
     if (!hadSelector) for (let i = 0; i < 7; i++) days.add(i);
-    if (/^(off|closed)$/i.test(rest)) return { days, ph, spans: [], off: true };
+    if (/^(off|closed)$/i.test(rest)) return { days, ph, nth, spans: [], off: true };
     if (!rest) return null; // "Mo-Fr" with no times: not supported
     const spans = [];
     for (const piece of rest.split(",")) {
@@ -957,7 +1143,16 @@
       if (e - s > 1440) return null;
       spans.push([s, e]);
     }
-    return { days, ph, spans, off: false };
+    return { days, ph, nth, spans, off: false };
+  }
+
+  /** Does `date` fall on an allowed nth weekday of its month for this rule (true when the rule has no [n])? */
+  function ohNthMatches(rule, date) {
+    const want = rule.nth && rule.nth[date.getDay()];
+    if (!want) return true;
+    const d = date.getDate();
+    const dim = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    return want.has(Math.ceil(d / 7)) || (want.has(-1) && d + 7 > dim);
   }
 
   /** Parse full opening_hours → array of rules, or null if any part is unsupported. Cached. */
@@ -967,11 +1162,23 @@
     if (ohCache.has(raw)) return ohCache.get(raw);
     let rules = [];
     let ok = true;
-    const normal = raw.split(";").map((r) => r.trim()).filter(Boolean);
-    if (!normal.length || /\|\||"|\+|\[|\]/.test(raw)) ok = false;
+    const normal = raw
+      .split(";")
+      .map((r) => r.trim())
+      .filter(Boolean);
+    // [ ] are allowed only as an nth-weekday suffix (Sa[4]); any other bracket use is unsupported.
+    const bracketsLeft = raw.replace(/(?:Mo|Tu|We|Th|Fr|Sa|Su)\[\s*-?[1-5](?:\s*,\s*-?[1-5])*\s*\]/g, "");
+    if (!normal.length || /\|\||"|\+/.test(raw) || /\[|\]/.test(bracketsLeft)) ok = false;
     for (const part of ok ? normal : []) {
       if (/^24\/7$/.test(part)) {
-        rules.push({ additional: false, days: new Set([0, 1, 2, 3, 4, 5, 6]), ph: false, spans: [[0, 1440]], off: false, allDays: true });
+        rules.push({
+          additional: false,
+          days: new Set([0, 1, 2, 3, 4, 5, 6]),
+          ph: false,
+          spans: [[0, 1440]],
+          off: false,
+          allDays: true,
+        });
         continue;
       }
       // Split "Mo-Fr 08:00-17:00, Sa 09:00-12:00" into additional rules at ", <weekday|PH>"
@@ -979,13 +1186,16 @@
       // Re-join chunks that were day lists ("Mo,We 10:00-12:00" split into "Mo" + "We 10:00-12:00")
       const merged = [];
       for (const c of chunks) {
-        if (merged.length && /^(?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:\s*-\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?\s*,?\s*)+$/.test(merged[merged.length - 1])) {
+        if (merged.length && OH_DAYLIST_ONLY_RE.test(merged[merged.length - 1])) {
           merged[merged.length - 1] += "," + c;
         } else merged.push(c);
       }
       for (let i = 0; i < merged.length; i++) {
         const r = ohParseSelectorAndTimes(merged[i]);
-        if (!r) { ok = false; break; }
+        if (!r) {
+          ok = false;
+          break;
+        }
         r.additional = i > 0;
         rules.push(r);
       }
@@ -996,29 +1206,50 @@
     return out;
   }
 
-  function nthWeekday(y, m, wd, n) { // n>=1 nth, n=-1 last
-    if (n > 0) { const d = new Date(y, m, 1); return 1 + ((wd - d.getDay() + 7) % 7) + (n - 1) * 7; }
-    const last = new Date(y, m + 1, 0); return last.getDate() - ((last.getDay() - wd + 7) % 7);
+  function nthWeekday(y, m, wd, n) {
+    // n>=1 nth, n=-1 last
+    if (n > 0) {
+      const d = new Date(y, m, 1);
+      return 1 + ((wd - d.getDay() + 7) % 7) + (n - 1) * 7;
+    }
+    const last = new Date(y, m + 1, 0);
+    return last.getDate() - ((last.getDay() - wd + 7) % 7);
   }
   /** US federal holidays (observed dates), computed — no data file. */
   function isUsFederalHoliday(date) {
-    const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
-    const fixed = [[0, 1], [5, 19], [6, 4], [10, 11], [11, 25]];
+    const y = date.getFullYear(),
+      m = date.getMonth(),
+      d = date.getDate();
+    const fixed = [
+      [0, 1],
+      [5, 19],
+      [6, 4],
+      [10, 11],
+      [11, 25],
+    ];
     for (const [fm, fd] of fixed) {
       for (const yy of [y - 1, y, y + 1]) {
-        const h = new Date(yy, fm, fd); const wd = h.getDay();
+        const h = new Date(yy, fm, fd);
+        const wd = h.getDay();
         if (yy === y && fm === m && fd === d) return true; // the holiday itself
         const obs = new Date(yy, fm, fd + (wd === 6 ? -1 : wd === 0 ? 1 : 0)); // observed weekday
         if (obs.getFullYear() === y && obs.getMonth() === m && obs.getDate() === d) return true;
       }
     }
-    const floating = [[0, 1, 3], [1, 1, 3], [4, 1, -1], [8, 1, 1], [9, 1, 2], [10, 4, 4]];
+    const floating = [
+      [0, 1, 3],
+      [1, 1, 3],
+      [4, 1, -1],
+      [8, 1, 1],
+      [9, 1, 2],
+      [10, 4, 4],
+    ];
     for (const [fm, wd, n] of floating) if (m === fm && d === nthWeekday(y, fm, wd, n)) return true;
     return false;
   }
   function ohIsHoliday(date, lat, lng) {
     const cc = String(hoursCountry || "").toLowerCase();
-    const inUs = cc ? cc === "us" : (Number(lat) > 18 && Number(lat) < 72 && Number(lng) < -64 && Number(lng) > -180);
+    const inUs = cc ? cc === "us" : Number(lat) > 18 && Number(lat) < 72 && Number(lng) < -64 && Number(lng) > -180;
     return inUs && isUsFederalHoliday(date);
   }
 
@@ -1029,10 +1260,13 @@
     let spans = [];
     let idx = -1;
     rules.forEach((r, i) => {
-      const hits = (r.ph && hol) || r.days.has(wd);
+      const hits = (r.ph && hol) || (r.days.has(wd) && ohNthMatches(r, date));
       if (!hits) return;
       idx = i;
-      if (r.off) { spans = []; return; }
+      if (r.off) {
+        spans = [];
+        return;
+      }
       spans = r.additional ? spans.concat(r.spans) : r.spans.slice();
     });
     return { spans, idx };
@@ -1128,9 +1362,20 @@
       if (last && sp[0] <= last[1]) last[1] = Math.max(last[1], sp[1]);
       else merged.push(sp.slice());
     }
-    return "Today " + merged
-      .map(([a, b]) => (a === 0 && b >= 1440 ? "all day" : clockFromMinutes(a) + "–" + clockFromMinutes(b)))
-      .join(", ");
+    return (
+      "Today " +
+      merged
+        .map(([a, b]) => (a === 0 && b >= 1440 ? "all day" : clockFromMinutes(a) + "–" + clockFromMinutes(b)))
+        .join(", ")
+    );
+  }
+
+  /** Escaped hours text with each "7am–10pm" range kept on one line (20261004b polish: no break at the dash). */
+  function hoursRangeHtml(text) {
+    return escapeHtml(text).replace(
+      /\b(\d{1,2}(?::\d{2})?[ap]m–\d{1,2}(?::\d{2})?[ap]m)/g,
+      '<span class="rb-nowrap">$1</span>',
+    );
   }
 
   /** Plain hours for cards. Never invents; only formats tagged OSM hours.
@@ -1167,19 +1412,13 @@
     let opens = "";
     if (r.nextOpenAt != null) {
       const dayOff = Math.floor(r.nextOpenAt / 1440);
-      opens = "Opens " + clockFromMinutes(r.nextOpenAt) +
+      opens =
+        "Opens " +
+        clockFromMinutes(r.nextOpenAt) +
         (dayOff === 0 ? "" : dayOff === 1 ? " tomorrow" : " " + OH_DAY_SHORT[(now.getDay() + dayOff) % 7]);
     }
     return "Tagged closed" + (opens ? " · " + opens : "") + " · " + today;
   }
-
-  function openIshStatus(hours) {
-    return parseOpeningHours(hours);
-  }
-
-
-
-
 
   function walkMinutesApprox(miles) {
     const mi = Number(miles);
@@ -1248,8 +1487,8 @@
             id: String(x.id),
             name: String(x.name || "").slice(0, 120),
             address: String(x.address || "").slice(0, 160),
-          }))
-        )
+          })),
+        ),
       );
     } catch (_) {
       /* private mode — ok */
@@ -1291,8 +1530,8 @@
     uiPrefs.units = "mi";
     persistUiPrefs();
     try {
-      if (window.RangeBitesMetrics && window.RangeBitesMetrics.clearLegacyLocationKeys) {
-        window.RangeBitesMetrics.clearLegacyLocationKeys(window.localStorage, window.sessionStorage);
+      if (window.RangeBitesLegacyCleanup && window.RangeBitesLegacyCleanup.clearLegacyLocationKeys) {
+        window.RangeBitesLegacyCleanup.clearLegacyLocationKeys(window.localStorage, window.sessionStorage);
       }
     } catch (_) {}
     const input = $("#placeSearch");
@@ -1378,20 +1617,11 @@
     return /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   }
 
-  function isAndroidDevice() {
-    return /Android/i.test(navigator.userAgent || "");
-  }
-
   function detectDevice() {
     let device = "desktop";
     try {
-      const ua = navigator.userAgent || "";
-      const coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
       const narrow = !!(window.matchMedia && window.matchMedia("(max-width: 767px)").matches);
       const mid = !!(window.matchMedia && window.matchMedia("(max-width: 1099px)").matches);
-      const iosPhone = /iPhone|iPod/i.test(ua);
-      const iosPad = /iPad/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      const android = /Android/i.test(ua);
       if (narrow) device = "phone";
       else if (mid) device = "tablet";
       else device = "desktop";
@@ -1479,7 +1709,13 @@
       !!state.filters.lateNight ||
       !!state.filters.cuisine ||
       !!state.filters.foodCategory ||
-      !!(state.filters.diet && (state.filters.diet.vegan || state.filters.diet.vegetarian || state.filters.diet.gluten_free || state.filters.diet.halal)) ||
+      !!(
+        state.filters.diet &&
+        (state.filters.diet.vegan ||
+          state.filters.diet.vegetarian ||
+          state.filters.diet.gluten_free ||
+          state.filters.diet.halal)
+      ) ||
       (state.filters.type && state.filters.type !== "all");
     btn.classList.toggle("is-active", nonDefault);
   }
@@ -1493,8 +1729,14 @@
       if (active && sheet.contains(active)) {
         const back = sheetOpener.get(sheet);
         const target = back && document.contains(back) && !back.closest("[inert]") ? back : $("#placeSearch");
-        try { target && target.focus({ preventScroll: true }); } catch (_) {}
-        if (sheet.contains(document.activeElement)) { try { active.blur(); } catch (_) {} }
+        try {
+          target && target.focus({ preventScroll: true });
+        } catch (_) {}
+        if (sheet.contains(document.activeElement)) {
+          try {
+            active.blur();
+          } catch (_) {}
+        }
       }
       sheet.setAttribute("inert", "");
       sheet.setAttribute("aria-hidden", "true");
@@ -1504,7 +1746,11 @@
       sheet.removeAttribute("inert");
       sheet.setAttribute("aria-hidden", "false");
       const closeBtn = sheet.querySelector(".sheet-close, button");
-      setTimeout(() => { try { closeBtn && closeBtn.focus({ preventScroll: true }); } catch (_) {} }, 30);
+      setTimeout(() => {
+        try {
+          closeBtn && closeBtn.focus({ preventScroll: true });
+        } catch (_) {}
+      }, 30);
     }
   }
 
@@ -1568,7 +1814,6 @@
       .replace(/'/g, "&#39;");
   }
 
-
   function setMapLoading(on) {
     const wrap = document.querySelector(".map-wrap");
     if (wrap) wrap.classList.toggle("is-loading", !!on);
@@ -1596,11 +1841,22 @@
       maxZoom: 18,
       updateWhenIdle: true,
       updateWhenZooming: false,
-      keepBuffer: 2
+      keepBuffer: 2,
     }).addTo(state.map);
 
     L.control.zoom({ position: "bottomright" }).addTo(state.map);
     state.markersLayer = L.layerGroup().addTo(state.map);
+  }
+
+  /** 20261004b (Gate): every Leaflet marker gets an accessible name. Leaflet copies `title` onto the
+   * marker element (role=button) and `alt` onto image icons, so pins are told apart by name. */
+  function markerOptions(name, extra) {
+    const label =
+      String(name || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 120) || "Place";
+    return Object.assign({ title: label, alt: label, keyboard: true }, extra || {});
   }
 
   function updateMapCenter(lat, lng, radiusMi) {
@@ -1616,7 +1872,9 @@
       iconSize: [14, 14],
       iconAnchor: [7, 7],
     });
-    state.userMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(state.map);
+    state.userMarker = L.marker([lat, lng], markerOptions("Search center", { icon, zIndexOffset: 1000 })).addTo(
+      state.map,
+    );
     // Warm kitchen radius — not teal
     state.radiusCircle = L.circle([lat, lng], {
       radius: milesToMeters(radiusMi),
@@ -1664,7 +1922,7 @@
     try {
       card = document.querySelector(`.place-card[data-id="${CSS.escape(placeId)}"]`);
     } catch (_) {
-      card = document.querySelector('.place-card[data-id="' + placeId.replace(/"/g, '') + '"]');
+      card = document.querySelector('.place-card[data-id="' + placeId.replace(/"/g, "") + '"]');
     }
     if (card) {
       card.classList.add("selected");
@@ -1673,9 +1931,7 @@
       }
     }
     try {
-      const railCard = document.querySelector(
-        `.deal-rail-card[data-deal-open="${CSS.escape(placeId)}"]`
-      );
+      const railCard = document.querySelector(`.deal-rail-card[data-deal-open="${CSS.escape(placeId)}"]`);
       if (railCard) railCard.classList.add("selected");
     } catch (_) {
       /* ignore */
@@ -1716,14 +1972,12 @@
         iconSize: [iconW, iconH],
         iconAnchor: isSponsored ? [iconW / 2, size / 2] : [HIT / 2, HIT / 2],
       });
-      const m = L.marker([p.lat, p.lng], { icon });
-      const sponsoredPopup = isSponsored
-        ? `<br><span class="popup-sponsored">Sponsored</span>`
-        : "";
+      const m = L.marker([p.lat, p.lng], markerOptions(p.name, { icon }));
+      const sponsoredPopup = isSponsored ? `<br><span class="popup-sponsored">Sponsored</span>` : "";
       m.bindPopup(
         `<strong>${escapeHtml(p.name)}</strong><br>${formatMiles(p.miles)} · ${escapeHtml(p.cuisine ? prettyCuisineList(p.cuisine) : amenityLabel(p.amenity))}` +
           (p.deal ? `<br><span class="popup-deal">${escapeHtml(p.deal.label)}</span>` : "") +
-          sponsoredPopup
+          sponsoredPopup,
       );
       m.on("click", () => {
         highlightPlace(p.id, { openPopup: false, scrollCard: true, pan: false });
@@ -1741,28 +1995,39 @@
     return Math.round(Number(v) * 1000) / 1000;
   }
 
-  function buildOverpassQuery(lat, lng, radiusM, mode) {
+  function buildOverpassQuery(lat, lng, radiusM) {
     // +120 m pad so rounding the centre never drops a place near the edge; distances and the
     // radius cut-off still use the full-precision origin on this device (normalizeElements).
     const r = Math.round(radiusM) + 120;
-    const t = mode === "fast" ? OVERPASS_FAST_TIMEOUT_S : OVERPASS_TIMEOUT_S;
+    const t = OVERPASS_TIMEOUT_S;
     const around = `(around:${r},${roundCoord3(lat).toFixed(3)},${roundCoord3(lng).toFixed(3)})`;
     const named = '["name"]';
     // Lean query — same food types, fewer unions so phones finish before timeout.
-    // Pantries: amenity=food_bank|soup_kitchen only. Copy must not claim social_facility/office/worldwide.
+    // Pantries: amenity=food_bank|soup_kitchen, plus amenity=social_facility with social_facility=food_bank|soup_kitchen.
+    // Copy must not claim office/worldwide.
     const food = "restaurant|fast_food|cafe|bar|pub|ice_cream|food_court|biergarten|food_bank|soup_kitchen";
-    return `[out:json][timeout:${t}];(` +
-      `node["amenity"~"^(` + food + `)$"]${named}${around};` +
-      `way["amenity"~"^(` + food + `)$"]${named}${around};` +
-      `relation["amenity"~"^(` + food + `)$"]${named}${around};` +
+    return (
+      `[out:json][timeout:${t}];(` +
+      `node["amenity"~"^(` +
+      food +
+      `)$"]${named}${around};` +
+      `way["amenity"~"^(` +
+      food +
+      `)$"]${named}${around};` +
+      `relation["amenity"~"^(` +
+      food +
+      `)$"]${named}${around};` +
       `node["shop"~"^(bakery|deli)$"]${named}${around};` +
       `way["shop"~"^(bakery|deli)$"]${named}${around};` +
-      `);out center;`;
+      `nwr["amenity"="social_facility"]["social_facility"~"^(food_bank|soup_kitchen)$"]${named}${around};` +
+      `);out center;`
+    );
   }
 
   function overpassErrorMessage(err) {
     if (!err) return "Couldn’t reach OpenStreetMap. Try again.";
-    if (err.name === "AbortError") return "OpenStreetMap timed out. Try again.";
+    if (err.allBusy) return "The OpenStreetMap server is busy right now. Try again in a minute.";
+    if (err.name === "AbortError" || err.timedOut) return "OpenStreetMap didn’t answer in time. Try again in a minute.";
     const m = String(err.message || "");
     if (/HTTP 429/.test(m)) return "OpenStreetMap is busy. Try again in a moment.";
     if (/HTTP 50[234]/.test(m)) return "OpenStreetMap is down. Try again.";
@@ -1770,40 +2035,94 @@
     return "Couldn’t reach OpenStreetMap. Try again.";
   }
 
-  function firstFulfilled(promises) {
-    return new Promise((resolve, reject) => {
-      let left = promises.length;
-      let lastErr = null;
-      if (!left) {
-        reject(new Error("Overpass unreachable"));
-        return;
-      }
-      promises.forEach((p) => {
-        Promise.resolve(p).then(resolve, (err) => {
-          lastErr = err;
-          left -= 1;
-          if (left === 0) reject(lastErr || new Error("Overpass unreachable"));
-        });
-      });
-    });
+  /** In-page cache key: the rounded search area only (centre to 3 decimals, the same rounding the query
+   * uses, plus radius), so a hit is exactly the answer Overpass would give again. No visitor data. */
+  function overpassCacheKey(lat, lng, radiusMiles) {
+    return (
+      roundCoord3(lat).toFixed(3) + "," + roundCoord3(lng).toFixed(3) + "," + Math.round(Number(radiusMiles) * 10) / 10
+    );
+  }
+  /** 20261004b (Shade R2): drop every entry older than ttlMs. Run on every read and write of both caches,
+   * so nothing outlives the stated 10 minutes in page memory without a fresh write. */
+  function cacheSweep(map, ttlMs, now) {
+    for (const [k, v] of map) if (now - v.at >= ttlMs) map.delete(k);
+  }
+  /** Gate 3 (Shade B2): Clear location bumps this. A search that started before the bump must not write
+   * its answer into either cache when it lands. */
+  let cacheGen = 0;
+  function bumpCacheGen() {
+    cacheGen++;
+  }
+  /** Gate 3 (Shade B1): also sweep both caches every 60 s while the page is open, so an idle page drops
+   * expired entries without waiting for the next search. */
+  const CACHE_SWEEP_INTERVAL_MS = 60 * 1000;
+  function sweepAllCaches(now) {
+    cacheSweep(overpassCache, OVERPASS_CACHE_TTL_MS, now);
+    cacheSweep(geocodeCache, GEOCODE_CACHE_TTL_MS, now);
+  }
+  const overpassCache = new Map(); // key -> { at, elements } (raw OSM elements; distances are recomputed per search)
+  function overpassCacheGet(key, now) {
+    cacheSweep(overpassCache, OVERPASS_CACHE_TTL_MS, now);
+    const hit = overpassCache.get(key);
+    return hit ? hit.elements : null;
+  }
+  function overpassCachePut(key, elements, now) {
+    cacheSweep(overpassCache, OVERPASS_CACHE_TTL_MS, now);
+    overpassCache.delete(key);
+    overpassCache.set(key, { at: now, elements });
+    while (overpassCache.size > OVERPASS_CACHE_MAX) overpassCache.delete(overpassCache.keys().next().value);
+  }
+  /** Server cooldown after 429/406 (Overpass policy). url -> epoch ms. In memory only. */
+  const overpassBusyUntil = new Map();
+  function overpassBusyMs(res) {
+    const ra = parseInt((res && res.headers && res.headers.get && res.headers.get("Retry-After")) || "", 10);
+    return Number.isFinite(ra) && ra > 0
+      ? Math.min(Math.max(ra * 1000, OVERPASS_BUSY_MS), OVERPASS_BUSY_MAX_MS)
+      : OVERPASS_BUSY_MS;
   }
 
+  /** 20261004b (gate 3): one Overpass server. One attempt with its own AbortController; after a timeout,
+   * 5xx or timeout remark, a backoff (overpassRetryBackoffMs) and then one retry on the same server if at
+   * least 8 s of the 25 s cap remain after the backoff. A 429/406 shows the busy message at once (and cools
+   * the server for 30 s or Retry-After). An empty answer is a real empty list. */
+  function overpassRetryBackoffMs(err, rand) {
+    const ra = err && err.retryAfterS;
+    if (Number.isFinite(ra) && ra > 0) return Math.min(ra * 1000, OVERPASS_BUSY_MAX_MS);
+    return OVERPASS_RETRY_BACKOFF_MS + Math.floor(rand() * (OVERPASS_RETRY_JITTER_MS + 1));
+  }
   async function fetchPlaces(lat, lng, radiusMiles, opts) {
     opts = opts || {};
-    const mode = opts.mode || "full";
-    const urls = OVERPASS_URLS.slice();
-    const abortMs = mode === "fast" ? OVERPASS_FAST_ABORT_MS : OVERPASS_CLIENT_ABORT_MS;
-    const radiusM = milesToMeters(radiusMiles);
-    const query = buildOverpassQuery(lat, lng, radiusM, mode);
+    const now = opts.now || Date.now;
+    const url = OVERPASS_SERVER.url;
+    const perMs = opts.perMs || OVERPASS_ATTEMPT_ABORT_MS;
+    const capMs = opts.capMs || OVERPASS_TOTAL_CAP_MS;
+    const retryMinMs = opts.retryMinMs == null ? OVERPASS_RETRY_MIN_MS : opts.retryMinMs;
+    const rand = opts.random || Math.random;
+    // Shade R3: only typed-city searches (centred on the geocoded city point) are cached. A Locate Me
+    // search is never cached, so no device-derived coordinate becomes a cache key.
+    const cacheable = opts.cacheable === true;
+    const gen = cacheGen;
+    const key = cacheable ? overpassCacheKey(lat, lng, radiusMiles) : null;
+    const cached = cacheable ? overpassCacheGet(key, now()) : null;
+    if (cached) return normalizeElements(cached, lat, lng);
+    const query = buildOverpassQuery(lat, lng, milesToMeters(radiusMiles));
     const body = "data=" + encodeURIComponent(query);
+    const started = now();
 
-    async function fetchOne(url) {
+    function busyError() {
+      const e = new Error("Overpass server busy");
+      e.allBusy = true;
+      return e;
+    }
+
+    async function fetchOne(budgetMs) {
       const controller = new AbortController();
-      const timer = setTimeout(function () { controller.abort(); }, abortMs);
+      const timer = setTimeout(function () {
+        controller.abort();
+      }, budgetMs);
       try {
-        // Upstream must send overpassUpstreamHeaders() (Referer + descriptive User-Agent).
-        // referrerPolicy "origin" is the browser Referer; User-Agent is set by the proxy.
-        let res = await fetch(url, {
+        // referrerPolicy "origin": the proxy adds the identifying User-Agent/Referer for the server.
+        const res = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -1813,43 +2132,57 @@
           signal: controller.signal,
           referrerPolicy: "origin",
         });
-        if (!res.ok && (res.status === 429 || res.status === 502 || res.status === 504)) {
-          try { setStatus("OpenStreetMap is busy… retrying"); } catch (_) {}
-          await new Promise(function (r) { setTimeout(r, 2500); });
-          res = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-              Accept: "application/json",
-            },
-            body: body,
-            signal: controller.signal,
-            referrerPolicy: "origin",
-          });
+        if (res.status === 429 || res.status === 406) {
+          overpassBusyUntil.set(url, now() + overpassBusyMs(res));
+          throw busyError();
         }
-        if (!res.ok) throw new Error("Overpass HTTP " + res.status);
+        if (!res.ok) {
+          const e = new Error("Overpass HTTP " + res.status);
+          e.retryable = res.status >= 500;
+          e.retryAfterS = parseInt((res.headers && res.headers.get && res.headers.get("Retry-After")) || "", 10);
+          throw e;
+        }
         const data = await res.json();
-        const remark = String(data.remark || "");
-        if (/timeout|error/i.test(remark)) throw new Error("Overpass remark timeout");
-        const places = normalizeElements(data.elements || [], lat, lng);
-        if (!places.length) throw new Error("Overpass empty");
-        return places;
+        const remark = String((data && data.remark) || "");
+        if (/timeout|error|out of memory/i.test(remark)) {
+          const e = new Error("Overpass remark timeout");
+          e.retryable = true;
+          throw e;
+        }
+        return data && Array.isArray(data.elements) ? data.elements : [];
       } finally {
         clearTimeout(timer);
       }
     }
 
+    if ((overpassBusyUntil.get(url) || 0) > now()) throw busyError();
     let lastErr = null;
-    for (let i = 0; i < urls.length; i++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        const retryable = lastErr && (lastErr.name === "AbortError" || lastErr.retryable);
+        if (!retryable) break;
+        const backoff = overpassRetryBackoffMs(lastErr, rand);
+        // Only retry if at least 8 s of the cap are still left once the backoff is over.
+        if (capMs - (now() - started) - backoff < retryMinMs) break;
+        try {
+          setStatus("OpenStreetMap is slow… trying again");
+        } catch (_) {}
+        await new Promise(function (resolve) {
+          setTimeout(resolve, backoff);
+        });
+      }
+      const left = capMs - (now() - started);
       try {
-        return await fetchOne(urls[i]);
+        const elements = await fetchOne(Math.min(perMs, left));
+        if (cacheable && gen === cacheGen) overpassCachePut(key, elements, now());
+        return normalizeElements(elements, lat, lng);
       } catch (err) {
+        if (err && err.allBusy) throw err;
         lastErr = err;
-        // empty on this URL → try next in OVERPASS_URLS; empty on all → real empty list
       }
     }
-    if (lastErr && /empty/i.test(String(lastErr.message || ""))) return [];
-    throw lastErr || new Error("Overpass unreachable");
+    if (lastErr && lastErr.name === "AbortError") lastErr.timedOut = true;
+    throw lastErr;
   }
 
   function shortPlaceLabel(displayName, fallback) {
@@ -1863,7 +2196,6 @@
     const rest = parts.slice(1).find((p) => !skip.test(p));
     return rest ? city + ", " + rest : city;
   }
-
 
   function pickGeocodeHit(data) {
     if (!Array.isArray(data) || !data.length) return null;
@@ -1900,8 +2232,9 @@
   const NOMINATIM_MIN_GAP_MS = 1100;
   let nominatimLastAt = 0;
   /* forge 20261003 (Gate G1): a 429/503 from the city lookup fails fast with a "busy" message, and further
-   * lookups wait out a short cooldown (Retry-After, capped at 60 s) without calling Nominatim again. */
-  const NOMINATIM_BUSY_MAX_MS = 60000;
+   * lookups wait out a cooldown (Retry-After, capped at 120 s like Overpass; 15 s if none is sent)
+   * without calling Nominatim again. */
+  const NOMINATIM_BUSY_MAX_MS = 120000;
   let nominatimBusyUntil = 0;
   function nominatimBusyError() {
     const e = new Error("Nominatim HTTP 429");
@@ -1958,8 +2291,18 @@
     max = max || 5;
     const settle = /^(city|town|village|municipality|hamlet|suburb)$/;
     const chosenName = normWord(chosen.name || String(chosen.display_name || "").split(",")[0]);
-    const region = (h) => { const a = (h && h.address) || {}; return String(a.country_code || "") + "|" + String(a["ISO3166-2-lvl4"] || a.state || ""); };
-    const seen = [{ label: geocodeShortLabel(chosen).toLowerCase(), region: region(chosen), lat: parseFloat(chosen.lat), lng: parseFloat(chosen.lon) }];
+    const region = (h) => {
+      const a = (h && h.address) || {};
+      return String(a.country_code || "") + "|" + String(a["ISO3166-2-lvl4"] || a.state || "");
+    };
+    const seen = [
+      {
+        label: geocodeShortLabel(chosen).toLowerCase(),
+        region: region(chosen),
+        lat: parseFloat(chosen.lat),
+        lng: parseFloat(chosen.lon),
+      },
+    ];
     const picks = [];
     data.forEach((h, i) => {
       if (!h || h === chosen) return;
@@ -1967,7 +2310,8 @@
       if (!settle.test(t)) return;
       if (normWord(h.name || String(h.display_name || "").split(",")[0]) !== chosenName) return;
       const label = geocodeShortLabel(h);
-      const lat = parseFloat(h.lat), lng = parseFloat(h.lon);
+      const lat = parseFloat(h.lat),
+        lng = parseFloat(h.lon);
       if (!label || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
       const key = label.toLowerCase();
       const reg = region(h);
@@ -1982,7 +2326,31 @@
     return picks.slice(0, max).map((x) => Object.assign(geocodeHitToPlace(x.hit, x.label), { shortLabel: x.label }));
   }
 
+  /** 20261004b: in-page cache of city lookups, keyed only by the typed city text (lowercased).
+   * Memory only, dropped on unload; saves repeat Nominatim calls (OSMF policy asks apps to cache). */
+  const GEOCODE_CACHE_TTL_MS = 10 * 60 * 1000; // matches Privacy §5 ("up to 10 minutes")
+  const GEOCODE_CACHE_MAX = 20;
+  const geocodeCache = new Map();
   async function geocodePlace(q) {
+    const key = String(q || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+    if (!key) return null;
+    cacheSweep(geocodeCache, GEOCODE_CACHE_TTL_MS, Date.now());
+    const hit = geocodeCache.get(key);
+    if (hit) return hit.value;
+    const gen = cacheGen;
+    const value = await geocodePlaceFromNetwork(q);
+    if (gen !== cacheGen) return value; // Clear location happened meanwhile: don't refill the cache
+    cacheSweep(geocodeCache, GEOCODE_CACHE_TTL_MS, Date.now());
+    geocodeCache.delete(key);
+    geocodeCache.set(key, { at: Date.now(), value });
+    while (geocodeCache.size > GEOCODE_CACHE_MAX) geocodeCache.delete(geocodeCache.keys().next().value);
+    return value;
+  }
+
+  async function geocodePlaceFromNetwork(q) {
     const t = String(q || "").trim();
     if (!t) return null;
     // Mobile/OS often sends "24266, Lebanon, United States" — prefer the ZIP.
@@ -2010,7 +2378,10 @@
         referrerPolicy: "origin",
         signal: ac.signal,
       });
-      if (res.status === 429 || res.status === 503) { noteNominatimBusy(res); throw nominatimBusyError(); }
+      if (res.status === 429 || res.status === 503) {
+        noteNominatimBusy(res);
+        throw nominatimBusyError();
+      }
       if (!res.ok) throw new Error("Nominatim HTTP " + res.status);
       let data = await res.json();
       if ((!data || !data.length) && !looksLikePostal(lookup)) {
@@ -2024,7 +2395,10 @@
           referrerPolicy: "origin",
           signal: ac.signal,
         });
-        if (res2.status === 429 || res2.status === 503) { noteNominatimBusy(res2); throw nominatimBusyError(); }
+        if (res2.status === 429 || res2.status === 503) {
+          noteNominatimBusy(res2);
+          throw nominatimBusyError();
+        }
         if (res2.ok) data = await res2.json();
       }
       if (!data || !data.length) return null;
@@ -2043,17 +2417,28 @@
   /** Same place mapped twice (node + building way/relation): same normalized name within ~130 m.
    * Keep one: node coords (the POI itself) over way/relation center; fill missing tags from the other. */
   function mergeDuplicateElements(elements) {
-    const norm = (n) => String(n || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[’'`]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const norm = (n) =>
+      String(n || "")
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[’'`]/g, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
     const rank = { node: 0, way: 1, relation: 2 };
     const kept = [];
     const rk = (t) => (Object.prototype.hasOwnProperty.call(rank, t) ? rank[t] : 3); // node is 0 — do not use || (0 is falsy)
-    const sorted = elements.slice().sort((a, b) => rk(a.type) - rk(b.type));
+    // Shallow copies: merging reassigns tags/mergedIds, so cached Overpass elements are never changed.
+    const sorted = elements.map((e) => Object.assign({}, e)).sort((a, b) => rk(a.type) - rk(b.type));
     for (const el of sorted) {
       const tags = el.tags || {};
       const name = String(tags.name || "").trim();
       const lat = el.lat != null ? el.lat : el.center && el.center.lat;
       const lng = el.lon != null ? el.lon : el.center && el.center.lon;
-      if (!name || lat == null || lng == null) { kept.push(el); continue; }
+      if (!name || lat == null || lng == null) {
+        kept.push(el);
+        continue;
+      }
       const key = norm(name);
       const prev = kept.find((k) => {
         const kt = k.tags || {};
@@ -2062,9 +2447,14 @@
         if (k.type === "node" && el.type === "node") return false; // two POI nodes = two places
         return klat != null && norm(kt.name) === key && haversineMiles(klat, klng, lat, lng) < 0.08;
       });
-      if (!prev) { kept.push(el); continue; }
+      if (!prev) {
+        kept.push(el);
+        continue;
+      }
       const merged = Object.assign({}, tags, prev.tags || {}); // keeper's tags win; fill gaps
       prev.tags = merged;
+      // 20261004b (Scout): remember the dropped duplicate's id so closed-places can match either id.
+      prev.mergedIds = (prev.mergedIds || []).concat(el.type + "/" + el.id, el.mergedIds || []);
     }
     return kept;
   }
@@ -2074,7 +2464,9 @@
 
     for (const el of mergeDuplicateElements(elements || [])) {
       const tags = el.tags || {};
-      const name = String(tags.name || "").replace(/\s+/g, " ").trim();
+      const name = String(tags.name || "")
+        .replace(/\s+/g, " ")
+        .trim();
       if (!name) continue; // never show a blank name
       if (isPermanentlyClosed(tags)) continue;
 
@@ -2088,12 +2480,12 @@
 
       const freeFood = isTaggedFreeFood(tags);
       let amenity = tags.amenity || tags.shop || "restaurant";
+      if (freeFood && amenity === "social_facility")
+        amenity = String(tags.social_facility).toLowerCase() === "soup_kitchen" ? "soup_kitchen" : "food_bank";
       if (freeFood && amenity !== "soup_kitchen") amenity = "food_bank";
       const miles = haversineMiles(originLat, originLng, lat, lng);
       const deal =
-        !freeFood &&
-        window.RangeBitesDeals &&
-        typeof window.RangeBitesDeals.matchDeal === "function"
+        !freeFood && window.RangeBitesDeals && typeof window.RangeBitesDeals.matchDeal === "function"
           ? window.RangeBitesDeals.matchDeal({
               name,
               cuisine: tags.cuisine || "",
@@ -2117,6 +2509,7 @@
       const dietHalal = osmDietTagged(tags, "halal");
       places.push({
         id: el.type + "/" + el.id,
+        mergedIds: (el.mergedIds || []).slice(),
         name,
         lat,
         lng,
@@ -2174,11 +2567,19 @@
     if (closedLoading) return closedLoading;
     closedLoading = fetch(CLOSED_URL, { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { closedIds = new Set(Object.keys((j && j.places) || {})); return closedIds; })
+      .then((j) => {
+        closedIds = new Set(Object.keys((j && j.places) || {}));
+        return closedIds;
+      })
       .catch(() => closedIds);
     return closedLoading;
   }
-  function isCuratedClosed(p) { return !!(p && closedIds.has(String(p.id))); }
+  function isCuratedClosed(p) {
+    if (!p) return false;
+    if (closedIds.has(String(p.id))) return true;
+    // A node+way pair is merged under the node's id; an entry keyed on either id hides it (20261004b, Scout).
+    return Array.isArray(p.mergedIds) && p.mergedIds.some((id) => closedIds.has(String(id)));
+  }
 
   /* ---------- AllThePlaces chain hours (CC0, weekly store-locator scrape) ----------
    * data/atp-hours.json is built offline by tools/build-atp-hours.py (no key, no cost).
@@ -2195,7 +2596,7 @@
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         const idx = new Map();
-        for (const row of (j && Array.isArray(j.rows) ? j.rows : [])) {
+        for (const row of j && Array.isArray(j.rows) ? j.rows : []) {
           if (!Array.isArray(row) || !row[0] || !row[3]) continue;
           const list = idx.get(row[0]) || [];
           list.push(row);
@@ -2204,7 +2605,10 @@
         atpIndex = idx;
         return idx;
       })
-      .catch(() => { atpIndex = new Map(); return atpIndex; });
+      .catch(() => {
+        atpIndex = new Map();
+        return atpIndex;
+      });
     return atpLoading;
   }
   function metersBetween(lat1, lng1, lat2, lng2) {
@@ -2240,7 +2644,10 @@
       let bestM = Infinity;
       for (const row of rows) {
         const m = metersBetween(p.lat, p.lng, row[1], row[2]);
-        if (m < bestM) { bestM = m; best = row; }
+        if (m < bestM) {
+          bestM = m;
+          best = row;
+        }
       }
       if (!best) continue;
       const fill = !p.hours && bestM <= ATP_FILL_M;
@@ -2298,8 +2705,15 @@
     }
     const cat = foodCategoryById(state.filters.foodCategory);
     if (cat) list = list.filter((p) => placeMatchesFoodCategory(p, cat));
-    const nq = String(state.nameQuery || "").trim().toLowerCase();
-    if (nq) list = list.filter((p) => String(p.name || "").toLowerCase().includes(nq));
+    const nq = String(state.nameQuery || "")
+      .trim()
+      .toLowerCase();
+    if (nq)
+      list = list.filter((p) =>
+        String(p.name || "")
+          .toLowerCase()
+          .includes(nq),
+      );
     list = sortNearestFirst(list).slice(0, MAX_RESULTS);
 
     return list;
@@ -2307,9 +2721,7 @@
 
   function mapsPlatform() {
     const ua = navigator.userAgent || "";
-    const iOS =
-      /iPhone|iPad|iPod/i.test(ua) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const iOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     if (iOS) return "apple";
     if (/Android/i.test(ua)) return "android";
     return "unknown";
@@ -2322,12 +2734,7 @@
     const q = encodeURIComponent(p.name || "restaurant");
     return {
       apple: "https://maps.apple.com/?daddr=" + lat + "," + lng + "&q=" + q,
-      google:
-        "https://www.google.com/maps/dir/?api=1&destination=" +
-        lat +
-        "," +
-        lng +
-        "&travelmode=driving",
+      google: "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng + "&travelmode=driving",
     };
   }
 
@@ -2367,12 +2774,6 @@
     return plat;
   }
 
-  function openDealUrl(p) {
-    const web = p && p.website ? absoluteUrl(p.website) : "";
-    if (web) return web;
-    return mapsLinks(p).google;
-  }
-
   function absoluteUrl(url) {
     const raw = String(url || "").trim();
     if (!raw || /[\s<>"']/.test(raw)) return "";
@@ -2393,7 +2794,9 @@
   }
 
   function telHref(phone) {
-    const raw = String(phone || "").split(/[;,]/)[0].trim(); // OSM may list several numbers
+    const raw = String(phone || "")
+      .split(/[;,]/)[0]
+      .trim(); // OSM may list several numbers
 
     if (!raw) return "";
     const digits = raw.replace(/[^\d+]/g, "");
@@ -2407,7 +2810,9 @@
    */
   function isFakeDemoPhone(phone) {
     // Only the reserved fictional range NXX-555-0100..0199. Real numbers can contain 555.
-    const d = String(phone || "").replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+    const d = String(phone || "")
+      .replace(/\D/g, "")
+      .replace(/^1(?=\d{10}$)/, "");
     return /^\d{3}55501\d{2}$/.test(d);
   }
 
@@ -2416,27 +2821,25 @@
     const tel = isFakeDemoPhone(p.phone) ? "" : telHref(p.phone);
     if (tel) {
       rows.push(
-        `<a class="contact-link" href="${escapeHtml(tel)}">Call <span class="contact-value">${escapeHtml(formatPhoneDisplay(p.phone))}</span></a>`
+        `<a class="contact-link" href="${escapeHtml(tel)}">Call <span class="contact-value">${escapeHtml(formatPhoneDisplay(p.phone))}</span></a>`,
       );
     }
     const menu = /example\.com/i.test(p.menuUrl || "") ? "" : absoluteUrl(p.menuUrl);
     if (menu) {
       rows.push(
-        `<a class="contact-link" href="${escapeHtml(menu)}" target="_blank" rel="noopener noreferrer">Menu</a>`
+        `<a class="contact-link" href="${escapeHtml(menu)}" target="_blank" rel="noopener noreferrer">Menu</a>`,
       );
     }
     const web = /example\.com/i.test(p.website || "") ? "" : absoluteUrl(p.website);
     if (web) {
       rows.push(
-        `<a class="contact-link" href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer" title="Link from the OpenStreetMap listing">Website</a>`
+        `<a class="contact-link" href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer" title="Link from the OpenStreetMap listing">Website</a>`,
       );
     }
     if (p.hours) {
-      const src = p.hoursSource === "atp"
-        ? " (chain store locator via AllThePlaces, CC0)"
-        : " (OpenStreetMap)";
+      const src = p.hoursSource === "atp" ? " (chain store locator via AllThePlaces, CC0)" : " (OpenStreetMap)";
       rows.push(
-        `<div class="contact-hours"><span class="contact-label">Hours</span> ${escapeHtml(p.hours)}${src}</div>`
+        `<div class="contact-hours"><span class="contact-label">Hours</span> ${escapeHtml(p.hours)}${src}</div>`,
       );
     }
     if (!rows.length) return "";
@@ -2507,23 +2910,23 @@
       wrap.hidden = true;
       wrap.classList.remove("is-empty");
       rail.innerHTML = "";
+      setListRole(rail, null, false);
       return;
     }
     wrap.hidden = false;
     wrap.classList.remove("is-empty");
     setDealRailLabel();
+    setListRole(rail, "Promo text from listings nearby", true);
     rail.innerHTML = deals
       .slice(0, 12)
       .map((p, idx) => {
-        const sponsored = p.sponsored
-          ? `<span class="rail-sponsored">Sponsored</span>`
-          : "";
-        return `<button type="button" class="deal-rail-card" role="listitem" data-deal-open="${escapeHtml(p.id)}" data-rail-pos="${idx}">
+        const sponsored = p.sponsored ? `<span class="rail-sponsored">Sponsored</span>` : "";
+        return listItemHtml(`<button type="button" class="deal-rail-card" data-deal-open="${escapeHtml(p.id)}" data-rail-pos="${idx}">
   <span class="rail-deal">${escapeHtml(p.deal.label)}</span>
   <span class="rail-name">${escapeHtml(p.name)}</span>
   <span class="rail-meta">${formatMiles(p.miles)} · ${escapeHtml(amenityLabel(p.amenity))}</span>
   ${sponsored}
-</button>`;
+</button>`);
       })
       .join("");
   }
@@ -2544,6 +2947,22 @@
       .sort((x, y) => (x.miles || 0) - (y.miles || 0));
   }
 
+  /** 20261004b (Gate): a role=list only while it holds items, so an empty track is not an empty list. */
+  function setListRole(el, label, on) {
+    if (!el) return;
+    if (on) {
+      el.setAttribute("role", "list");
+      if (label) el.setAttribute("aria-label", label);
+    } else {
+      el.removeAttribute("role");
+      el.removeAttribute("aria-label");
+    }
+  }
+  function listItemHtml(inner) {
+    return `<div class="rb-li" role="listitem">${inner}</div>`;
+  }
+  const OPEN_STRIP_LABEL = "Places tagged open from OSM or chain store-locator hours — verify";
+
   function renderOpenStrip() {
     const wrap = $("#openStrip");
     const track = $("#openStripTrack");
@@ -2551,32 +2970,32 @@
     if (state.lat == null) {
       wrap.hidden = true;
       track.innerHTML = "";
+      setListRole(track, null, false);
       return;
     }
     wrap.hidden = false;
     const open = openNowPlaces();
     if (!open.length) {
+      setListRole(track, null, false);
       track.innerHTML = state.loading
         ? `<p class="open-strip-empty">Checking OSM hours…</p>`
         : `<p class="open-strip-empty">No tagged open restaurants in this range.</p>`;
       return;
     }
+    setListRole(track, OPEN_STRIP_LABEL, true);
     track.innerHTML = open
       .slice(0, 24)
-      .map(
-        (p) =>
-          `<button type="button" class="open-pill" role="listitem" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">${hoursOriginLabel(p.hoursSource)}</span></button>`
+      .map((p) =>
+        listItemHtml(
+          `<button type="button" class="open-pill" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">${hoursOriginLabel(p.hoursSource)}</span></button>`,
+        ),
       )
       .join("");
   }
 
   function opensSoonPlaces() {
     return (state.places || []).filter(
-      (p) =>
-        p.opensSoon &&
-        p.hours &&
-        String(p.hours).trim() &&
-        p.miles <= state.radiusMiles + 0.05
+      (p) => p.opensSoon && p.hours && String(p.hours).trim() && p.miles <= state.radiusMiles + 0.05,
     );
   }
 
@@ -2598,9 +3017,10 @@
     wrap.hidden = false;
     track.innerHTML = soon
       .slice(0, 24)
-      .map(
-        (p) =>
-          `<button type="button" class="open-pill opens-soon-pill" role="listitem" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">Opens soon · ${hoursOriginLabel(p.hoursSource)}</span></button>`
+      .map((p) =>
+        listItemHtml(
+          `<button type="button" class="open-pill opens-soon-pill" data-id="${escapeHtml(p.id)}"><span class="open-name">${escapeHtml(p.name)}</span><span class="open-mark">Opens soon · ${hoursOriginLabel(p.hoursSource)}</span></button>`,
+        ),
       )
       .join("");
   }
@@ -2656,7 +3076,10 @@
     if (state.places && state.places.length && state.filters.diet) {
       let cleared = false;
       Object.keys(state.filters.diet).forEach((k) => {
-        if (state.filters.diet[k] && !present[k]) { state.filters.diet[k] = false; cleared = true; }
+        if (state.filters.diet[k] && !present[k]) {
+          state.filters.diet[k] = false;
+          cleared = true;
+        }
       });
       if (cleared) persistUiPrefs();
     }
@@ -2688,11 +3111,7 @@
         if (count > 0) visible.push({ cat, count });
       }
     }
-    if (
-      hasPlaces &&
-      state.filters.foodCategory &&
-      !visible.some((row) => row.cat.id === state.filters.foodCategory)
-    ) {
+    if (hasPlaces && state.filters.foodCategory && !visible.some((row) => row.cat.id === state.filters.foodCategory)) {
       state.filters.foodCategory = null;
       persistUiPrefs();
     }
@@ -2796,15 +3215,12 @@
     if (nameWrap) nameWrap.hidden = !state.lat || !list.length;
     syncFiltersLaunch();
     if (countEl) {
-      countEl.textContent = list.length
-        ? `${list.length} restaurant${list.length === 1 ? "" : "s"}`
-        : "";
+      countEl.textContent = list.length ? `${list.length} restaurant${list.length === 1 ? "" : "s"}` : "";
     }
     if (dealCountEl) {
       if (dealCount > 0 && !state.loading) {
         dealCountEl.hidden = false;
-        dealCountEl.textContent =
-          dealCount === 1 ? "1 listing promo" : `${dealCount} listing promos`;
+        dealCountEl.textContent = dealCount === 1 ? "1 listing promo" : `${dealCount} listing promos`;
       } else {
         dealCountEl.hidden = true;
         dealCountEl.textContent = "";
@@ -2834,14 +3250,18 @@
       ul.classList.remove("list-appear");
       if (state.searchError) {
         ul.innerHTML = `<li class="empty"><strong>${escapeHtml(state.searchError)}</strong> We do not invent restaurants.</li>`;
-        requestAnimationFrame(function () { renderMarkers([]); });
+        requestAnimationFrame(function () {
+          renderMarkers([]);
+        });
         return;
       }
       if (state.filters.saved) {
         const saved = readSaved();
         if (!saved.length) {
           ul.innerHTML = `<li class="empty"><strong>No saved restaurants on this device.</strong> Heart a restaurant to remember it here. No GPS trail.</li>`;
-          requestAnimationFrame(function () { renderMarkers([]); });
+          requestAnimationFrame(function () {
+            renderMarkers([]);
+          });
           return;
         }
         ul.innerHTML = saved
@@ -2858,11 +3278,15 @@
 </li>`;
           })
           .join("");
-        requestAnimationFrame(function () { renderMarkers([]); });
+        requestAnimationFrame(function () {
+          renderMarkers([]);
+        });
         return;
       }
       ul.innerHTML = `<li class="empty">Tap Locate Me or search any city. Any type of food.</li>`;
-      requestAnimationFrame(function () { renderMarkers([]); });
+      requestAnimationFrame(function () {
+        renderMarkers([]);
+      });
       return;
     }
 
@@ -2874,19 +3298,21 @@
         : state.nameQuery.trim()
           ? `<li class="empty"><strong>No restaurants match that name in this list.</strong> Search food filters the current nearby list.</li>`
           : state.filters.saved
-          ? (readSaved().length
+            ? readSaved().length
               ? `<li class="empty"><strong>None of your saved restaurants are in this range.</strong> Widen it, or clear Saved.</li>`
-              : `<li class="empty"><strong>No saved restaurants on this device.</strong> Heart a restaurant to remember it here. No GPS trail.</li>`)
-          : state.filters.foodCategory
-          ? `<li class="empty"><strong>No ${escapeHtml((foodCategoryById(state.filters.foodCategory) || {}).label || "that type")} in this range.</strong> Matches OpenStreetMap cuisine and amenity tags, plus a few name words. Tap the chip again to show all.</li>`
-          : state.dietaryFilter === "freefood"
-          ? `<li class="empty"><strong>No tagged pantries in this range.</strong> In this search area, food banks and soup kitchens show only when OpenStreetMap tags amenity=food_bank or soup_kitchen. Listings may be wrong or stale; confirm before you go.</li>`
-          : state.filters.hasDeal
-          ? `<li class="empty"><strong>No promo text here.</strong> Widen the range, or clear the promo filter.</li>`
-          : (state.filters.openNow && state.places && state.places.length
-          ? `<li class="empty"><strong>None tagged open.</strong> They show when OSM hours say open — verify.</li>`
-          : `<li class="empty"><strong>No tagged food in this range.</strong> Search another city.</li>`);
-      requestAnimationFrame(function () { renderMarkers([]); });
+              : `<li class="empty"><strong>No saved restaurants on this device.</strong> Heart a restaurant to remember it here. No GPS trail.</li>`
+            : state.filters.foodCategory
+              ? `<li class="empty"><strong>No ${escapeHtml((foodCategoryById(state.filters.foodCategory) || {}).label || "that type")} in this range.</strong> Matches OpenStreetMap cuisine and amenity tags, plus a few name words. Tap the chip again to show all.</li>`
+              : state.dietaryFilter === "freefood"
+                ? `<li class="empty"><strong>No tagged pantries in this range.</strong> In this search area, food banks and soup kitchens show only when OpenStreetMap tags them as a food bank or soup kitchen (amenity=food_bank or soup_kitchen, or social_facility=food_bank or soup_kitchen). Listings may be wrong or stale; confirm before you go.</li>`
+                : state.filters.hasDeal
+                  ? `<li class="empty"><strong>No promo text here.</strong> Widen the range, or clear the promo filter.</li>`
+                  : state.filters.openNow && state.places && state.places.length
+                    ? `<li class="empty"><strong>None tagged open.</strong> They show when OSM hours say open — verify.</li>`
+                    : `<li class="empty"><strong>No tagged food in this range.</strong> Search another city.</li>`;
+      requestAnimationFrame(function () {
+        renderMarkers([]);
+      });
       return;
     }
 
@@ -2897,26 +3323,31 @@
         const dealBadge = p.deal
           ? `<button type="button" class="badge badge-deal" data-deal-open="${escapeHtml(p.id)}" title="${escapeHtml(p.deal.detail)}">${escapeHtml(p.deal.label)}</button>`
           : "";
-        const sponsoredBadge = p.sponsored
-          ? `<span class="badge badge-sponsored">Sponsored</span>`
-          : "";
+        const sponsoredBadge = p.sponsored ? `<span class="badge badge-sponsored">Sponsored</span>` : "";
         let openBadge = "";
-        if (p.hours && p.openStatus === "open" && p.closesSoon) openBadge = `<span class="badge badge-soon">Closes soon · verify</span>`;
-        else if (p.hours && p.openStatus === "open") openBadge = `<span class="badge badge-open">Tagged open · verify</span>`;
-        else if (p.hours && p.openStatus === "closed") openBadge = `<span class="badge badge-closed">Closed · verify</span>`;
+        if (p.hours && p.openStatus === "open" && p.closesSoon)
+          openBadge = `<span class="badge badge-soon">Closes soon · verify</span>`;
+        else if (p.hours && p.openStatus === "open")
+          openBadge = `<span class="badge badge-open">Tagged open · verify</span>`;
+        else if (p.hours && p.openStatus === "closed")
+          openBadge = `<span class="badge badge-closed">Closed · verify</span>`;
         else if (p.hours && p.opensSoon) openBadge = "";
         const kitchenBadge = p.kitchenClosedDoorsOpen
           ? `<span class="badge badge-kitchen">Kitchen closed · OSM</span>`
           : "";
         const outdoorBadge = p.outdoorSeating ? `<span class="badge badge-tag">Outdoor seating</span>` : "";
-        const wheelchairBadge = p.wheelchair ? `<span class="badge badge-tag">Wheelchair access · OSM tag · call to confirm</span>` : "";
+        const wheelchairBadge = p.wheelchair
+          ? `<span class="badge badge-tag">Wheelchair access · OSM tag · call to confirm</span>`
+          : "";
         const takeoutBadge = p.takeout ? `<span class="badge badge-tag">Takeout</span>` : "";
         const deliveryBadge = p.delivery ? `<span class="badge badge-tag">Delivery · OSM tag · verify</span>` : "";
         const driveBadge = p.driveThru ? `<span class="badge badge-tag">Drive-thru</span>` : "";
         const restroomBadge = p.restroom ? `<span class="badge badge-tag">${escapeHtml("Restroom")}</span>` : "";
         const dogsBadge = p.dogsOk ? `<span class="badge badge-tag">${escapeHtml("Dogs OK")}</span>` : "";
         const acBadge = p.airConditioning ? `<span class="badge badge-tag">${escapeHtml("A/C")}</span>` : "";
-        const changingBadge = p.changingTable ? `<span class="badge badge-tag">${escapeHtml("Changing table")}</span>` : "";
+        const changingBadge = p.changingTable
+          ? `<span class="badge badge-tag">${escapeHtml("Changing table")}</span>`
+          : "";
         const smokeBadge = p.smokeFree ? `<span class="badge badge-tag">${escapeHtml("No smoking")}</span>` : "";
         const kidsBadge = p.kidsArea ? `<span class="badge badge-tag">${escapeHtml("Kids area")}</span>` : "";
         const cuisine = p.cuisine
@@ -2950,15 +3381,16 @@
         const contactHtml = contactBlockHtml(p);
         const reviewsHtml = reviewsBlockHtml(p);
         // forge 20261003 (Lens): Call / Menu / Website live once, in contactBlockHtml (no duplicate nav buttons).
-        const addrCta = (p.address && String(p.address).trim())
-          ? `<button type="button" class="nav-btn" data-copy-addr="${pid}">Copy address</button>`
-          : "";
+        const addrCta =
+          p.address && String(p.address).trim()
+            ? `<button type="button" class="nav-btn" data-copy-addr="${pid}">Copy address</button>`
+            : "";
         let hoursLine = "";
         const hoursText = p.hours ? friendlyHoursLine(p) : "";
         if (hoursText && p.openStatus === "open") {
-          hoursLine = `<div class="place-hours is-open">${escapeHtml(hoursText)}</div>`;
+          hoursLine = `<div class="place-hours is-open">${hoursRangeHtml(hoursText)}</div>`;
         } else if (hoursText && p.openStatus === "closed") {
-          hoursLine = `<div class="place-hours is-closed">${escapeHtml(hoursText)}</div>`;
+          hoursLine = `<div class="place-hours is-closed">${hoursRangeHtml(hoursText)}</div>`;
         } else if (hoursText) {
           // Tagged but outside the parser's subset: show the tag text, no open/closed guess.
           hoursLine = `<div class="place-hours is-raw">${escapeHtml(hoursText)}</div>`;
@@ -3084,32 +3516,22 @@
     }
   }
 
-  function rememberCityInUrl(q) {
-    const t = sanitizePlaceQuery(q);
-    if (!t) return;
-    try {
-      const u = new URL(window.location.href);
-      u.searchParams.set("q", t);
-      u.hash = "";
-      history.replaceState({}, "", u);
-    } catch (_) {}
-  }
-
   function sharePlace(place) {
     if (!place) return;
     const title = place.name || "RangeBites";
-    const text = place.deal && place.deal.label
-      ? title + " — " + place.deal.label
-      : title + " — food near you";
+    const text = place.deal && place.deal.label ? title + " — " + place.deal.label : title + " — food near you";
     const url = cityShareUrl();
     if (navigator.share) {
       navigator.share({ title: title, text: text, url: url }).catch(function () {});
       return;
     }
     if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      navigator.clipboard.writeText(text + " " + url).then(function () {
-        setStatus("Link copied · " + title);
-      }, function () {});
+      navigator.clipboard.writeText(text + " " + url).then(
+        function () {
+          setStatus("Link copied · " + title);
+        },
+        function () {},
+      );
     }
   }
 
@@ -3172,7 +3594,8 @@
     if (place.changingTable) tagBits.push("Changing table");
     if (place.smokeFree) tagBits.push("No smoking");
     if (place.kidsArea) tagBits.push("Kids area");
-    if (place.hours && place.openStatus === "open" && place.closesSoon) tagBits.push("Closes soon · " + hoursOriginLabel(place.hoursSource) + " · verify");
+    if (place.hours && place.openStatus === "open" && place.closesSoon)
+      tagBits.push("Closes soon · " + hoursOriginLabel(place.hoursSource) + " · verify");
     const tagLine = tagBits.length
       ? `<div class="badge-row sheet-tags">${tagBits.map((b) => `<span class="badge badge-tag">${escapeHtml(b)}</span>`).join("")}</div>`
       : "";
@@ -3214,9 +3637,13 @@
   function disclaimerLinesHtml(p) {
     const lines = [];
     if (p && p.freeFood) {
-      lines.push(`<div class="card-disclaimer pantry-caveat">${escapeHtml(disclaimerText("pantryCard", "Hours, eligibility & supply vary · call the pantry first"))}</div>`);
+      lines.push(
+        `<div class="card-disclaimer pantry-caveat">${escapeHtml(disclaimerText("pantryCard", "Hours, eligibility & supply vary · call the pantry first"))}</div>`,
+      );
     } else if (p && p.deal) {
-      lines.push(`<div class="card-disclaimer">${escapeHtml(disclaimerText("dealCard", "Promo from the listing · confirm before you order"))}</div>`);
+      lines.push(
+        `<div class="card-disclaimer">${escapeHtml(disclaimerText("dealCard", "Promo from the listing · confirm before you order"))}</div>`,
+      );
     } else {
       const t = disclaimerText("placeCard", "");
       if (t) lines.push(`<div class="card-disclaimer">${escapeHtml(t)}</div>`);
@@ -3229,8 +3656,13 @@
     const el = $("#firstSearchNotice");
     if (!el) return;
     let seen = false;
-    try { seen = localStorage.getItem(NOTICE_KEY) === "1"; } catch (_) {}
-    if (seen) { el.hidden = true; return; }
+    try {
+      seen = localStorage.getItem(NOTICE_KEY) === "1";
+    } catch (_) {}
+    if (seen) {
+      el.hidden = true;
+      return;
+    }
     const txt = $("#firstSearchNoticeText");
     if (txt && window.RB_DISCLAIMERS && window.RB_DISCLAIMERS.firstSearchNoticeHtml) {
       txt.innerHTML = window.RB_DISCLAIMERS.firstSearchNoticeHtml; // static string from our own file, not data
@@ -3240,15 +3672,27 @@
   function dismissFirstSearchNotice() {
     const el = $("#firstSearchNotice");
     if (el) el.hidden = true;
-    try { localStorage.setItem(NOTICE_KEY, "1"); } catch (_) {}
+    try {
+      localStorage.setItem(NOTICE_KEY, "1");
+    } catch (_) {}
     const list = $("#placeList");
-    if (list) { try { list.focus({ preventScroll: true }); } catch (_) {} }
+    if (list) {
+      try {
+        list.focus({ preventScroll: true });
+      } catch (_) {}
+    }
   }
 
   /* ---------- forge 20261003: resolved-place line (shows what the geocoder picked) ---------- */
 
   function normWord(s) {
-    return String(s || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+    return String(s || "")
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9 ]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
   /** True when the geocoder's place name does not match what was typed (likely a typo or wrong match). No network. */
   function geocodeLooksDifferent(typed, hit) {
@@ -3262,7 +3706,12 @@
   function setNearLine(text, warn) {
     const el = $("#nearLine");
     if (!el) return;
-    if (!text) { el.hidden = true; el.textContent = ""; el.classList.remove("is-warn"); return; }
+    if (!text) {
+      el.hidden = true;
+      el.textContent = "";
+      el.classList.remove("is-warn");
+      return;
+    }
     el.textContent = text;
     el.classList.toggle("is-warn", !!warn);
     el.hidden = false;
@@ -3271,10 +3720,21 @@
   /** forge 20261003 (QA #1): a new area starts with no food/cuisine/diet chip carried over. */
   function resetFoodChipsForNewArea() {
     let changed = false;
-    if (state.filters.foodCategory) { state.filters.foodCategory = null; changed = true; }
-    if (state.filters.cuisine) { state.filters.cuisine = null; changed = true; }
+    if (state.filters.foodCategory) {
+      state.filters.foodCategory = null;
+      changed = true;
+    }
+    if (state.filters.cuisine) {
+      state.filters.cuisine = null;
+      changed = true;
+    }
     const d = state.filters.diet || {};
-    Object.keys(d).forEach((k) => { if (d[k]) { d[k] = false; changed = true; } });
+    Object.keys(d).forEach((k) => {
+      if (d[k]) {
+        d[k] = false;
+        changed = true;
+      }
+    });
     if (changed) persistUiPrefs();
     return changed;
   }
@@ -3289,7 +3749,9 @@
         if (state.places === batch && batch.some(isCuratedClosed)) {
           for (let i = batch.length - 1; i >= 0; i--) if (isCuratedClosed(batch[i])) batch.splice(i, 1); // in place: keeps ATP's batch identity
           renderList();
-          try { renderMarkers(filteredPlaces()); } catch (_) {}
+          try {
+            renderMarkers(filteredPlaces());
+          } catch (_) {}
         }
       });
     }
@@ -3299,7 +3761,9 @@
       loadAtpHours().then(() => {
         if (state.places === batch && applyAtpHours(batch)) {
           renderList();
-          try { renderMarkers(filteredPlaces()); } catch (_) {}
+          try {
+            renderMarkers(filteredPlaces());
+          } catch (_) {}
         }
       });
     }
@@ -3326,16 +3790,19 @@
       setStatus(filterCountStatus(shown, true)); // 20261003i: matches the pantry list
     } else if (live) {
       if (!shown && places.length) {
-        setStatus(state.filters.openNow
-          ? "None tagged open. They show when OSM hours say open — verify."
-          : "No tagged food in this range.");
+        setStatus(
+          state.filters.openNow
+            ? "None tagged open. They show when OSM hours say open — verify."
+            : "No tagged food in this range.",
+        );
       } else if (!shown) {
         setStatus("No tagged food in this range.");
       } else {
         setStatus(
-          shown + (state.filters.openNow ? " tagged open" : " nearby") +
+          shown +
+            (state.filters.openNow ? " tagged open" : " nearby") +
             (places.length >= MAX_RESULTS ? " · nearest " + MAX_RESULTS : "") +
-            dealsHint
+            dealsHint,
         );
       }
     } else {
@@ -3382,18 +3849,27 @@
   function clearResultsForNewSearch() {
     state.places = [];
     state.fetchedRadiusMiles = null;
-    try { renderMarkers([]); } catch (_) {}
-    try { document.documentElement.classList.remove("has-places"); } catch (_) {}
+    try {
+      renderMarkers([]);
+    } catch (_) {}
+    try {
+      document.documentElement.classList.remove("has-places");
+    } catch (_) {}
     try {
       const countEl = $("#resultCount");
       if (countEl) countEl.textContent = "";
       const dealCountEl = $("#dealCount");
-      if (dealCountEl) { dealCountEl.hidden = true; dealCountEl.textContent = ""; }
+      if (dealCountEl) {
+        dealCountEl.hidden = true;
+        dealCountEl.textContent = "";
+      }
     } catch (_) {}
   }
 
-  async function runSearch(lat, lng, { glow, placeLabel } = {}) {
+  async function runSearch(lat, lng, { glow, placeLabel, cacheable } = {}) {
     const gen = ++state.searchGen;
+    // Shade R3: remember whether this origin is a typed city (cacheable) or the device (never cached).
+    state.searchCacheable = cacheable === true;
     // 20261003i: a new origin drops the old area's cards and pins at once, so the skeleton shows and
     // nothing from the previous city can be kept as a "fallback" for this one. Late responses from
     // older searches are already ignored by gen (stillActiveSearch).
@@ -3416,7 +3892,7 @@
       }
     }, OVERPASS_SLOW_MS);
 
-    // Mobile failsafe: never leave "Finding food…" skeleton if fetch hangs past abort.
+    // Mobile failsafe: never leave "Finding food…" skeleton if fetch hangs past the total cap.
     const failSafe = setTimeout(() => {
       if (gen !== state.searchGen) return;
       if (!state.loading) return;
@@ -3427,44 +3903,21 @@
         renderList();
         return;
       }
-      state.searchError = "OpenStreetMap timed out. Try again.";
+      state.searchError = "OpenStreetMap didn’t answer in time. Try again in a minute.";
       setStatus(state.searchError);
       renderList();
-    }, OVERPASS_CLIENT_ABORT_MS + 4000); // fast and full now run in parallel
+    }, OVERPASS_TOTAL_CAP_MS + 2000);
 
     const fetchMi = state.radiusMiles;
-    // 20261003i: declared outside try so the catch below can still await the inner ring
-    // (inside try it was out of scope there and threw a ReferenceError).
-    let fastP = Promise.resolve([]);
 
     try {
-      // Progressive: inner ring and full radius start together (forge 20261003, Chip). The inner ring
-      // usually lands first and paints cards; the full pass replaces it. Worst case is one full abort
-      // (~22 s) instead of fast abort + full abort in series (~34 s). Same two POSTs per search.
-      let fullSettled = false;
-      if (fetchMi > FAST_RING_MILES) {
-        fastP = fetchPlaces(lat, lng, FAST_RING_MILES, { mode: "fast" }).catch(() => []);
-        fastP.then((near) => {
-          if (fullSettled || !stillActiveSearch(gen, lat, lng) || !near.length) return;
-          applyPlaces(near, { live: true, fetchedRadius: FAST_RING_MILES });
-          setStatus(filteredPlaces().length + " nearby · widening to " + formatRadiusChipLabel(fetchMi) + "…");
-        });
-      }
-      let places;
-      try {
-        places = await fetchPlaces(lat, lng, fetchMi, { mode: "full" });
-      } finally {
-        fullSettled = true;
-      }
+      // 20261004b: one Overpass request per search, attempts in series (Overpass policy: no parallel
+      // queries). The old parallel inner-ring pass is gone; the total cap bounds the wait.
+      const places = await fetchPlaces(lat, lng, fetchMi, { cacheable: state.searchCacheable });
       if (!stillActiveSearch(gen, lat, lng)) return;
       state.searchError = null;
       state.fetchedRadiusMiles = fetchMi;
       if (!places.length) {
-        if (state.places && state.places.length) {
-          state.loading = false;
-          setStatus(filteredPlaces().length + " nearby");
-          return;
-        }
         applyPlaces([], {
           live: true,
           fetchedRadius: fetchMi,
@@ -3475,19 +3928,6 @@
       applyPlaces(places, { live: true, fetchedRadius: fetchMi });
     } catch (err) {
       if (!stillActiveSearch(gen, lat, lng)) return;
-      // Full pass failed. If the inner ring is still in flight, give it its own (<= 12 s) chance.
-      if (!(state.places && state.places.length)) {
-        const near = await fastP;
-        if (!stillActiveSearch(gen, lat, lng)) return;
-        if (near && near.length) applyPlaces(near, { live: true, fetchedRadius: FAST_RING_MILES });
-      }
-      if (state.places && state.places.length) {
-        state.loading = false;
-        state.fetchedRadiusMiles = FAST_RING_MILES;
-        setStatus(filteredPlaces().length + " within " + formatRadiusChipLabel(FAST_RING_MILES) +
-          " · couldn’t load the full " + formatRadiusChipLabel(fetchMi) + ". Try again.");
-        return;
-      }
       const why = overpassErrorMessage(err);
       state.searchError = why;
       applyPlaces([], { live: false, statusMsg: why });
@@ -3500,7 +3940,9 @@
         // Never stick on skeleton after this search ends (iOS hang / early return).
         if (state.loading) {
           state.loading = false;
-          try { renderList(); } catch (_) {}
+          try {
+            renderList();
+          } catch (_) {}
         }
       }
     }
@@ -3514,7 +3956,8 @@
       setStatus("Type any city.");
       return;
     }
-    if (cityInFlight && cityInFlight.q.toLowerCase() === q.toLowerCase() && cityInFlight.gen === state.searchGen) return;
+    if (cityInFlight && cityInFlight.q.toLowerCase() === q.toLowerCase() && cityInFlight.gen === state.searchGen)
+      return;
     // 20261003j: a new search token. Any older city lookup or Overpass response that lands later
     // fails its gen check and is ignored.
     const gen = ++state.searchGen;
@@ -3540,19 +3983,23 @@
       }
       resetFoodChipsForNewArea();
       applyUnitsFromGeocode(hit);
-      const near = hit.alternates && hit.alternates.length
-        ? geocodeShortLabel(hit)
-        : shortPlaceLabel(hit.label || hit.display_name, q);
+      const near =
+        hit.alternates && hit.alternates.length
+          ? geocodeShortLabel(hit)
+          : shortPlaceLabel(hit.label || hit.display_name, q);
       // forge 20261003 (Shade): the city is no longer written into the address bar (?q=).
       // Inbound shared links with ?q= still work; Share still builds its own link.
       const off = geocodeLooksDifferent(q, hit);
-      setNearLine(off
-        ? "Showing results near " + near + " · not what you meant? Check the spelling or add the state."
-        : "Showing results near " + near, off);
+      setNearLine(
+        off
+          ? "Showing results near " + near + " · not what you meant? Check the spelling or add the state."
+          : "Showing results near " + near,
+        off,
+      );
       renderPlaceAlternates(hit.alternates, Object.assign({}, hit, { shortLabel: near }));
       setStatus("Searching near " + near + "…");
       cityInFlight = null;
-      await runSearch(hit.lat, hit.lng, { glow: false, placeLabel: near });
+      await runSearch(hit.lat, hit.lng, { glow: false, placeLabel: near, cacheable: true });
     } catch (err) {
       cityInFlight = null;
       if (gen !== state.searchGen) return;
@@ -3568,7 +4015,8 @@
 
   function cityLookupErrorMessage(err) {
     if (err && err.busy) return "OpenStreetMap is busy. Try again in a moment.";
-    if (err && err.name === "AbortError") return "OpenStreetMap is busy (city lookup timed out). Try again in a moment.";
+    if (err && err.name === "AbortError")
+      return "OpenStreetMap is busy (city lookup timed out). Try again in a moment.";
     return "Couldn’t look up that city. Try again.";
   }
 
@@ -3581,10 +4029,19 @@
     placeAlternates = Array.isArray(list) ? list.slice() : [];
     const el = $("#placeAlts");
     if (!el) return;
-    if (!placeAlternates.length) { el.hidden = true; el.innerHTML = ""; return; }
-    el.innerHTML = `<span class="place-alts-label">Other places with this name:</span> ` + placeAlternates
-      .map((a, i) => `<button type="button" class="place-alt" data-alt="${i}">${escapeHtml(a.shortLabel || a.label)}</button>`)
-      .join(" ");
+    if (!placeAlternates.length) {
+      el.hidden = true;
+      el.innerHTML = "";
+      return;
+    }
+    el.innerHTML =
+      `<span class="place-alts-label">Other places with this name:</span> ` +
+      placeAlternates
+        .map(
+          (a, i) =>
+            `<button type="button" class="place-alt" data-alt="${i}">${escapeHtml(a.shortLabel || a.label)}</button>`,
+        )
+        .join(" ");
     el.hidden = false;
   }
   function pickPlaceAlternate(i) {
@@ -3602,12 +4059,13 @@
     setNearLine("Showing results near " + near, false);
     renderPlaceAlternates(rest, alt);
     setStatus("Searching near " + near + "…");
-    runSearch(alt.lat, alt.lng, { glow: false, placeLabel: near });
+    runSearch(alt.lat, alt.lng, { glow: false, placeLabel: near, cacheable: true });
   }
 
   function geoErrorMessage(err) {
     const code = err && err.code;
-    if (code === 1) return "Location is blocked for this site. Allow it in your browser or phone settings, or search any city.";
+    if (code === 1)
+      return "Location is blocked for this site. Allow it in your browser or phone settings, or search any city.";
     if (code === 2) return "Your device couldn’t find a location right now. Try again, or search any city.";
     if (code === 3) return "Location timed out. Try again, or search any city.";
     return "Couldn’t get your location. Try again, or search any city.";
@@ -3693,7 +4151,7 @@
             history.replaceState({}, "", u);
           }
         } catch (_) {}
-        runSearch(pos.coords.latitude, pos.coords.longitude, { glow: true });
+        runSearch(pos.coords.latitude, pos.coords.longitude, { glow: true, cacheable: false });
       },
       (err) => {
         if (locateGen !== state.searchGen) return;
@@ -3712,7 +4170,7 @@
         enableHighAccuracy: false,
         timeout: 20000,
         maximumAge: 60000,
-      }
+      },
     );
   }
 
@@ -3726,6 +4184,11 @@
     state.loading = false;
     state.searchError = null;
     state.fetchedRadiusMiles = null;
+    state.searchCacheable = false;
+    // Shade R1: Clear location also empties the in-page Overpass and city-lookup caches.
+    bumpCacheGen();
+    overpassCache.clear();
+    geocodeCache.clear();
     // Wipe GPS + places only. Keep UI prefs (range, filters, city/zip text).
     clearMapLayers();
     if (typeof markerById !== "undefined") markerById.clear();
@@ -3739,7 +4202,10 @@
     if (railWrap) {
       railWrap.hidden = true;
       const rail = $("#dealRail");
-      if (rail) rail.innerHTML = "";
+      if (rail) {
+        rail.innerHTML = "";
+        setListRole(rail, null, false);
+      }
     }
     if (typeof renderList === "function") {
       try {
@@ -3775,24 +4241,11 @@
 
   /* ---------- Onboarding (UI pref on this device; no location) ---------- */
 
-  function onboardDismissed() {
-    return !!uiPrefs.onboardDismissed;
-  }
-
-  function setOnboardDismissed() {
-    uiPrefs.onboardDismissed = true;
-    persistUiPrefs();
-  }
-
   function hideOnboarding() {
     const el = $("#onboarding");
     if (!el) return;
     el.classList.remove("show");
     el.hidden = true;
-  }
-
-  function showOnboarding() {
-    hideOnboarding();
   }
 
   /* ---------- Bind ---------- */
@@ -3802,12 +4255,39 @@
   let suggestAbort = null;
 
   const PLACE_HINT_CITIES = [
-    "Tokyo", "London", "Osaka", "Austin", "Cincinnati", "Nairobi",
-    "Paris", "Seoul", "Sydney", "Berlin", "Bangkok", "Madrid",
-    "Toronto", "Chicago", "Rome", "Lisbon", "Dublin", "Singapore",
-    "Mumbai", "Cape Town", "Buenos Aires", "Mexico City", "Kyoto",
-    "Amsterdam", "Barcelona", "Denver", "Miami", "Honolulu",
-    "Atlanta", "Seattle", "New Orleans", "Montreal", "Taipei"
+    "Tokyo",
+    "London",
+    "Osaka",
+    "Austin",
+    "Cincinnati",
+    "Nairobi",
+    "Paris",
+    "Seoul",
+    "Sydney",
+    "Berlin",
+    "Bangkok",
+    "Madrid",
+    "Toronto",
+    "Chicago",
+    "Rome",
+    "Lisbon",
+    "Dublin",
+    "Singapore",
+    "Mumbai",
+    "Cape Town",
+    "Buenos Aires",
+    "Mexico City",
+    "Kyoto",
+    "Amsterdam",
+    "Barcelona",
+    "Denver",
+    "Miami",
+    "Honolulu",
+    "Atlanta",
+    "Seattle",
+    "New Orleans",
+    "Montreal",
+    "Taipei",
   ];
 
   function pickPlaceHint() {
@@ -3844,78 +4324,12 @@
       suggestTimer = null;
     }
     if (suggestAbort) {
-      try { suggestAbort.abort(); } catch (_) {}
+      try {
+        suggestAbort.abort();
+      } catch (_) {}
       suggestAbort = null;
     }
     hidePlaceSuggest();
-  }
-
-  function shortenSuggestName(displayName) {
-    const parts = String(displayName || "")
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
-    if (!parts.length) return "";
-    if (parts.length <= 3) return parts.join(", ");
-    return [parts[0], parts[1], parts[parts.length - 1]].join(", ");
-  }
-
-  function renderPlaceSuggest(hits) {
-    const ul = $("#placeSuggest");
-    if (!ul) return;
-    const list = Array.isArray(hits) ? hits.slice(0, 5) : [];
-    if (!list.length) {
-      hidePlaceSuggest();
-      return;
-    }
-    ul.innerHTML = list
-      .map((h) => {
-        const label = shortenSuggestName(h.display_name) || String(h.display_name || "").slice(0, 80);
-        const q = sanitizePlaceQuery(label) || sanitizePlaceQuery(h.display_name);
-        return `<li role="option"><button type="button" class="place-suggest-item" data-q="${escapeHtml(q)}">${escapeHtml(label)}</button></li>`;
-      })
-      .join("");
-    ul.hidden = false;
-  }
-
-  async function fetchPlaceSuggest(q) {
-    const t = String(q || "").trim();
-    if (t.length < 3) {
-      hidePlaceSuggest();
-      return;
-    }
-    if (suggestAbort) {
-      try { suggestAbort.abort(); } catch (_) {}
-    }
-    const ac = new AbortController();
-    suggestAbort = ac;
-    const params = new URLSearchParams();
-    params.set("format", "jsonv2");
-    params.set("limit", "5");
-    params.set("addressdetails", "1");
-    if (!looksLikePostal(t)) params.set("featureType", "settlement");
-    params.set("q", t);
-    try {
-      const res = await fetch(NOMINATIM_URL + "?" + params.toString(), {
-        headers: { Accept: "application/json" },
-        referrerPolicy: "origin",
-        signal: ac.signal,
-      });
-      if (!res.ok) {
-        hidePlaceSuggest();
-        return;
-      }
-      const data = await res.json();
-      if (suggestAbort !== ac) return;
-      if (!data || !data.length) {
-        hidePlaceSuggest();
-        return;
-      }
-      renderPlaceSuggest(data);
-    } catch (err) {
-      if (err && err.name === "AbortError") return;
-      hidePlaceSuggest();
-    }
   }
 
   function schedulePlaceSuggest(q) {
@@ -3924,7 +4338,7 @@
       suggestTimer = null;
     }
     // forge 20261003 (Snitch/Shade): no Nominatim autocomplete. The OSMF usage policy forbids
-    // search-as-you-type, so the geocoder is called only on Search / Enter. fetchPlaceSuggest is unused.
+    // search-as-you-type, so the geocoder is called only on Search / Enter. (20261004b: the unused fetchPlaceSuggest was removed.)
     void q;
     hidePlaceSuggest();
   }
@@ -4009,7 +4423,6 @@
     bindPlaceSuggest();
     bindPlaceAlternates();
 
-
     const placeForm = $("#placeSearchForm");
     if (placeForm) {
       placeForm.addEventListener("submit", (e) => {
@@ -4048,13 +4461,17 @@
       const fetched = state.fetchedRadiusMiles;
       const have = state.lat != null && fetched != null && mi <= fetched + 0.001;
       if (state.lat != null && !have) {
-        runSearch(state.lat, state.lng, { glow: false });
+        runSearch(state.lat, state.lng, { glow: false, cacheable: state.searchCacheable });
         return;
       }
       if (state.lat != null && state.lng != null) updateMapCenter(state.lat, state.lng, mi);
       renderList();
       const n = filteredPlaces().length;
-      setStatus(state.lat != null ? filterCountStatus(n, pantryFilterOn()) : "Searching within " + formatRadiusChipLabel(state.radiusMiles) + ".");
+      setStatus(
+        state.lat != null
+          ? filterCountStatus(n, pantryFilterOn())
+          : "Searching within " + formatRadiusChipLabel(state.radiusMiles) + ".",
+      );
     }
 
     $$(".chip[data-radius]").forEach((chip) => {
@@ -4089,7 +4506,8 @@
         e.stopPropagation();
         const key = chip.getAttribute("data-diet");
         if (!UI_PREFS_DIET_OSM[key]) return;
-        if (!state.filters.diet) state.filters.diet = { vegan: false, vegetarian: false, gluten_free: false, halal: false };
+        if (!state.filters.diet)
+          state.filters.diet = { vegan: false, vegetarian: false, gluten_free: false, halal: false };
         state.filters.diet[key] = !state.filters.diet[key];
         persistUiPrefs();
         syncDietChipsUI();
@@ -4115,7 +4533,9 @@
         persistUiPrefs();
         renderList();
         const nSaved = filteredPlaces().length;
-        setStatus(filterCountStatus(nSaved, pantryFilterOn(), state.filters.saved ? nSaved + " saved in this list" : null));
+        setStatus(
+          filterCountStatus(nSaved, pantryFilterOn(), state.filters.saved ? nSaved + " saved in this list" : null),
+        );
       });
     }
 
@@ -4161,7 +4581,10 @@
         state.radiusMiles = 10;
         state.dietaryFilter = null;
         const pBtn = $("#filterPantries");
-        if (pBtn) { pBtn.classList.remove("active"); pBtn.setAttribute("aria-pressed", "false"); }
+        if (pBtn) {
+          pBtn.classList.remove("active");
+          pBtn.setAttribute("aria-pressed", "false");
+        }
         state.filters.openNow = false;
         state.filters.hasDeal = false;
         state.filters.saved = false;
@@ -4241,7 +4664,9 @@
       syncOpenNowUI();
       renderList();
       const nOpen = filteredPlaces().length;
-      setStatus(filterCountStatus(nOpen, pantryFilterOn(), nOpen + (state.filters.openNow ? " tagged open" : " nearby")));
+      setStatus(
+        filterCountStatus(nOpen, pantryFilterOn(), nOpen + (state.filters.openNow ? " tagged open" : " nearby")),
+      );
     }
     const filterOpen = $("#filterOpen");
     if (filterOpen) filterOpen.addEventListener("click", toggleOpenNow);
@@ -4301,11 +4726,7 @@
       if (!el) return;
       const aNav = analytics();
       if (aNav) {
-        aNav.navHandoff(
-          el.getAttribute("data-nav-deal"),
-          el.getAttribute("data-maps-app"),
-          state.radiusMiles
-        );
+        aNav.navHandoff(el.getAttribute("data-nav-deal"), el.getAttribute("data-maps-app"), state.radiusMiles);
       }
     }
 
@@ -4348,7 +4769,10 @@
         if (act === "locate") locateMe();
         if (act === "cityzip") {
           const inp = document.getElementById("placeSearch");
-          if (inp) { inp.focus(); inp.scrollIntoView({ behavior: "smooth", block: "center" }); }
+          if (inp) {
+            inp.focus();
+            inp.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
         }
         return;
       }
@@ -4464,7 +4888,9 @@
     const termsDismiss = $("#termsUpdatedDismiss");
     if (termsDismiss) {
       termsDismiss.addEventListener("click", () => {
-        try { localStorage.setItem("rb_terms_notice_seen", currentTermsVersion()); } catch (_) {}
+        try {
+          localStorage.setItem("rb_terms_notice_seen", currentTermsVersion());
+        } catch (_) {}
         const note = $("#termsUpdated");
         if (note) note.hidden = true;
       });
@@ -4472,7 +4898,6 @@
     syncDietChipsUI();
     syncRadiusChipsUI();
   }
-
 
   function openAgree() {
     const sheet = $("#agreeSheet");
@@ -4527,7 +4952,9 @@
     if (!note) return;
     const version = currentTermsVersion();
     let seen = "";
-    try { seen = localStorage.getItem("rb_terms_notice_seen") || ""; } catch (_) {}
+    try {
+      seen = localStorage.getItem("rb_terms_notice_seen") || "";
+    } catch (_) {}
     note.hidden = !termsNoticePending(seen, version);
   }
 
@@ -4612,16 +5039,32 @@
       searchCityOrZip(startQ);
     }
     setInterval(refreshOpenStatuses, 60000);
+    setInterval(function () {
+      sweepAllCaches(Date.now());
+    }, CACHE_SWEEP_INTERVAL_MS);
     // Do not register a service worker. Old SWs on phones kept stale app.js
     // and left Search stuck on Finding food… / OSM timeout.
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function (regs) {
-        return Promise.all(regs.map(function (r) { return r.unregister(); }));
-      }).then(function () {
-        return caches.keys();
-      }).then(function (keys) {
-        return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-      }).catch(function () {});
+      navigator.serviceWorker
+        .getRegistrations()
+        .then(function (regs) {
+          return Promise.all(
+            regs.map(function (r) {
+              return r.unregister();
+            }),
+          );
+        })
+        .then(function () {
+          return caches.keys();
+        })
+        .then(function (keys) {
+          return Promise.all(
+            keys.map(function (k) {
+              return caches.delete(k);
+            }),
+          );
+        })
+        .catch(function () {});
     }
   }
 

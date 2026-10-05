@@ -5,14 +5,37 @@ const fs = require("fs");
 const vm = require("vm");
 const { load } = require("./extract");
 let pass = 0;
-function t(name, f) { f(); pass++; console.log("ok -", name); }
+function t(name, f) {
+  f();
+  pass++;
+  console.log("ok -", name);
+}
 
-const A = load("app.js", [
-  "haversineMiles", "roundCoord3", "buildOverpassQuery", "mergeDuplicateElements", "sortNearestFirst",
-  "isFakeDemoPhone", "telHref", "formatPhoneDisplay", "prettyOsmValue", "prettyCuisineList",
-  "geoErrorMessage", "normWord", "geocodeLooksDifferent", "looksLikePostal", "milesToMeters",
-  "hoursTimeZone", "placeNow", "friendlyHoursLine", "hoursOriginLabel",
-], ["OVERPASS_TIMEOUT_S", "OVERPASS_FAST_TIMEOUT_S", "OSM_VALUE_LABELS"]);
+const A = load(
+  "app.js",
+  [
+    "haversineMiles",
+    "roundCoord3",
+    "buildOverpassQuery",
+    "mergeDuplicateElements",
+    "sortNearestFirst",
+    "isFakeDemoPhone",
+    "telHref",
+    "formatPhoneDisplay",
+    "prettyOsmValue",
+    "prettyCuisineList",
+    "geoErrorMessage",
+    "normWord",
+    "geocodeLooksDifferent",
+    "looksLikePostal",
+    "milesToMeters",
+    "hoursTimeZone",
+    "placeNow",
+    "friendlyHoursLine",
+    "hoursOriginLabel",
+  ],
+  ["OVERPASS_TIMEOUT_S", "OSM_VALUE_LABELS"],
+);
 
 t("haversine: 1 deg latitude ~ 69.1 mi; zero distance", () => {
   assert.ok(Math.abs(A.haversineMiles(37, -81, 38, -81) - 69.1) < 0.2);
@@ -25,13 +48,18 @@ t("Overpass query: coordinates rounded to 3 decimals, radius padded 120 m", () =
   const q = A.buildOverpassQuery(37.2698123, -81.2223456, 16093.4, "full");
   assert.ok(q.includes("(around:16213,37.270,-81.222)"), q.slice(0, 300));
   assert.ok(!/37\.2698/.test(q) && !/81\.2223/.test(q));
-  assert.ok(q.startsWith("[out:json][timeout:25]"));
-  assert.ok(A.buildOverpassQuery(1, 2, 100, "fast").startsWith("[out:json][timeout:10]"));
+  // 20261004b: one query shape; [timeout:10] stays under the ~11 s per-attempt client budget.
+  assert.ok(q.startsWith("[out:json][timeout:10]"));
   assert.strictEqual(A.roundCoord3(-0.0004), -0);
 });
 t("dedupe: node + way same name nearby merge; two nodes (chain branches) stay", () => {
   const els = [
-    { type: "way", id: 2, center: { lat: 37.27, lon: -81.22 }, tags: { name: "Joe's Diner", phone: "+1 276 555 1234" } },
+    {
+      type: "way",
+      id: 2,
+      center: { lat: 37.27, lon: -81.22 },
+      tags: { name: "Joe's Diner", phone: "+1 276 555 1234" },
+    },
     { type: "node", id: 1, lat: 37.2701, lon: -81.2201, tags: { name: "Joes Diner" } },
     { type: "node", id: 3, lat: 37.2702, lon: -81.2202, tags: { name: "McDonald's" } },
     { type: "node", id: 4, lat: 37.2703, lon: -81.2203, tags: { name: "McDonald's" } },
@@ -44,8 +72,15 @@ t("dedupe: node + way same name nearby merge; two nodes (chain branches) stay", 
 });
 t("sort: nearest first", () => {
   if (!A.sortNearestFirst) return;
-  const s = A.sortNearestFirst([{ miles: 3, name: "c" }, { miles: 0.5, name: "a" }, { miles: 1, name: "b" }]);
-  assert.deepStrictEqual(s.map((p) => p.name), ["a", "b", "c"]);
+  const s = A.sortNearestFirst([
+    { miles: 3, name: "c" },
+    { miles: 0.5, name: "a" },
+    { miles: 1, name: "b" },
+  ]);
+  assert.deepStrictEqual(
+    s.map((p) => p.name),
+    ["a", "b", "c"],
+  );
 });
 t("phones: real 555 numbers kept; reserved 555-01xx hidden; tel: from raw digits", () => {
   assert.strictEqual(A.isFakeDemoPhone("+1 276-555-1234"), false);
@@ -78,25 +113,44 @@ t("open/closed clock: New York or Chicago only inside the US box", () => {
   assert.strictEqual(A.hoursTimeZone(36.17, -86.78), "America/New_York");
   assert.strictEqual(A.hoursTimeZone(41.88, -87.63), "America/Chicago");
   assert.strictEqual(A.hoursTimeZone(32.78, -96.8), "America/Chicago");
-  const abroad = [[51.5, -0.12, "London"], [48.86, 2.35, "Paris"], [35.68, 139.65, "Tokyo"], [22.3, 114.2, "Hong Kong"]];
+  const abroad = [
+    [51.5, -0.12, "London"],
+    [48.86, 2.35, "Paris"],
+    [35.68, 139.65, "Tokyo"],
+    [22.3, 114.2, "Hong Kong"],
+  ];
   for (const [lat, lng, name] of abroad) {
     const zone = A.hoursTimeZone(lat, lng);
     assert.ok(zone !== "America/New_York" && zone !== "America/Chicago", name + " got " + zone);
   }
-  const nyHour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hourCycle: "h23", hour: "numeric" }).format(new Date()));
-  const chiHour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hourCycle: "h23", hour: "numeric" }).format(new Date()));
+  const nyHour = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hourCycle: "h23", hour: "numeric" }).format(
+      new Date(),
+    ),
+  );
+  const chiHour = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hourCycle: "h23", hour: "numeric" }).format(
+      new Date(),
+    ),
+  );
   assert.strictEqual(A.placeNow(-81.22, 37.27).getHours(), nyHour);
   assert.strictEqual(A.placeNow(-87.63, 41.88).getHours(), chiHour);
   const tokyoZone = A.hoursTimeZone(35.68, 139.65);
   const tokyoNow = A.placeNow(139.65, 35.68);
   if (tokyoZone === "") {
     assert.strictEqual(tokyoNow, null);
-    assert.strictEqual(A.friendlyHoursLine({ hours: "Mo-Su 09:00-17:00", lat: 35.68, lng: 139.65 }), "Hours tagged · verify");
+    assert.strictEqual(
+      A.friendlyHoursLine({ hours: "Mo-Su 09:00-17:00", lat: 35.68, lng: 139.65 }),
+      "Hours tagged · verify",
+    );
   } else {
     assert.strictEqual(tokyoZone, "device");
     assert.notStrictEqual(tokyoNow.getHours(), nyHour);
   }
-  assert.strictEqual(A.friendlyHoursLine({ hours: "Mo-Su 09:00-17:00", lat: 48.86, lng: 2.35 }, null), "Hours tagged · verify");
+  assert.strictEqual(
+    A.friendlyHoursLine({ hours: "Mo-Su 09:00-17:00", lat: 48.86, lng: 2.35 }, null),
+    "Hours tagged · verify",
+  );
 });
 t("hours labels name AllThePlaces when that is the source", () => {
   assert.strictEqual(A.hoursOriginLabel("atp"), "Chain hours (AllThePlaces)");
@@ -110,19 +164,48 @@ t("hours labels name AllThePlaces when that is the source", () => {
   assert.ok(!src.includes("Closes soon · OSM hours"));
 });
 t("geocoder mismatch warning (no network)", () => {
-  assert.strictEqual(A.geocodeLooksDifferent("Lebannon VA", { name: "Lebanon Church", display_name: "Lebanon Church, Virginia" }), true);
-  assert.strictEqual(A.geocodeLooksDifferent("Bluefield", { name: "Bluefield", display_name: "Bluefield, West Virginia" }), false);
-  assert.strictEqual(A.geocodeLooksDifferent("lebanon, va", { name: "Lebanon", display_name: "Lebanon, Russell County, Virginia" }), false);
+  assert.strictEqual(
+    A.geocodeLooksDifferent("Lebannon VA", { name: "Lebanon Church", display_name: "Lebanon Church, Virginia" }),
+    true,
+  );
+  assert.strictEqual(
+    A.geocodeLooksDifferent("Bluefield", { name: "Bluefield", display_name: "Bluefield, West Virginia" }),
+    false,
+  );
+  assert.strictEqual(
+    A.geocodeLooksDifferent("lebanon, va", { name: "Lebanon", display_name: "Lebanon, Russell County, Virginia" }),
+    false,
+  );
   assert.strictEqual(A.geocodeLooksDifferent("24266", { name: "24266" }), false);
 });
 
 // forge 20261003 (Gate G1/G2/G5/G6)
-const G = load("app.js", [
-  "normWord", "haversineMiles", "looksLikePostal", "pickGeocodeHit", "geocodeHitToPlace", "geocodeShortLabel",
-  "geocodeAlternates", "cityLookupErrorMessage", "osmStreetLine", "escapeHtml",
-  "expandOsmDays", "ohParseTime", "ohParseSelectorAndTimes", "ohParse", "nthWeekday", "isUsFederalHoliday",
-  "ohIsHoliday", "ohDaySpans", "isLateNightHours",
-], ["OH_DAY_IDX", "ohCache"], 'let hoursCountry = "us"; const state = { lng: -82 }; function placeNow() { return new Date(); }');
+const G = load(
+  "app.js",
+  [
+    "normWord",
+    "haversineMiles",
+    "looksLikePostal",
+    "pickGeocodeHit",
+    "geocodeHitToPlace",
+    "geocodeShortLabel",
+    "geocodeAlternates",
+    "cityLookupErrorMessage",
+    "osmStreetLine",
+    "escapeHtml",
+    "ohParseTime",
+    "ohParseSelectorAndTimes",
+    "ohParse",
+    "nthWeekday",
+    "isUsFederalHoliday",
+    "ohIsHoliday",
+    "ohNthMatches",
+    "ohDaySpans",
+    "isLateNightHours",
+  ],
+  ["OH_DAY_IDX", "OH_SEL_ITEM", "OH_SELECTOR_RE", "OH_DAYLIST_ONLY_RE", "ohCache"],
+  'let hoursCountry = "us"; const state = { lng: -82 }; function placeNow() { return new Date(); }',
+);
 const bristol = JSON.parse(fs.readFileSync(path.join(__dirname, "fixture-nominatim-bristol.json"), "utf8"));
 t("G2 Bristol: picks VA; alternates deduped, US first, TN offered, no counties", () => {
   const hit = G.pickGeocodeHit(bristol);
@@ -142,11 +225,17 @@ t("G1 city lookup errors: 429/timeout read 'OpenStreetMap is busy'", () => {
   assert.ok(/look up that city/.test(G.cityLookupErrorMessage(new Error("x"))));
 });
 t("G6 street line: housenumber + street (+ city), omitted without a street, escaped on the card", () => {
-  assert.strictEqual(G.osmStreetLine({ "addr:housenumber": "123", "addr:street": "Main St", "addr:city": "Lebanon" }), "123 Main St, Lebanon");
+  assert.strictEqual(
+    G.osmStreetLine({ "addr:housenumber": "123", "addr:street": "Main St", "addr:city": "Lebanon" }),
+    "123 Main St, Lebanon",
+  );
   assert.strictEqual(G.osmStreetLine({ "addr:street": "Main St" }), "Main St");
   assert.strictEqual(G.osmStreetLine({ "addr:housenumber": "123", "addr:city": "Lebanon" }), "");
   assert.strictEqual(G.osmStreetLine({}), "");
-  assert.strictEqual(G.escapeHtml(G.osmStreetLine({ "addr:street": "<img src=x onerror=alert(1)>" })), "&lt;img src=x onerror=alert(1)&gt;");
+  assert.strictEqual(
+    G.escapeHtml(G.osmStreetLine({ "addr:street": "<img src=x onerror=alert(1)>" })),
+    "&lt;img src=x onerror=alert(1)&gt;",
+  );
 });
 t("G5 Late night uses today's closing time only", () => {
   const thu = new Date(2026, 9, 1, 15, 0); // Thu Oct 1 2026, 3pm
@@ -172,7 +261,8 @@ t("G3 no frame-ancestors in any meta CSP", () => {
     for (const f of fs.readdirSync(d, { withFileTypes: true })) {
       if (f.name.startsWith(".") || f.name === "node_modules" || f.name === "vendor") continue;
       const fp = path.join(d, f.name);
-      if (f.isDirectory()) walk(fp); else if (f.name.endsWith(".html")) pages.push(fp);
+      if (f.isDirectory()) walk(fp);
+      else if (f.name.endsWith(".html")) pages.push(fp);
     }
   })(root);
   assert.ok(pages.length >= 8, pages.length);
@@ -200,16 +290,15 @@ t("negated promo terms are not badges", () => {
   assert.strictEqual(D.matchDeal({ description: "" }), null);
 });
 
-// No as-you-type geocoding: schedulePlaceSuggest must never call fetchPlaceSuggest.
+// No as-you-type geocoding: the unused fetchPlaceSuggest was removed in 20261004b.
 t("no Nominatim autocomplete path", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
-  const m = /function schedulePlaceSuggest\([^)]*\)\s*\{([\s\S]*?)\n  \}/.exec(src);
-  assert.ok(m && !/fetchPlaceSuggest\(/.test(m[1]));
-  const calls = src.match(/fetchPlaceSuggest\(/g) || [];
-  assert.strictEqual(calls.length, 1, "only the (unused) definition may remain");
+  const m = /function schedulePlaceSuggest\([^)]*\)\s*\{([\s\S]*?)\n {2}\}/.exec(src);
+  assert.ok(m && !/fetch\(|geocodePlace/.test(m[1]));
+  assert.strictEqual((src.match(/fetchPlaceSuggest\(/g) || []).length, 0);
 });
-t("metrics.js does not write a found record", () => {
-  const src = fs.readFileSync(path.join(__dirname, "..", "metrics.js"), "utf8");
+t("legacy-cleanup.js does not write a found record", () => {
+  const src = fs.readFileSync(path.join(__dirname, "..", "legacy-cleanup.js"), "utf8");
   assert.ok(!/JSON\.stringify\(\{ kind: "found" \}\)/.test(src));
   assert.ok(!/kind:\s*"found"/.test(src));
   assert.ok(!/function markHelped/.test(src));
@@ -218,7 +307,9 @@ t("metrics.js does not write a found record", () => {
   assert.ok(!/\bfetch\s*\(/.test(src));
 });
 const T = load("app.js", [
-  "termsAcceptedForVersion", "termsNoticePending", "screenshotBypassPrefs", "overpassUpstreamHeaders",
+  "termsAcceptedForVersion",
+  "termsNoticePending",
+  "screenshotBypassPrefs",
   "shouldShowContinueSheet",
 ]);
 const C = load("config.js", ["publishDateLabel"]);
@@ -234,7 +325,7 @@ t("shot=1 does not store terms acceptance", () => {
   const kept = T.screenshotBypassPrefs({ termsAcceptedVersion: "2026-10-03" });
   assert.strictEqual(kept.termsAcceptedVersion, "2026-10-03");
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
-  const shot = /if \(shot\) \{[\s\S]*?\n    \}/.exec(src);
+  const shot = /if \(shot\) \{[\s\S]*?\n {4}\}/.exec(src);
   assert.ok(shot, "shot block");
   assert.ok(!/termsAccepted\s*=\s*true/.test(shot[0]));
   assert.ok(/screenshotBypassPrefs\(/.test(shot[0]));
@@ -248,16 +339,18 @@ t("stored acceptance matches TERMS_VERSION only", () => {
   assert.strictEqual(T.termsNoticePending("2026-09-01", "2026-10-03"), true);
   assert.strictEqual(T.termsNoticePending("2026-10-03", "2026-10-03"), false);
   const cfg = fs.readFileSync(path.join(__dirname, "..", "config.js"), "utf8");
-  assert.ok(/const PUBLISH_DATE = "2026-10-03"/.test(cfg));
+  assert.ok(/const PUBLISH_DATE = "2026-10-05"/.test(cfg));
   assert.ok(/TERMS_VERSION: PUBLISH_DATE/.test(cfg));
   assert.strictEqual(C.publishDateLabel("2026-10-03"), "October 3, 2026");
   assert.strictEqual(C.publishDateLabel("2026-10-04"), "October 4, 2026");
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-  assert.ok(html.includes("Terms updated <span data-publish-date>October 3, 2026</span>"));
+  assert.ok(html.includes("Terms updated <span data-publish-date>October 5, 2026</span>"));
   assert.ok(html.includes('href="/terms"'));
-  assert.ok(/By using RangeBites you agree to the <a href="\/terms">Terms<\/a> and <a href="\/privacy">Privacy<\/a>/.test(html));
-  assert.strictEqual((cfg.match(/2026-10-03/g) || []).length, 1);
-  assert.strictEqual((cfg.match(/2026-10-04/g) || []).length, 0);
+  assert.ok(
+    /Use of RangeBites is subject to the <a href="\/terms">Terms<\/a> and <a href="\/privacy">Privacy<\/a>/.test(html),
+  );
+  assert.strictEqual((cfg.match(/2026-10-05/g) || []).length, 1);
+  assert.strictEqual((cfg.match(/2026-10-0[34]/g) || []).length, 0);
   for (const page of ["index.html", "about.html", "about/index.html", "privacy.html", "privacy/index.html"]) {
     const pageSrc = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
     const bits = pageSrc.split("rounded to 3 decimal places");
@@ -267,9 +360,18 @@ t("stored acceptance matches TERMS_VERSION only", () => {
     }
   }
 });
-const M = load("metrics.js", ["clearLegacyDeviceIds", "clearLegacyLocationKeys"]);
+const M = load("legacy-cleanup.js", ["clearLegacyDeviceIds", "clearLegacyLocationKeys"]);
 t("shipped JS does not store a device identifier", () => {
-  const files = ["app.js", "metrics.js", "analytics.js", "deals.js", "disclaimers.js", "config.js", "sw.js", "config.example.js"];
+  const files = [
+    "app.js",
+    "legacy-cleanup.js",
+    "analytics.js",
+    "deals.js",
+    "disclaimers.js",
+    "config.js",
+    "sw.js",
+    "config.example.js",
+  ];
   const idKey = /device|visitor|install|pending_key|helped_done|helped_id|deviceId|device_id/i;
   for (const file of files) {
     const src = fs.readFileSync(path.join(__dirname, "..", file), "utf8");
@@ -283,7 +385,7 @@ t("shipped JS does not store a device identifier", () => {
     assert.ok(!/\.herenow\/data\/helped["'`]/.test(src), file);
     assert.ok(!/setItem\s*\([^)]*uuid\s*\(/.test(src), file);
   }
-  const metrics = fs.readFileSync(path.join(__dirname, "..", "metrics.js"), "utf8");
+  const metrics = fs.readFileSync(path.join(__dirname, "..", "legacy-cleanup.js"), "utf8");
   assert.ok(!/function markHelped/.test(metrics));
   assert.ok(!/kind:\s*"found"/.test(metrics));
   assert.ok(!/\.herenow\/data\//.test(metrics));
@@ -295,8 +397,12 @@ t("shipped JS does not store a device identifier", () => {
     const privacy = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
     assert.ok(privacy.includes("RangeBites does not create or store a device identifier."), page);
   }
-  const headers = T.overpassUpstreamHeaders();
+  // 20261004b: the proxy routes in .herenow/proxy.json carry the identifying headers (the browser cannot set User-Agent).
+  const proxy = JSON.parse(fs.readFileSync(path.join(__dirname, "..", ".herenow", "proxy.json"), "utf8"));
+  const headers = proxy.proxies["/api/overpass"].headers;
   const file = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "tools", "overpass-proxy.headers.json"), "utf8"));
+  for (const route of Object.keys(proxy.proxies))
+    assert.strictEqual(proxy.proxies[route].headers["User-Agent"], file["User-Agent"], route);
   assert.strictEqual(headers.Referer, "https://rangebites.com");
   assert.strictEqual(headers["User-Agent"], file["User-Agent"]);
   assert.strictEqual(headers.Referer, file.Referer);
@@ -306,10 +412,18 @@ t("cleanup removes legacy device ids", () => {
   function mem(seed) {
     const data = Object.assign({}, seed);
     return {
-      get length() { return Object.keys(data).length; },
-      key(i) { return Object.keys(data)[i]; },
-      getItem(k) { return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
-      removeItem(k) { delete data[k]; },
+      get length() {
+        return Object.keys(data).length;
+      },
+      key(i) {
+        return Object.keys(data)[i];
+      },
+      getItem(k) {
+        return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null;
+      },
+      removeItem(k) {
+        delete data[k];
+      },
     };
   }
   const seed = {
@@ -324,21 +438,35 @@ t("cleanup removes legacy device ids", () => {
     rb_helped_id: "i",
     rb_helped_done: "1",
     rb_helped_done_selftest: "1",
-    rb_found_pending_key: "{\"key\":\"x\"}",
+    rb_found_pending_key: '{"key":"x"}',
     rb_device_id_v2: "leftover",
-    rb_ui_prefs: "{\"range\":5}",
+    rb_ui_prefs: '{"range":5}',
     rb_found_session: "1",
     rb_helped_count: "12",
   };
   const local = mem(seed);
   const session = mem(seed);
   M.clearLegacyDeviceIds(local, session);
-  for (const k of ["rb_device", "rb_device_id", "deviceId", "device_id", "visitorId", "visitor_id", "installId", "install_id", "rb_helped_id", "rb_helped_done", "rb_helped_done_selftest", "rb_found_pending_key", "rb_device_id_v2"]) {
+  for (const k of [
+    "rb_device",
+    "rb_device_id",
+    "deviceId",
+    "device_id",
+    "visitorId",
+    "visitor_id",
+    "installId",
+    "install_id",
+    "rb_helped_id",
+    "rb_helped_done",
+    "rb_helped_done_selftest",
+    "rb_found_pending_key",
+    "rb_device_id_v2",
+  ]) {
     assert.strictEqual(local.getItem(k), null, "local " + k);
     assert.strictEqual(session.getItem(k), null, "session " + k);
   }
-  assert.strictEqual(local.getItem("rb_ui_prefs"), "{\"range\":5}");
-  assert.strictEqual(session.getItem("rb_ui_prefs"), "{\"range\":5}");
+  assert.strictEqual(local.getItem("rb_ui_prefs"), '{"range":5}');
+  assert.strictEqual(session.getItem("rb_ui_prefs"), '{"range":5}');
   assert.strictEqual(local.getItem("rb_found_session"), "1");
   assert.strictEqual(session.getItem("rb_found_session"), "1");
   assert.strictEqual(local.getItem("rb_helped_count"), "12");
@@ -348,11 +476,21 @@ t("cleanup removes legacy location keys and does not wipe on-device prefs", () =
   function mem(seed) {
     const data = Object.assign({}, seed);
     return {
-      get length() { return Object.keys(data).length; },
-      key(i) { return Object.keys(data)[i]; },
-      getItem(k) { return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
-      setItem(k, v) { data[k] = String(v); },
-      removeItem(k) { delete data[k]; },
+      get length() {
+        return Object.keys(data).length;
+      },
+      key(i) {
+        return Object.keys(data)[i];
+      },
+      getItem(k) {
+        return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null;
+      },
+      setItem(k, v) {
+        data[k] = String(v);
+      },
+      removeItem(k) {
+        delete data[k];
+      },
     };
   }
   const prefs = JSON.stringify({
@@ -383,7 +521,19 @@ t("cleanup removes legacy location keys and does not wipe on-device prefs", () =
   const local = mem(seed);
   const session = mem(seed);
   M.clearLegacyLocationKeys(local, session);
-  for (const k of ["rb_last_city", "rb_last_place", "rb_search_history", "rb_lat", "rb_lng", "latitude", "longitude", "lastPlaceQuery", "rb_location_history", "rb_found_session", "rb_helped_count"]) {
+  for (const k of [
+    "rb_last_city",
+    "rb_last_place",
+    "rb_search_history",
+    "rb_lat",
+    "rb_lng",
+    "latitude",
+    "longitude",
+    "lastPlaceQuery",
+    "rb_location_history",
+    "rb_found_session",
+    "rb_helped_count",
+  ]) {
     assert.strictEqual(local.getItem(k), null, "local " + k);
     assert.strictEqual(session.getItem(k), null, "session " + k);
   }
@@ -407,19 +557,24 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   const cfg = fs.readFileSync(path.join(__dirname, "..", "config.js"), "utf8");
   assert.ok(/ASSENT_MODE:\s*"continue"/.test(cfg));
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
-  const fn = /function maybeShowAgree\(\) \{[\s\S]*?\n  \}/.exec(src);
+  const fn = /function maybeShowAgree\(\) \{[\s\S]*?\n {2}\}/.exec(src);
   assert.ok(fn, "maybeShowAgree");
   assert.ok(/shouldShowContinueSheet\(/.test(fn[0]));
   assert.ok(/openAgree\(\)/.test(fn[0]));
   assert.ok(fn[0].indexOf("openAgree()") < fn[0].indexOf("hideAgree()"));
   const terms = fs.readFileSync(path.join(__dirname, "..", "terms.html"), "utf8");
-  assert.ok(terms.includes("by tapping Continue, or by using the site"));
+  assert.ok(
+    terms.includes(
+      "You agree to these Terms by tapping Continue. If you keep using the site after seeing the notice, that also means you agree.",
+    ),
+  );
+  assert.ok(!terms.includes("or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
-  assert.ok(terms.includes('src="/config.js?v=20261004a"'));
-  assert.ok(/Effective <span data-publish-date>October 3, 2026<\/span>/.test(terms));
+  assert.ok(terms.includes('src="/config.js?v=20261004b"'));
+  assert.ok(/Effective <span data-publish-date>October 5, 2026<\/span>/.test(terms));
   for (const legal of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"]) {
     const legalSrc = fs.readFileSync(path.join(__dirname, "..", legal), "utf8");
-    assert.ok(legalSrc.includes("Effective <span data-publish-date>October 3, 2026</span>"), legal);
+    assert.ok(legalSrc.includes("Effective <span data-publish-date>October 5, 2026</span>"), legal);
   }
   const privacy = fs.readFileSync(path.join(__dirname, "..", "privacy.html"), "utf8");
   assert.ok(privacy.includes("RangeBites (rangebites.com), contact:"));
@@ -471,7 +626,7 @@ t("shipped site does not add visitor tracking", () => {
       assert.ok(!/<script[^>]+src=["']https?:/i.test(src), rel + " loads a third-party script");
     }
   }
-  const metrics = fs.readFileSync(path.join(root, "metrics.js"), "utf8");
+  const metrics = fs.readFileSync(path.join(root, "legacy-cleanup.js"), "utf8");
   assert.ok(!/userAgent/.test(metrics));
   assert.ok(!/Idempotency-Key/.test(metrics));
   assert.ok(!/webdriver/.test(metrics));
@@ -484,19 +639,25 @@ t("shipped site does not add visitor tracking", () => {
     const privacy = fs.readFileSync(path.join(root, page), "utf8");
     assert.ok(privacy.includes("RangeBites is a free site that tracks nobody."), page);
     assert.ok(privacy.includes("RangeBites does not create or store a device identifier."), page);
-    assert.ok(privacy.includes("RangeBites does not store any information about you. Location is used only to show nearby places and is not saved."), page);
+    assert.ok(
+      privacy.includes(
+        "RangeBites does not store information about you on its servers; some choices are kept only on this device. Location is used only to show nearby places and is not saved.",
+      ),
+      page,
+    );
   }
 });
 t("no storage of location, last city, or visitor records", () => {
   const root = path.join(__dirname, "..");
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
-  const persist = /function persistUiPrefs\(\) \{[\s\S]*?\n  \}/.exec(app);
+  const persist = /function persistUiPrefs\(\) \{[\s\S]*?\n {2}\}/.exec(app);
   assert.ok(persist, "persistUiPrefs");
   assert.ok(!/lastPlaceQuery\s*:/.test(persist[0]));
   assert.ok(/delete payload\.lastPlaceQuery/.test(persist[0]));
   assert.ok(!/markHelped/.test(app));
   assert.ok(!/\.herenow\/data\/(found|hits|helped)/.test(app));
-  const sentence = "RangeBites does not store any information about you. Location is used only to show nearby places and is not saved.";
+  const sentence =
+    "RangeBites does not store information about you on its servers; some choices are kept only on this device. Location is used only to show nearby places and is not saved.";
   for (const page of ["privacy.html", "privacy/index.html", "about.html", "about/index.html", "index.html"]) {
     const src = fs.readFileSync(path.join(root, page), "utf8");
     assert.ok(src.includes(sentence), page);
@@ -515,20 +676,24 @@ t("no storage of location, last city, or visitor records", () => {
   const putAt = sw.indexOf("c.put");
   const guardAt = sw.lastIndexOf("isStaticAsset", putAt);
   assert.ok(guardAt >= 0 && putAt > guardAt);
-  const files = ["app.js", "metrics.js", "sw.js", "analytics.js", "deals.js", "config.js"];
-  const locWrite = /(?:localStorage|sessionStorage)\.setItem\s*\(\s*["'][^"']*(?:lat|lng|latitude|longitude|lastCity|last_city|lastPlace|searchHistory|search_history)/i;
+  const files = ["app.js", "legacy-cleanup.js", "sw.js", "analytics.js", "deals.js", "config.js"];
+  const locWrite =
+    /(?:localStorage|sessionStorage)\.setItem\s*\(\s*["'][^"']*(?:lat|lng|latitude|longitude|lastCity|last_city|lastPlace|searchHistory|search_history)/i;
   for (const file of files) {
     const src = fs.readFileSync(path.join(root, file), "utf8");
     assert.ok(!locWrite.test(src), file);
     assert.ok(!/indexedDB\s*\.\s*open\s*\(/.test(src), file);
   }
-  const metrics = fs.readFileSync(path.join(root, "metrics.js"), "utf8");
+  const metrics = fs.readFileSync(path.join(root, "legacy-cleanup.js"), "utf8");
   assert.ok(/indexedDB\.deleteDatabase/.test(metrics));
   assert.ok(!/indexedDB\s*\.\s*open\s*\(/.test(metrics));
 });
 t("data.json (20261003j): no server collections that store visitor data", () => {
   const p = path.join(__dirname, "..", ".herenow", "data.json");
-  if (!fs.existsSync(p)) { console.log("   (skipped: .herenow/ is gitignored; checked on the publish tree)"); return; }
+  if (!fs.existsSync(p)) {
+    console.log("   (skipped: .herenow/ is gitignored; checked on the publish tree)");
+    return;
+  }
   const dj = JSON.parse(fs.readFileSync(p, "utf8")).collections || {};
   for (const k of ["hits", "helped", "helped_selftest", "found", "found_selftest", "specials_inbox"]) {
     assert.ok(!(k in dj), "collection still present: " + k);
@@ -540,26 +705,38 @@ t("data.json (20261003j): no server collections that store visitor data", () => 
 });
 t("city switch (20261003i): new origin clears old cards/pins; late older responses ignored", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
-  const S = load("app.js", ["searchOriginChanged", "stillActiveSearch"], [],
-    "var state = { searchGen: 0, lat: null, lng: null };");
+  const S = load(
+    "app.js",
+    ["searchOriginChanged", "stillActiveSearch"],
+    [],
+    "var state = { searchGen: 0, lat: null, lng: null };",
+  );
   assert.strictEqual(S.searchOriginChanged(null, null, 36.9, -82.08), true);
   assert.strictEqual(S.searchOriginChanged(36.9, -82.08, 37.27, -81.22), true); // Lebanon -> Bluefield
   assert.strictEqual(S.searchOriginChanged(37.27, -81.22, 37.27, -81.22), false); // same city, wider range
   // Simulate runSearch(Lebanon) then runSearch(Bluefield): Lebanon's late response must be dropped.
   const ctx = vm.createContext({ state: { searchGen: 0, lat: null, lng: null } });
-  vm.runInContext(src.match(/\n\s*function stillActiveSearch[\s\S]*?\n  \}\n/)[0], ctx);
-  ctx.state.searchGen = 1; ctx.state.lat = 36.9; ctx.state.lng = -82.08; // Lebanon gen 1
-  ctx.state.searchGen = 2; ctx.state.lat = 37.27; ctx.state.lng = -81.22; // Bluefield gen 2
+  vm.runInContext(src.match(/\n\s*function stillActiveSearch[\s\S]*?\n {2}\}\n/)[0], ctx);
+  ctx.state.searchGen = 1;
+  ctx.state.lat = 36.9;
+  ctx.state.lng = -82.08; // Lebanon gen 1
+  ctx.state.searchGen = 2;
+  ctx.state.lat = 37.27;
+  ctx.state.lng = -81.22; // Bluefield gen 2
   assert.strictEqual(vm.runInContext("stillActiveSearch(1, 36.9, -82.08)", ctx), false);
   assert.strictEqual(vm.runInContext("stillActiveSearch(2, 37.27, -81.22)", ctx), true);
   // runSearch clears state.places + pins before the request when the origin changes.
-  const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("const slowTimer", src.indexOf("async function runSearch(")));
+  const rs = src.slice(
+    src.indexOf("async function runSearch("),
+    src.indexOf("const slowTimer", src.indexOf("async function runSearch(")),
+  );
   assert.ok(/if \(searchOriginChanged\(state\.lat, state\.lng, lat, lng\)\) clearResultsForNewSearch\(\);/.test(rs));
   assert.ok(rs.indexOf("clearResultsForNewSearch();") < rs.indexOf("state.lat = lat;"));
   assert.ok(rs.indexOf("renderList();") > rs.indexOf("clearResultsForNewSearch();"));
-  // The catch path awaits the inner ring; fastP must be declared outside the try block.
+  // 20261004b: one sequential Overpass pass per search; no parallel inner ring.
   const body = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
-  assert.ok(body.indexOf("let fastP") >= 0 && body.indexOf("let fastP") < body.indexOf("    try {\n"));
+  assert.strictEqual((body.match(/fetchPlaces\(/g) || []).length, 1);
+  assert.ok(!/fastP|firstFulfilled|Promise\.(any|race)/.test(body));
 });
 t("pantries status (20261003i): count matches the pantry list; other filters unchanged", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
@@ -574,54 +751,72 @@ t("pantries status (20261003i): count matches the pantry list; other filters unc
   assert.ok(/setStatus\(filterCountStatus\(filteredPlaces\(\)\.length, on\)\)/.test(handler));
   assert.ok(!/setStatus\(filteredPlaces\(\)\.length \+ " restaurants after filters"\)/.test(src));
 });
-t("city switch (20261003j): a new city search clears old cards, pins and counts before the lookup; late results ignored", () => {
-  const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
-  // Behaviour: run the real clearResultsForNewSearch against a fake DOM/map.
-  const els = {
-    "#resultCount": { textContent: "84 restaurants" },
-    "#dealCount": { textContent: "2 listing promos", hidden: false },
-  };
-  let markersCleared = 0;
-  const classes = new Set(["has-places"]);
-  const ctx = vm.createContext({
-    state: { searchGen: 0, lat: 36.71, lng: -81.98, places: new Array(84).fill({}), fetchedRadiusMiles: 10 },
-    $: (sel) => els[sel] || null,
-    renderMarkers: (list) => { if (!list.length) markersCleared++; },
-    document: { documentElement: { classList: { remove: (c) => classes.delete(c) } } },
-  });
-  vm.runInContext(src.match(/\n\s*function clearResultsForNewSearch[\s\S]*?\n  \}\n/)[0], ctx);
-  vm.runInContext(src.match(/\n\s*function stillActiveSearch[\s\S]*?\n  \}\n/)[0], ctx);
-  vm.runInContext("clearResultsForNewSearch()", ctx); // Abingdon VA showing -> Bristol TN search starts
-  assert.strictEqual(ctx.state.places.length, 0);
-  assert.strictEqual(ctx.state.fetchedRadiusMiles, null);
-  assert.strictEqual(markersCleared, 1);
-  assert.ok(!classes.has("has-places"));
-  assert.strictEqual(els["#resultCount"].textContent, "");
-  assert.strictEqual(els["#dealCount"].hidden, true);
-  assert.strictEqual(els["#dealCount"].textContent, "");
-  // Search token: Bristol (gen 1) superseded by Richlands (gen 2); Bristol's late answer is ignored.
-  ctx.state.searchGen = 1; ctx.state.lat = 36.6; ctx.state.lng = -82.19;
-  ctx.state.searchGen = 2; ctx.state.lat = 37.09; ctx.state.lng = -81.79;
-  assert.strictEqual(vm.runInContext("stillActiveSearch(1, 36.6, -82.19)", ctx), false);
-  assert.strictEqual(vm.runInContext("stillActiveSearch(2, 37.09, -81.79)", ctx), true);
-  // Wiring: searchCityOrZip takes a new token and clears at once, before the geocoder call and the
-  // "Looking up" / "Searching" status; every await is followed by a token check.
-  const sc = src.slice(src.indexOf("async function searchCityOrZip("), src.indexOf("function cityLookupErrorMessage"));
-  const genAt = sc.indexOf("const gen = ++state.searchGen;");
-  const clearAt = sc.indexOf("clearResultsForNewSearch();");
-  assert.ok(genAt > 0 && clearAt > genAt);
-  assert.ok(clearAt < sc.indexOf("renderList();"));
-  assert.ok(clearAt < sc.indexOf('setStatus("Looking up that city…")'));
-  assert.ok(clearAt < sc.indexOf("await geocodePlace(q)"));
-  assert.ok(/await geocodePlace\(q\);\s*\n\s*if \(gen !== state\.searchGen\) return;/.test(sc));
-  // Picking an "Other places with this name" alternate also clears before the new search.
-  const pa = src.slice(src.indexOf("function pickPlaceAlternate("), src.indexOf("function geoErrorMessage"));
-  assert.ok(pa.indexOf("clearResultsForNewSearch();") > 0 && pa.indexOf("clearResultsForNewSearch();") < pa.indexOf("runSearch("));
-  // runSearch: late fast-ring and full responses check the token before painting.
-  const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
-  assert.ok(/fastP\.then\(\(near\) => \{\s*\n\s*if \(fullSettled \|\| !stillActiveSearch\(gen, lat, lng\)/.test(rs));
-  assert.ok(/await fetchPlaces\(lat, lng, fetchMi, \{ mode: "full" \}\);[\s\S]*?if \(!stillActiveSearch\(gen, lat, lng\)\) return;/.test(rs));
-});
+t(
+  "city switch (20261003j): a new city search clears old cards, pins and counts before the lookup; late results ignored",
+  () => {
+    const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+    // Behaviour: run the real clearResultsForNewSearch against a fake DOM/map.
+    const els = {
+      "#resultCount": { textContent: "84 restaurants" },
+      "#dealCount": { textContent: "2 listing promos", hidden: false },
+    };
+    let markersCleared = 0;
+    const classes = new Set(["has-places"]);
+    const ctx = vm.createContext({
+      state: { searchGen: 0, lat: 36.71, lng: -81.98, places: new Array(84).fill({}), fetchedRadiusMiles: 10 },
+      $: (sel) => els[sel] || null,
+      renderMarkers: (list) => {
+        if (!list.length) markersCleared++;
+      },
+      document: { documentElement: { classList: { remove: (c) => classes.delete(c) } } },
+    });
+    vm.runInContext(src.match(/\n\s*function clearResultsForNewSearch[\s\S]*?\n {2}\}\n/)[0], ctx);
+    vm.runInContext(src.match(/\n\s*function stillActiveSearch[\s\S]*?\n {2}\}\n/)[0], ctx);
+    vm.runInContext("clearResultsForNewSearch()", ctx); // Abingdon VA showing -> Bristol TN search starts
+    assert.strictEqual(ctx.state.places.length, 0);
+    assert.strictEqual(ctx.state.fetchedRadiusMiles, null);
+    assert.strictEqual(markersCleared, 1);
+    assert.ok(!classes.has("has-places"));
+    assert.strictEqual(els["#resultCount"].textContent, "");
+    assert.strictEqual(els["#dealCount"].hidden, true);
+    assert.strictEqual(els["#dealCount"].textContent, "");
+    // Search token: Bristol (gen 1) superseded by Richlands (gen 2); Bristol's late answer is ignored.
+    ctx.state.searchGen = 1;
+    ctx.state.lat = 36.6;
+    ctx.state.lng = -82.19;
+    ctx.state.searchGen = 2;
+    ctx.state.lat = 37.09;
+    ctx.state.lng = -81.79;
+    assert.strictEqual(vm.runInContext("stillActiveSearch(1, 36.6, -82.19)", ctx), false);
+    assert.strictEqual(vm.runInContext("stillActiveSearch(2, 37.09, -81.79)", ctx), true);
+    // Wiring: searchCityOrZip takes a new token and clears at once, before the geocoder call and the
+    // "Looking up" / "Searching" status; every await is followed by a token check.
+    const sc = src.slice(
+      src.indexOf("async function searchCityOrZip("),
+      src.indexOf("function cityLookupErrorMessage"),
+    );
+    const genAt = sc.indexOf("const gen = ++state.searchGen;");
+    const clearAt = sc.indexOf("clearResultsForNewSearch();");
+    assert.ok(genAt > 0 && clearAt > genAt);
+    assert.ok(clearAt < sc.indexOf("renderList();"));
+    assert.ok(clearAt < sc.indexOf('setStatus("Looking up that city…")'));
+    assert.ok(clearAt < sc.indexOf("await geocodePlace(q)"));
+    assert.ok(/await geocodePlace\(q\);\s*\n\s*if \(gen !== state\.searchGen\) return;/.test(sc));
+    // Picking an "Other places with this name" alternate also clears before the new search.
+    const pa = src.slice(src.indexOf("function pickPlaceAlternate("), src.indexOf("function geoErrorMessage"));
+    assert.ok(
+      pa.indexOf("clearResultsForNewSearch();") > 0 &&
+        pa.indexOf("clearResultsForNewSearch();") < pa.indexOf("runSearch("),
+    );
+    // runSearch: a late Overpass answer checks the token before painting.
+    const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
+    assert.ok(
+      /await fetchPlaces\(lat, lng, fetchMi, \{ cacheable: state\.searchCacheable \}\);\s*\n\s*if \(!stillActiveSearch\(gen, lat, lng\)\) return;/.test(
+        rs,
+      ),
+    );
+  },
+);
 t("specials (20261003j): no submission form and nothing posts or stores restaurant data", () => {
   const root = path.join(__dirname, "..");
   assert.ok(!fs.existsSync(path.join(root, "specials.js")), "specials.js should be removed");
@@ -629,8 +824,20 @@ t("specials (20261003j): no submission form and nothing posts or stores restaura
   assert.ok(!/<form/i.test(sp));
   assert.ok(!/<input|<textarea/i.test(sp));
   assert.ok(!/specials\.js/.test(sp));
-  assert.ok(sp.includes('Restaurants can email <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a> about a special. Nothing is collected through this site.'));
-  for (const file of ["app.js", "metrics.js", "deals.js", "config.js", "sw.js", "disclaimers.js", "analytics.js"]) {
+  assert.ok(
+    sp.includes(
+      'Restaurants can email <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a> about a special. Nothing is collected through this site.',
+    ),
+  );
+  for (const file of [
+    "app.js",
+    "legacy-cleanup.js",
+    "deals.js",
+    "config.js",
+    "sw.js",
+    "disclaimers.js",
+    "analytics.js",
+  ]) {
     const src = fs.readFileSync(path.join(root, file), "utf8");
     assert.ok(!/specials_inbox/.test(src), file);
     assert.ok(!/\.herenow\/data\//.test(src), file);
@@ -640,14 +847,20 @@ t("specials (20261003j): no submission form and nothing posts or stores restaura
     const pv = fs.readFileSync(path.join(root, page), "utf8");
     assert.ok(!/submit an offer/i.test(pv), page);
     assert.ok(!/Specials page for review/i.test(pv), page);
-    assert.ok(pv.includes("It also stores the date of the Terms version you accepted by tapping Continue, and whether you've seen the Terms-updated notice. These stay on this device and are not sent."), page);
+    assert.ok(
+      pv.includes(
+        "It also stores the date of the Terms version you accepted by tapping Continue, and whether you've seen the Terms-updated notice. These stay on this device and are not sent.",
+      ),
+      page,
+    );
     const s3 = pv.slice(pv.indexOf("<h2>3."), pv.indexOf("<h2>4."));
     assert.ok(s3.includes("Terms-updated notice"), page);
   }
 });
 t("terms (20261003k): Specials is an email address only; Terms version date unchanged", () => {
   const root = path.join(__dirname, "..");
-  const line = 'The Specials page only lists an email address, <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>, that restaurants can write to about a special. Nothing is collected through the site.';
+  const line =
+    'The Specials page only lists an email address, <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a>, that restaurants can write to about a special. Nothing is collected through the site.';
   for (const page of ["terms.html", "terms/index.html"]) {
     const src = fs.readFileSync(path.join(root, page), "utf8");
     assert.ok(!/optional restaurant contact for review/i.test(src), page);
@@ -656,9 +869,10 @@ t("terms (20261003k): Specials is an email address only; Terms version date unch
     assert.ok(!/submit[a-z]*[^.]{0,80}Specials/i.test(src), page);
     assert.ok(src.includes(line), page);
   }
-  // Not a material change: visitors are not re-prompted.
+  // 20261003k was not a material change. 20261004b changes the processor list (Gavel gate 1), so the
+  // effective date moves to the ship date and visitors see the terms-updated notice once.
   const cfg = fs.readFileSync(path.join(root, "config.js"), "utf8");
-  assert.ok(/const PUBLISH_DATE = "2026-10-03";/.test(cfg));
+  assert.ok(/const PUBLISH_DATE = "2026-10-05";/.test(cfg));
   assert.ok(/TERMS_VERSION: PUBLISH_DATE/.test(cfg));
 });
 console.log(`\n${pass} passed`);
