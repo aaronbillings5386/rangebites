@@ -9,15 +9,6 @@
       },
       "rateLimit": "200/hour/ip"
     },
-    "/api/overpass-fr": {
-      "upstream": "https://overpass.openstreetmap.fr/api/interpreter",
-      "method": "POST",
-      "headers": {
-        "User-Agent": "RangeBites/1.0 (+https://rangebites.com; rangebites@agentmail.to)",
-        "Referer": "https://rangebites.com"
-      },
-      "rateLimit": "100/hour/ip"
-    },
     "/api/nominatim": {
       "upstream": "https://nominatim.openstreetmap.org/search",
       "method": "GET",

@@ -47,7 +47,8 @@ function makeFetchPlaces(script) {
       log.push({ url, at: clock, body: init.body });
       inFlight++;
       maxInFlight = Math.max(maxInFlight, inFlight);
-      const r = script[url];
+      let r = script[url];
+      if (Array.isArray(r)) r = r.length > 1 ? r.shift() : r[0];
       return new Promise((resolve, reject) => {
         const done = () => {
           inFlight--;
@@ -80,15 +81,19 @@ function makeFetchPlaces(script) {
       "overpassCacheGet",
       "overpassCachePut",
       "overpassBusyMs",
+      "bumpCacheGen",
+      "sweepAllCaches",
       "fetchPlaces",
       "overpassErrorMessage",
     ],
     [
-      "OVERPASS_MIRRORS",
+      "OVERPASS_SERVER",
       "OVERPASS_TIMEOUT_S",
       "OVERPASS_MIRROR_ABORT_MS",
       "OVERPASS_TOTAL_CAP_MS",
-      "OVERPASS_MIN_TRY_MS",
+      "OVERPASS_RETRY_MIN_MS",
+      "CACHE_SWEEP_INTERVAL_MS",
+      "GEOCODE_CACHE_TTL_MS",
       "OVERPASS_BUSY_MS",
       "OVERPASS_BUSY_MAX_MS",
       "OVERPASS_CACHE_TTL_MS",
@@ -97,7 +102,7 @@ function makeFetchPlaces(script) {
       "overpassCache",
       "overpassBusyUntil",
     ],
-    "__hook.peek = function () { return overpassCache; }; const statuses = []; function setStatus(s) { statuses.push(s); } function normalizeElements(els, lat, lng) { return els.map((e) => ({ id: e.type + '/' + e.id, origin: [lat, lng] })); }",
+    "let cacheGen = 0; const geocodeCache = new Map(); __hook.geo = function () { return geocodeCache.size; }; __hook.peek = function () { return overpassCache; }; const statuses = []; function setStatus(s) { statuses.push(s); } function normalizeElements(els, lat, lng) { return els.map((e) => ({ id: e.type + '/' + e.id, origin: [lat, lng] })); }",
     g,
   );
   // Drive the fake clock: run due timers until the promise settles.
@@ -136,6 +141,7 @@ function makeFetchPlaces(script) {
     log,
     run,
     cache: () => g.__hook.peek(),
+    geoSize: () => g.__hook.geo(),
     now: () => clock,
     maxInFlight: () => maxInFlight,
     advance: (ms) => {
@@ -148,18 +154,14 @@ const OK = (n) => ({
   json: { elements: Array.from({ length: n }, (_, i) => ({ type: "node", id: i + 1 })) },
 });
 
-t("mirrors: two same-origin routes, Private.coffee then OSM France; no overpass-api.de anywhere (Gavel gate 1)", () => {
+t("overpass: one same-origin route to Private.coffee only; no OSM France, no overpass-api.de anywhere (gate 3)", () => {
   const src = read("app.js");
   const proxy = JSON.parse(read(".herenow/proxy.json"));
-  const urls = [...src.matchAll(/\{ url: "(\/api\/overpass[^"]*)", operator: "([^"]+)" \}/g)].map((m) => [m[1], m[2]]);
-  assert.deepStrictEqual(urls, [
-    ["/api/overpass", "Private.coffee"],
-    ["/api/overpass-fr", "OpenStreetMap France"],
-  ]);
+  assert.ok(src.includes('const OVERPASS_SERVER = { url: "/api/overpass", operator: "Private.coffee" };'));
+  assert.ok(!/OVERPASS_MIRRORS|overpass-fr/.test(src), "no mirror list or France route in app.js");
+  assert.deepStrictEqual(Object.keys(proxy.proxies).sort(), ["/api/nominatim", "/api/overpass"]);
+  assert.strictEqual(proxy.proxies["/api/overpass"].upstream, "https://overpass.private.coffee/api/interpreter");
   const routes = JSON.stringify(proxy);
-  for (const [u] of urls) assert.ok(routes.includes('"' + u + '"'), u);
-  assert.ok(routes.includes("overpass.private.coffee") && routes.includes("overpass.openstreetmap.fr"));
-  assert.deepStrictEqual(Object.keys(proxy.proxies).sort(), ["/api/nominatim", "/api/overpass", "/api/overpass-fr"]);
   for (const f of [
     "app.js",
     ".herenow/proxy.json",
@@ -168,26 +170,64 @@ t("mirrors: two same-origin routes, Private.coffee then OSM France; no overpass-
     "about.html",
     "about/index.html",
     "index.html",
+    "terms.html",
+    "terms/index.html",
     "THIRD_PARTY_NOTICES.md",
+    "README.md",
+    "PRIVACY_GUARDRAILS.md",
+    "docs/ARCHITECTURE.md",
   ]) {
-    assert.ok(!/overpass-api\.de|overpass-de/.test(read(f)), f);
+    const s = read(f);
+    assert.ok(!/overpass-api\.de|overpass-de/.test(s), f);
+    assert.ok(
+      !/openstreetmap\.fr|OpenStreetMap France|OSM France|overpass-fr/.test(
+        s.replace(/[^.\n]*whitelist-only[^.\n]*\./g, ""),
+      ),
+      f + " still names OSM France",
+    );
   }
-  assert.ok(!/mail\.ru/.test(routes), "never the mail.ru mirror");
+  for (const f of ["THIRD_PARTY_NOTICES.md", "README.md", "PRIVACY_GUARDRAILS.md", "docs/ARCHITECTURE.md"]) {
+    assert.ok(
+      /Private\.coffee/.test(read(f)) && /overpass\.private\.coffee|\/api\/overpass/.test(read(f)),
+      f + " names Private.coffee",
+    );
+  }
+  assert.ok(!/mail\.ru/.test(routes), "never the mail.ru server");
 });
-t("mirrors: first hangs, second answers; tried one at a time, never in parallel", async () => {
-  const h = makeFetchPlaces({ "/api/overpass": "hang", "/api/overpass-fr": OK(3) });
+t("overpass: first attempt hangs, one retry on the same server answers; never in parallel", async () => {
+  const h = makeFetchPlaces({ "/api/overpass": ["hang", OK(3)] });
   const places = await h.run(h.fp(36.9009, -82.0801, 10));
   assert.strictEqual(places.length, 3);
   assert.deepStrictEqual(
     h.log.map((x) => x.url),
-    ["/api/overpass", "/api/overpass-fr"],
+    ["/api/overpass", "/api/overpass"],
   );
-  assert.strictEqual(h.log[1].at, 11000, "second mirror starts when the first aborts at 11 s");
+  assert.strictEqual(h.log[1].at, 11000, "retry starts when the first attempt aborts at 11 s");
   assert.strictEqual(h.maxInFlight(), 1);
   assert.ok(decodeURIComponent(h.log[0].body).includes("[timeout:10]"));
 });
-t("mirrors: all hang -> clear timeout error under the 25 s cap (well under 40 s)", async () => {
-  const h = makeFetchPlaces({ "/api/overpass": "hang", "/api/overpass-fr": "hang" });
+t("overpass: a 5xx gets one retry; a second 5xx shows the clear error", async () => {
+  const h = makeFetchPlaces({ "/api/overpass": [{ status: 503, json: {} }, OK(2)] });
+  assert.strictEqual((await h.run(h.fp(36.9, -82.08, 10))).length, 2);
+  assert.strictEqual(h.log.length, 2);
+  const h2 = makeFetchPlaces({ "/api/overpass": { status: 502, json: {} } });
+  let err;
+  try {
+    await h2.run(h2.fp(36.9, -82.08, 10));
+  } catch (e) {
+    err = e;
+  }
+  assert.strictEqual(h2.log.length, 2, "exactly one retry");
+  assert.strictEqual(h2.F.overpassErrorMessage(err), "OpenStreetMap is down. Try again.");
+  // A plain 4xx is not retried.
+  const h3 = makeFetchPlaces({ "/api/overpass": { status: 400, json: {} } });
+  try {
+    await h3.run(h3.fp(36.9, -82.08, 10));
+  } catch (_) {}
+  assert.strictEqual(h3.log.length, 1);
+});
+t("overpass: both attempts hang -> clear timeout error at 22 s, under the 25 s cap", async () => {
+  const h = makeFetchPlaces({ "/api/overpass": "hang" });
   let err;
   try {
     await h.run(h.fp(37.2698, -81.2223, 10));
@@ -195,38 +235,27 @@ t("mirrors: all hang -> clear timeout error under the 25 s cap (well under 40 s)
     err = e;
   }
   assert.ok(err && err.timedOut, String(err));
-  assert.ok(h.now() <= 25000, "gave up at " + h.now());
   assert.strictEqual(h.F.overpassErrorMessage(err), "OpenStreetMap didn’t answer in time. Try again in a minute.");
-  // 11 s per mirror, both tried: the error lands at 22 s, under the 25 s cap.
-  assert.strictEqual(h.now(), 22000);
-  assert.deepStrictEqual(
-    h.log.map((x) => x.url),
-    ["/api/overpass", "/api/overpass-fr"],
-  );
+  assert.strictEqual(h.now(), 22000, "11 s + one 11 s retry");
+  assert.ok(h.now() <= 25000);
+  assert.strictEqual(h.log.length, 2, "one attempt plus one retry, no more");
 });
-t("mirrors: 429 moves on and cools that mirror for 30 s (Retry-After honoured, capped)", async () => {
-  const h = makeFetchPlaces({
-    "/api/overpass": { status: 429, json: {} },
-    "/api/overpass-fr": OK(2),
-  });
-  assert.strictEqual((await h.run(h.fp(36.9, -82.08, 10))).length, 2);
-  // Different area (no cache hit) 5 s later: the busy mirror is skipped.
-  h.advance(5000);
-  await h.run(h.fp(37.27, -81.22, 10));
-  assert.deepStrictEqual(
-    h.log.map((x) => x.url),
-    ["/api/overpass", "/api/overpass-fr", "/api/overpass-fr"],
-  );
-  assert.strictEqual(h.F.overpassBusyMs({ headers: { get: () => "90" } }), 90000);
-  assert.strictEqual(h.F.overpassBusyMs({ headers: { get: () => "9999" } }), 120000);
-  assert.strictEqual(h.F.overpassBusyMs({ headers: { get: () => null } }), 30000);
+t("overpass: no retry when less than 8 s of the cap is left", async () => {
+  const h = makeFetchPlaces({ "/api/overpass": "hang" });
+  let err;
+  try {
+    await h.run(h.F.fetchPlaces(36.9, -82.08, 10, { now: h.now, capMs: 18000 })); // 18 - 11 = 7 s left
+  } catch (e) {
+    err = e;
+  }
+  assert.ok(err && err.timedOut);
+  assert.strictEqual(h.log.length, 1);
+  assert.strictEqual(h.now(), 11000);
+  assert.ok(/const OVERPASS_RETRY_MIN_MS = 8000;/.test(read("app.js")));
+  assert.ok(/const OVERPASS_TOTAL_CAP_MS = 25000;/.test(read("app.js")));
 });
-t("mirrors: every mirror busy -> 'servers are busy' message", async () => {
-  const busy = { status: 429, json: {} };
-  const h = makeFetchPlaces({
-    "/api/overpass": busy,
-    "/api/overpass-fr": { status: 406, json: {} },
-  });
+t("overpass: 429 shows the busy message at once (no retry) and cools the server for 30 s", async () => {
+  const h = makeFetchPlaces({ "/api/overpass": [{ status: 429, json: {} }, OK(2)] });
   let err;
   try {
     await h.run(h.fp(36.9, -82.08, 10));
@@ -234,15 +263,56 @@ t("mirrors: every mirror busy -> 'servers are busy' message", async () => {
     err = e;
   }
   assert.ok(err && err.allBusy);
-  assert.strictEqual(h.F.overpassErrorMessage(err), "OpenStreetMap servers are busy right now. Try again in a minute.");
+  assert.strictEqual(h.log.length, 1, "a 429 is not retried");
+  assert.strictEqual(
+    h.F.overpassErrorMessage(err),
+    "The OpenStreetMap server is busy right now. Try again in a minute.",
+  );
+  // 5 s later, still cooling: busy at once, no request sent.
+  h.advance(5000);
+  let err2;
+  try {
+    await h.run(h.fp(37.27, -81.22, 10));
+  } catch (e) {
+    err2 = e;
+  }
+  assert.ok(err2 && err2.allBusy);
+  assert.strictEqual(h.log.length, 1);
+  // After the 30 s cooldown it asks again.
+  h.advance(30000);
+  assert.strictEqual((await h.run(h.fp(37.27, -81.22, 10))).length, 2);
+  assert.strictEqual(h.log.length, 2);
+  assert.strictEqual(h.F.overpassBusyMs({ headers: { get: () => "90" } }), 90000);
+  assert.strictEqual(h.F.overpassBusyMs({ headers: { get: () => "9999" } }), 120000);
+  assert.strictEqual(h.F.overpassBusyMs({ headers: { get: () => null } }), 30000);
 });
-t("mirrors: a healthy empty answer is a real empty list; Overpass timeout remark moves on", async () => {
+t("overpass: a 406 is also 'busy' (all-busy message)", async () => {
+  const h = makeFetchPlaces({ "/api/overpass": { status: 406, json: {} } });
+  let err;
+  try {
+    await h.run(h.fp(36.9, -82.08, 10));
+  } catch (e) {
+    err = e;
+  }
+  assert.ok(err && err.allBusy);
+  assert.strictEqual(h.log.length, 1);
+  assert.strictEqual(
+    h.F.overpassErrorMessage(err),
+    "The OpenStreetMap server is busy right now. Try again in a minute.",
+  );
+});
+t("overpass: a healthy empty answer is a real empty list; an Overpass timeout remark gets the one retry", async () => {
   const h = makeFetchPlaces({
-    "/api/overpass": { status: 200, json: { elements: [], remark: "runtime error: Query timed out" } },
-    "/api/overpass-fr": { status: 200, json: { elements: [] } },
+    "/api/overpass": [
+      { status: 200, json: { elements: [], remark: "runtime error: Query timed out" } },
+      { status: 200, json: { elements: [] } },
+    ],
   });
   assert.deepStrictEqual(await h.run(h.fp(36.9, -82.08, 10)), []);
   assert.strictEqual(h.log.length, 2);
+  const h2 = makeFetchPlaces({ "/api/overpass": { status: 200, json: { elements: [] } } });
+  assert.deepStrictEqual(await h2.run(h2.fp(36.9, -82.08, 10)), []);
+  assert.strictEqual(h2.log.length, 1, "empty is not an error, no retry");
 });
 t("cache: same rounded area within 10 min reuses the answer, distances use the new origin", async () => {
   const h = makeFetchPlaces({ "/api/overpass": OK(4) });
@@ -333,6 +403,7 @@ t("Shade R1: Clear location empties both in-page caches", () => {
     renderList: noop,
     setNearLine: noop,
     renderPlaceAlternates: noop,
+    bumpCacheGen: noop,
     setStatus: noop,
   });
   vm.runInContext(
@@ -343,6 +414,89 @@ t("Shade R1: Clear location empties both in-page caches", () => {
   assert.strictEqual(geocodeCache.size, 0);
   assert.strictEqual(ctx.state.lat, null);
   assert.strictEqual(ctx.state.searchCacheable, false);
+});
+t("Shade B2: a search that started before Clear location never writes to either cache", async () => {
+  const h = makeFetchPlaces({ "/api/overpass": ["hang", OK(2)] });
+  const p = h.fp(36.9, -82.08, 10); // typed-city search, first attempt in flight
+  h.F.bumpCacheGen(); // Clear location while it is in flight
+  const places = await h.run(p);
+  assert.strictEqual(places.length, 2, "the answer is still returned to its (stale) caller");
+  assert.strictEqual(h.cache().size, 0, "but it is not cached");
+  await h.run(h.fp(36.9, -82.08, 10));
+  assert.strictEqual(h.cache().size, 1, "a new search after the clear caches normally");
+  const src = read("app.js");
+  const wipe = src.slice(src.indexOf("function wipeLocationState("), src.indexOf("/* ---------- About ---------- */"));
+  assert.ok(/bumpCacheGen\(\);/.test(wipe));
+  const geo = src.slice(
+    src.indexOf("async function geocodePlace("),
+    src.indexOf("async function geocodePlaceFromNetwork("),
+  );
+  assert.ok(
+    /const gen = cacheGen;\s*\n\s*const value = await geocodePlaceFromNetwork\(q\);\s*\n\s*if \(gen !== cacheGen\) return value;/.test(
+      geo,
+    ),
+  );
+  assert.ok(/if \(cacheable && gen === cacheGen\) overpassCachePut\(key, elements, now\(\)\);/.test(src));
+});
+t("Shade B1: both caches are also swept every 60 s while the page is open", () => {
+  const h = makeFetchPlaces({});
+  const src = read("app.js");
+  assert.ok(/const CACHE_SWEEP_INTERVAL_MS = 60 \* 1000;/.test(src));
+  assert.ok(
+    /setInterval\(function \(\) \{\s*\n\s*sweepAllCaches\(Date\.now\(\)\);\s*\n\s*\}, CACHE_SWEEP_INTERVAL_MS\);/.test(
+      src,
+    ),
+  );
+  h.F.overpassCachePut("a", [], 0);
+  h.F.overpassCachePut("b", [], 9 * 60 * 1000);
+  h.F.sweepAllCaches(10 * 60 * 1000);
+  assert.deepStrictEqual([...h.cache().keys()], ["b"]);
+  assert.strictEqual(h.geoSize(), 0);
+});
+t("gate 3 R1: the operator line names Aaron Billings, an individual in Virginia, on every page", () => {
+  const terms =
+    "The Service is designed, published, and operated by Aaron Billings, an individual in Virginia (the “Operator”), not by a restaurant, franchise, or food-service company.";
+  for (const f of ["terms.html", "terms/index.html"]) assert.ok(read(f).includes(terms), f);
+  const privacy =
+    "RangeBites is an information-only food app at rangebites.com, designed, published, and operated by Aaron Billings, an individual in Virginia (the “Operator”).";
+  for (const f of ["privacy.html", "privacy/index.html"]) assert.ok(read(f).includes(privacy), f);
+  const about =
+    "RangeBites is operated by Aaron Billings, an individual in Virginia (the “Operator”), not a restaurant.";
+  for (const f of ["index.html", "about.html", "about/index.html"]) assert.ok(read(f).includes(about), f);
+  for (const f of [
+    "terms.html",
+    "terms/index.html",
+    "privacy.html",
+    "privacy/index.html",
+    "index.html",
+    "about.html",
+    "about/index.html",
+  ])
+    assert.ok(!read(f).includes("individual website developer"), f);
+});
+t("gate 3 nits: Terms 'never saved' and Continue assent; Privacy Share-link exception", () => {
+  for (const f of ["terms.html", "terms/index.html"]) {
+    const s = read(f);
+    assert.ok(
+      s.includes("Location, if you choose to share it, is used only for the current search and is never saved."),
+      f,
+    );
+    assert.ok(!s.includes("location history"), f);
+    assert.ok(
+      s.includes(
+        "You agree to these Terms by tapping Continue. If you keep using the site after seeing the notice, that also means you agree.",
+      ),
+      f,
+    );
+  }
+  for (const f of ["privacy.html", "privacy/index.html"]) {
+    assert.ok(
+      read(f).includes(
+        "The city is not added to the page address unless you tap Share, which copies a link containing the city. It is not saved on this device or on the host.",
+      ),
+      f,
+    );
+  }
 });
 t("runSearch failsafe fires after the total cap, not after 40 s+", () => {
   const src = read("app.js");
@@ -399,10 +553,10 @@ t("privacy: §1 Operator / §1a Non-tracking in the right places; new storage se
   const nel =
     "Files are hosted on here.now, which runs on Cloudflare. If a page fails to load, your browser may send Cloudflare a network-error report; RangeBites does not receive or keep it.";
   const gavel = [
-    "The proxy asks one server at a time, in this order, until one answers: Private.coffee (overpass.private.coffee) and OpenStreetMap France (overpass.openstreetmap.fr).",
-    "Our host sees your IP address when it passes the search along. Because the request goes through our host, the Overpass and Nominatim servers connect to our host, not to your device.",
-    "Your browser’s language preference (Accept-Language) is passed along so results come back in your language.",
-    "Locate Me searches are never cached. Cached answers are dropped after 10 minutes, when you tap Clear location, or when the page closes, and are never written to this device or to our host.",
+    "Places are found by the Overpass API server run by Private.coffee (overpass.private.coffee).",
+    "Our host sees your IP address when it passes the search along. Because the request goes through our host, the Overpass and Nominatim servers receive the request from our host, not from your device.",
+    "Your browser’s language preference (Accept-Language) is passed along; it only affects place-name lookups (Nominatim), which use it to choose the language of place names.",
+    "Locate Me searches are never cached. Cached answers are dropped after about 10 minutes, when you tap Clear location, or when the page closes, and are never written to this device or to our host.",
     "The host may keep its own connection log. The host also counts requests from each IP address for up to about an hour to stop overuse; RangeBites cannot see or keep those counts.",
     "A city you type is looked up by the Nominatim geocoder run by the OpenStreetMap Foundation (nominatim.openstreetmap.org).",
     "Restaurant names, hours, and maps come from OpenStreetMap (ODbL), and some chain hours come from AllThePlaces store-locator data (CC0). Both are used as-is and may be wrong.",
@@ -429,11 +583,14 @@ t("privacy: §1 Operator / §1a Non-tracking in the right places; new storage se
       !/does not track|no tracking|tracking/i.test(opBody.replace(/<h2[^>]*>.*?<\/h2>/, "")) || /operat/i.test(opBody),
       f,
     );
-    assert.ok(/Private\.coffee/.test(s) && /OpenStreetMap France/.test(s), f + " names both Overpass operators");
+    assert.ok(
+      /Private\.coffee/.test(s) && !/OpenStreetMap France/.test(s),
+      f + " names only Private.coffee for Overpass",
+    );
     assert.ok(!/FOSSGIS e\.V\. \(overpass/.test(s), f + " FOSSGIS named only for tiles");
   }
   const about =
-    "Our host sees the search and your IP address; the Overpass and Nominatim servers get the search from our host, not from your device.";
+    "Our host sees the search and your IP address; the Overpass and Nominatim servers receive the request from our host, not from your device.";
   for (const f of ["about.html", "about/index.html", "index.html"]) {
     assert.ok(read(f).includes(about), f);
     assert.ok(!read(f).includes("The host and those services see the search and your IP."), f);

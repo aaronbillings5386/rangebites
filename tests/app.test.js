@@ -48,7 +48,7 @@ t("Overpass query: coordinates rounded to 3 decimals, radius padded 120 m", () =
   const q = A.buildOverpassQuery(37.2698123, -81.2223456, 16093.4, "full");
   assert.ok(q.includes("(around:16213,37.270,-81.222)"), q.slice(0, 300));
   assert.ok(!/37\.2698/.test(q) && !/81\.2223/.test(q));
-  // 20261004b: one query shape; [timeout:10] stays under the ~11 s per-mirror client budget.
+  // 20261004b: one query shape; [timeout:10] stays under the ~11 s per-attempt client budget.
   assert.ok(q.startsWith("[out:json][timeout:10]"));
   assert.strictEqual(A.roundCoord3(-0.0004), -0);
 });
@@ -563,7 +563,12 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   assert.ok(/openAgree\(\)/.test(fn[0]));
   assert.ok(fn[0].indexOf("openAgree()") < fn[0].indexOf("hideAgree()"));
   const terms = fs.readFileSync(path.join(__dirname, "..", "terms.html"), "utf8");
-  assert.ok(terms.includes("by tapping Continue, or by using the site"));
+  assert.ok(
+    terms.includes(
+      "You agree to these Terms by tapping Continue. If you keep using the site after seeing the notice, that also means you agree.",
+    ),
+  );
+  assert.ok(!terms.includes("or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
   assert.ok(terms.includes('src="/config.js?v=20261004b"'));
   assert.ok(/Effective <span data-publish-date>October 5, 2026<\/span>/.test(terms));

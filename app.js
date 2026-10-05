@@ -29,21 +29,19 @@
   /** Neutral map view until Locate Me — not a fake city of places */
   const MAP_DEFAULT = { lat: 20, lng: 0, zoom: 2 };
   const MAX_RESULTS = 120;
-  /** 20261004b: Overpass mirrors, tried one at a time in this order. Every route is a same-origin here.now
-   * proxy (.herenow/proxy.json), so connect-src stays 'self' and the mirror sees the host, not the visitor.
-   * Never mail.ru (hangs). Only these two instances: another public instance's usage policy excludes AI fast-deployment hosts (Gavel gate 1). Operators are named in Privacy §5 and §9. */
-  const OVERPASS_MIRRORS = [
-    { url: "/api/overpass", operator: "Private.coffee" }, // overpass.private.coffee
-    { url: "/api/overpass-fr", operator: "OpenStreetMap France" }, // overpass.openstreetmap.fr
-  ];
-  /** Server-side Overpass [timeout:N]. Kept under the per-mirror client budget. */
+  /** 20261004b: the one Overpass server. It is a same-origin here.now proxy route (.herenow/proxy.json),
+   * so connect-src stays 'self' and the server gets the request from the host, not the visitor.
+   * Only Private.coffee: another public instance's usage policy excludes AI fast-deployment hosts (Gavel
+   * gate 1), and the French instance has been whitelist-only since Apr 2026 (Navi gate 3). Named in Privacy §5 and §9. */
+  const OVERPASS_SERVER = { url: "/api/overpass", operator: "Private.coffee" }; // overpass.private.coffee
+  /** Server-side Overpass [timeout:N]. Kept under the per-attempt client budget. */
   const OVERPASS_TIMEOUT_S = 10;
-  /** 20261004b: about 11 s per mirror, and the whole search gives up by 25 s, so a dead upstream shows a
-   * clear error well under 40 s. A mirror is only tried if at least 4 s of the budget are left. */
+  /** 20261004b: one attempt of up to 11 s. After a timeout or 5xx, one retry on the same server, but only
+   * if at least 8 s of the 25 s cap are left, so the worst case (11 + 11 s) shows a clear error by 22 s. */
   const OVERPASS_MIRROR_ABORT_MS = 11000;
   const OVERPASS_TOTAL_CAP_MS = 25000;
-  const OVERPASS_MIN_TRY_MS = 4000;
-  /** Overpass policy: after a 429 or 406, pause at least 30 s before asking that server again. */
+  const OVERPASS_RETRY_MIN_MS = 8000;
+  /** Overpass policy: after a 429 or 406, pause at least 30 s before asking the server again. */
   const OVERPASS_BUSY_MS = 30000;
   const OVERPASS_BUSY_MAX_MS = 120000;
   /** 20261004b: short in-page cache of public OSM results, keyed only by the rounded search area.
@@ -2023,7 +2021,7 @@
 
   function overpassErrorMessage(err) {
     if (!err) return "Couldn’t reach OpenStreetMap. Try again.";
-    if (err.allBusy) return "OpenStreetMap servers are busy right now. Try again in a minute.";
+    if (err.allBusy) return "The OpenStreetMap server is busy right now. Try again in a minute.";
     if (err.name === "AbortError" || err.timedOut) return "OpenStreetMap didn’t answer in time. Try again in a minute.";
     const m = String(err.message || "");
     if (/HTTP 429/.test(m)) return "OpenStreetMap is busy. Try again in a moment.";
@@ -2043,6 +2041,19 @@
    * so nothing outlives the stated 10 minutes in page memory without a fresh write. */
   function cacheSweep(map, ttlMs, now) {
     for (const [k, v] of map) if (now - v.at >= ttlMs) map.delete(k);
+  }
+  /** Gate 3 (Shade B2): Clear location bumps this. A search that started before the bump must not write
+   * its answer into either cache when it lands. */
+  let cacheGen = 0;
+  function bumpCacheGen() {
+    cacheGen++;
+  }
+  /** Gate 3 (Shade B1): also sweep both caches every 60 s while the page is open, so an idle page drops
+   * expired entries without waiting for the next search. */
+  const CACHE_SWEEP_INTERVAL_MS = 60 * 1000;
+  function sweepAllCaches(now) {
+    cacheSweep(overpassCache, OVERPASS_CACHE_TTL_MS, now);
+    cacheSweep(geocodeCache, GEOCODE_CACHE_TTL_MS, now);
   }
   const overpassCache = new Map(); // key -> { at, elements } (raw OSM elements; distances are recomputed per search)
   function overpassCacheGet(key, now) {
@@ -2065,36 +2076,40 @@
       : OVERPASS_BUSY_MS;
   }
 
-  /** 20261004b: ask the mirrors one at a time (never in parallel), each with its own AbortController,
-   * inside one total budget. A hang, 5xx, 429/406, bad JSON or an Overpass timeout remark moves on to
-   * the next mirror. An empty answer from a healthy mirror is a real empty list. */
+  /** 20261004b (gate 3): one Overpass server. One attempt with its own AbortController; after a timeout
+   * or 5xx, one retry on the same server if at least 8 s of the 25 s cap are left. A 429/406 shows the
+   * busy message at once (and cools the server for 30 s or Retry-After). An empty answer is a real empty list. */
   async function fetchPlaces(lat, lng, radiusMiles, opts) {
     opts = opts || {};
     const now = opts.now || Date.now;
-    const mirrors = opts.mirrors || OVERPASS_MIRRORS;
+    const url = OVERPASS_SERVER.url;
     const perMs = opts.perMs || OVERPASS_MIRROR_ABORT_MS;
     const capMs = opts.capMs || OVERPASS_TOTAL_CAP_MS;
-    const minTryMs = opts.minTryMs == null ? OVERPASS_MIN_TRY_MS : opts.minTryMs;
+    const retryMinMs = opts.retryMinMs == null ? OVERPASS_RETRY_MIN_MS : opts.retryMinMs;
     // Shade R3: only typed-city searches (centred on the geocoded city point) are cached. A Locate Me
     // search is never cached, so no device-derived coordinate becomes a cache key.
     const cacheable = opts.cacheable === true;
+    const gen = cacheGen;
     const key = cacheable ? overpassCacheKey(lat, lng, radiusMiles) : null;
     const cached = cacheable ? overpassCacheGet(key, now()) : null;
     if (cached) return normalizeElements(cached, lat, lng);
     const query = buildOverpassQuery(lat, lng, milesToMeters(radiusMiles));
     const body = "data=" + encodeURIComponent(query);
     const started = now();
-    let lastErr = null;
-    let busyCount = 0;
-    let tried = 0;
 
-    async function fetchOne(url, budgetMs) {
+    function busyError() {
+      const e = new Error("Overpass all mirrors busy");
+      e.allBusy = true;
+      return e;
+    }
+
+    async function fetchOne(budgetMs) {
       const controller = new AbortController();
       const timer = setTimeout(function () {
         controller.abort();
       }, budgetMs);
       try {
-        // referrerPolicy "origin": the proxy adds the identifying User-Agent/Referer for the mirror.
+        // referrerPolicy "origin": the proxy adds the identifying User-Agent/Referer for the server.
         const res = await fetch(url, {
           method: "POST",
           headers: {
@@ -2107,48 +2122,45 @@
         });
         if (res.status === 429 || res.status === 406) {
           overpassBusyUntil.set(url, now() + overpassBusyMs(res));
+          throw busyError();
+        }
+        if (!res.ok) {
           const e = new Error("Overpass HTTP " + res.status);
-          e.busy = true;
+          e.retryable = res.status >= 500;
           throw e;
         }
-        if (!res.ok) throw new Error("Overpass HTTP " + res.status);
         const data = await res.json();
         const remark = String((data && data.remark) || "");
-        if (/timeout|error|out of memory/i.test(remark)) throw new Error("Overpass remark timeout");
+        if (/timeout|error|out of memory/i.test(remark)) {
+          const e = new Error("Overpass remark timeout");
+          e.retryable = true;
+          throw e;
+        }
         return data && Array.isArray(data.elements) ? data.elements : [];
       } finally {
         clearTimeout(timer);
       }
     }
 
-    for (let i = 0; i < mirrors.length; i++) {
-      const url = mirrors[i].url;
-      if ((overpassBusyUntil.get(url) || 0) > now()) {
-        busyCount++;
-        continue;
-      }
+    if ((overpassBusyUntil.get(url) || 0) > now()) throw busyError();
+    let lastErr = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
       const left = capMs - (now() - started);
-      if (left < minTryMs) break;
-      if (tried > 0) {
+      if (attempt > 0) {
+        const retryable = lastErr && (lastErr.name === "AbortError" || lastErr.retryable);
+        if (!retryable || left < retryMinMs) break;
         try {
-          setStatus("OpenStreetMap is slow… trying another server");
+          setStatus("OpenStreetMap is slow… trying again");
         } catch (_) {}
       }
-      tried++;
       try {
-        const elements = await fetchOne(url, Math.min(perMs, left));
-        if (cacheable) overpassCachePut(key, elements, now());
+        const elements = await fetchOne(Math.min(perMs, left));
+        if (cacheable && gen === cacheGen) overpassCachePut(key, elements, now());
         return normalizeElements(elements, lat, lng);
       } catch (err) {
-        if (err && err.busy) busyCount++;
+        if (err && err.allBusy) throw err;
         lastErr = err;
       }
-    }
-    if (!lastErr || (busyCount && busyCount === mirrors.length)) {
-      const e = new Error("Overpass all mirrors busy");
-      e.allBusy = busyCount > 0;
-      e.timedOut = !e.allBusy;
-      throw e;
     }
     if (lastErr && lastErr.name === "AbortError") lastErr.timedOut = true;
     throw lastErr;
@@ -2308,7 +2320,9 @@
     cacheSweep(geocodeCache, GEOCODE_CACHE_TTL_MS, Date.now());
     const hit = geocodeCache.get(key);
     if (hit) return hit.value;
+    const gen = cacheGen;
     const value = await geocodePlaceFromNetwork(q);
+    if (gen !== cacheGen) return value; // Clear location happened meanwhile: don't refill the cache
     cacheSweep(geocodeCache, GEOCODE_CACHE_TTL_MS, Date.now());
     geocodeCache.delete(key);
     geocodeCache.set(key, { at: Date.now(), value });
@@ -4152,6 +4166,7 @@
     state.fetchedRadiusMiles = null;
     state.searchCacheable = false;
     // Shade R1: Clear location also empties the in-page Overpass and city-lookup caches.
+    bumpCacheGen();
     overpassCache.clear();
     geocodeCache.clear();
     // Wipe GPS + places only. Keep UI prefs (range, filters, city/zip text).
@@ -5004,6 +5019,9 @@
       searchCityOrZip(startQ);
     }
     setInterval(refreshOpenStatuses, 60000);
+    setInterval(function () {
+      sweepAllCaches(Date.now());
+    }, CACHE_SWEEP_INTERVAL_MS);
     // Do not register a service worker. Old SWs on phones kept stale app.js
     // and left Search stuck on Finding food… / OSM timeout.
     if ("serviceWorker" in navigator) {
