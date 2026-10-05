@@ -387,6 +387,25 @@ t("hours: Sa[4], Su[-1], Mo[1,3] match only those weeks (Oct 2026)", () => {
   assert.strictEqual(H.ohParse("[1] 09:00-10:00"), null, "a bare bracket is still unknown");
 });
 
+/* ---------- polish ---------- */
+t("hours ranges stay on one line; text is still escaped", () => {
+  const H = load("app.js", ["escapeHtml", "hoursRangeHtml"]);
+  assert.strictEqual(
+    H.hoursRangeHtml("Open now · Today 4:30am–11pm, 12pm–6pm"),
+    'Open now · Today <span class="rb-nowrap">4:30am–11pm</span>, <span class="rb-nowrap">12pm–6pm</span>',
+  );
+  assert.strictEqual(
+    H.hoursRangeHtml("<b>Mo 9am–5pm</b>"),
+    '&lt;b&gt;Mo <span class="rb-nowrap">9am–5pm</span>&lt;/b&gt;',
+  );
+  assert.ok(/\.rb-nowrap\s*\{\s*white-space:\s*nowrap;/.test(read("styles.css")));
+  assert.ok(
+    /\.nav-btn,\s*\n\.place-card button,\s*\n\.place-card \.chip\s*\{\s*overflow-wrap:\s*normal;/.test(
+      read("styles.css"),
+    ),
+  );
+});
+
 /* ---------- assets ---------- */
 t("share image and favicons exist at the declared sizes", () => {
   const png = (f) => {

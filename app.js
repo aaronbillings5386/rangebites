@@ -1366,6 +1366,14 @@
     );
   }
 
+  /** Escaped hours text with each "7am–10pm" range kept on one line (20261004b polish: no break at the dash). */
+  function hoursRangeHtml(text) {
+    return escapeHtml(text).replace(
+      /\b(\d{1,2}(?::\d{2})?[ap]m–\d{1,2}(?::\d{2})?[ap]m)/g,
+      '<span class="rb-nowrap">$1</span>',
+    );
+  }
+
   /** Plain hours for cards. Never invents; only formats tagged OSM hours.
    * Readable tag → open/closed now + today's hours. Unreadable tag → the raw tag text.
    * No tag → "" (card says "Hours not listed"). */
@@ -3338,9 +3346,9 @@
         let hoursLine = "";
         const hoursText = p.hours ? friendlyHoursLine(p) : "";
         if (hoursText && p.openStatus === "open") {
-          hoursLine = `<div class="place-hours is-open">${escapeHtml(hoursText)}</div>`;
+          hoursLine = `<div class="place-hours is-open">${hoursRangeHtml(hoursText)}</div>`;
         } else if (hoursText && p.openStatus === "closed") {
-          hoursLine = `<div class="place-hours is-closed">${escapeHtml(hoursText)}</div>`;
+          hoursLine = `<div class="place-hours is-closed">${hoursRangeHtml(hoursText)}</div>`;
         } else if (hoursText) {
           // Tagged but outside the parser's subset: show the tag text, no open/closed guess.
           hoursLine = `<div class="place-hours is-raw">${escapeHtml(hoursText)}</div>`;

@@ -4534,3 +4534,19 @@ body,
 .rb-li {
   display: contents;
 }
+
+/* 20261004b polish: no single-word last lines in names and headings at narrow widths (same fonts and sizes). */
+.place-name,
+.sheet h2,
+.list-section h2 {
+  text-wrap: balance;
+}
+/* Button labels never break mid-word (".place-card { overflow-wrap: anywhere }" was splitting "Directions" at 320). */
+.nav-btn,
+.place-card button,
+.place-card .chip {
+  overflow-wrap: normal;
+}
+.rb-nowrap {
+  white-space: nowrap;
+}
