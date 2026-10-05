@@ -8,3 +8,4 @@ config.local.js
 .herenow/*
 !.herenow/proxy.json
 !.herenow/data.json
+__pycache__/
