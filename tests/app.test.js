@@ -347,7 +347,7 @@ t("stored acceptance matches TERMS_VERSION only", () => {
   assert.ok(html.includes("Terms updated <span data-publish-date>October 5, 2026</span>"));
   assert.ok(html.includes('href="/terms"'));
   assert.ok(
-    /By using RangeBites you agree to the <a href="\/terms">Terms<\/a> and <a href="\/privacy">Privacy<\/a>/.test(html),
+    /Use of RangeBites is subject to the <a href="\/terms">Terms<\/a> and <a href="\/privacy">Privacy<\/a>/.test(html),
   );
   assert.strictEqual((cfg.match(/2026-10-05/g) || []).length, 1);
   assert.strictEqual((cfg.match(/2026-10-0[34]/g) || []).length, 0);

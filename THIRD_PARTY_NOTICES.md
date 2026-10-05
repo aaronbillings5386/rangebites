@@ -27,4 +27,4 @@ Dev-only dependencies (build 20261004b; used for lint and format in CI and local
 | globals | 17.13.0 | https://github.com/sindresorhus/globals | MIT | Browser/node globals for ESLint |
 | prettier | 3.9.9 | https://github.com/prettier/prettier | MIT | `npm run format:check` |
 | actions/setup-node | v4.4.0 (49933ea) | https://github.com/actions/setup-node | MIT | CI only (`.github/workflows/ci.yml`) |
-RangeBites logo and icons (bitten-R mark) were created for the site owner, Aaron Billings, by his Grok Bot crew during development (Aug-Sep 2026) and are owned by him. No third-party stock or licensed artwork is used. This PR only re-compressed `icons/logo.png`, `icon-512.png`, `logo-512.png`, `icon-192.png` and made `favicon.ico` from `icon-192.png`.
+RangeBites logo and icons (bitten-R mark) were created for the site owner by the site's Grok Bot crew during development (Aug-Sep 2026) and are owned by him. No third-party stock or licensed artwork is used. This PR only re-compressed `icons/logo.png`, `icon-512.png`, `logo-512.png`, `icon-192.png` and made `favicon.ico` from `icon-192.png`.

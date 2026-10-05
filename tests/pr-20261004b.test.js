@@ -453,26 +453,61 @@ t("Shade B1: both caches are also swept every 60 s while the page is open", () =
   assert.deepStrictEqual([...h.cache().keys()], ["b"]);
   assert.strictEqual(h.geoSize(), 0);
 });
-t("gate 3 R1: the operator line names Aaron Billings, an individual in Virginia, on every page", () => {
+t("operator line: the approved wording (no personal name) on every page (Navi, reverting gate 3 R1)", () => {
   const terms =
-    "The Service is designed, published, and operated by Aaron Billings, an individual in Virginia (the “Operator”), not by a restaurant, franchise, or food-service company.";
+    "The Service is designed, published, and operated by an individual website developer (the “Operator”), not by a restaurant, franchise, or food-service company.";
   for (const f of ["terms.html", "terms/index.html"]) assert.ok(read(f).includes(terms), f);
   const privacy =
-    "RangeBites is an information-only food app at rangebites.com, designed, published, and operated by Aaron Billings, an individual in Virginia (the “Operator”).";
+    "RangeBites is an information-only food app at rangebites.com, designed, published, and operated by an individual website developer (the “Operator”).";
   for (const f of ["privacy.html", "privacy/index.html"]) assert.ok(read(f).includes(privacy), f);
   const about =
-    "RangeBites is operated by Aaron Billings, an individual in Virginia (the “Operator”), not a restaurant.";
+    "RangeBites is designed, published, and operated by an individual website developer in Virginia, USA (the “Operator”), not a restaurant.";
   for (const f of ["index.html", "about.html", "about/index.html"]) assert.ok(read(f).includes(about), f);
+});
+t("no personal surname in any shipped or docs file (Navi)", () => {
+  const surname = ["Bill", "ings"].join(""); // built at runtime so this test file never contains it
+  const hits = [];
+  (function walk(dir) {
+    for (const e of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+      if (/^(node_modules|\.git)$/.test(e.name)) continue;
+      const rel = dir ? dir + "/" + e.name : e.name;
+      if (e.isDirectory()) walk(rel);
+      else if (
+        /\.(html|js|mjs|css|json|txt|md|xml|webmanifest|svg|py|yml|yaml)$/i.test(e.name) &&
+        read(rel).includes(surname)
+      )
+        hits.push(rel);
+    }
+  })("");
+  assert.deepStrictEqual(hits, [], "surname found in: " + hits.join(", "));
+});
+t("assent wording: Continue line and 'Use of RangeBites is subject to' (Gavel polish)", () => {
+  const idx = read("index.html");
+  assert.ok(
+    idx.includes(
+      'By tapping Continue you agree to the <a href="/terms">Terms of Use</a> and <a href="/privacy">Privacy Policy</a>.',
+    ),
+  );
+  assert.ok(
+    idx.includes('<p class="site-footer-assent">Use of RangeBites is subject to the <a href="/terms">Terms</a>'),
+  );
+  for (const f of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"])
+    assert.ok(read(f).includes("Use of RangeBites is subject to the Terms of Use."), f);
+  for (const f of ["index.html", "about.html", "about/index.html"])
+    assert.ok(
+      read(f).includes('not a restaurant. Use of RangeBites is subject to the <a href="/terms">Terms of Use</a>'),
+      f,
+    );
   for (const f of [
+    "index.html",
+    "about.html",
+    "about/index.html",
     "terms.html",
     "terms/index.html",
     "privacy.html",
     "privacy/index.html",
-    "index.html",
-    "about.html",
-    "about/index.html",
   ])
-    assert.ok(!read(f).includes("individual website developer"), f);
+    assert.ok(!/By using (RangeBites|it) you agree/.test(read(f)), f);
 });
 t("gate 3 nits: Terms 'never saved' and Continue assent; Privacy Share-link exception", () => {
   for (const f of ["terms.html", "terms/index.html"]) {
@@ -492,7 +527,7 @@ t("gate 3 nits: Terms 'never saved' and Continue assent; Privacy Share-link exce
   for (const f of ["privacy.html", "privacy/index.html"]) {
     assert.ok(
       read(f).includes(
-        "The city is not added to the page address unless you tap Share, which copies a link containing the city. It is not saved on this device or on the host.",
+        "The city is not added to the page address. If you tap Share, the shared link includes the city you searched. The city is not saved on this device or on the host.",
       ),
       f,
     );
