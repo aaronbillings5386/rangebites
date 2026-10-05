@@ -36,11 +36,16 @@
   const OVERPASS_SERVER = { url: "/api/overpass", operator: "Private.coffee" }; // overpass.private.coffee
   /** Server-side Overpass [timeout:N]. Kept under the per-attempt client budget. */
   const OVERPASS_TIMEOUT_S = 10;
-  /** 20261004b: one attempt of up to 11 s. After a timeout or 5xx, one retry on the same server, but only
-   * if at least 8 s of the 25 s cap are left, so the worst case (11 + 11 s) shows a clear error by 22 s. */
+  /** 20261004b: one attempt of up to 11 s. After a timeout, 5xx or Overpass timeout remark, wait a backoff
+   * (3 s + 0-500 ms jitter, or the server's Retry-After), then one retry on the same server, but only if at
+   * least 8 s of the 25 s cap are still left after the backoff. The retry's budget is what is left of the
+   * cap, so the clear error always shows by 25 s (the failsafe is at 27 s). */
   const OVERPASS_ATTEMPT_ABORT_MS = 11000;
   const OVERPASS_TOTAL_CAP_MS = 25000;
   const OVERPASS_RETRY_MIN_MS = 8000;
+  /** Gate MED (868f800): pause before the single retry instead of retrying within milliseconds. */
+  const OVERPASS_RETRY_BACKOFF_MS = 3000;
+  const OVERPASS_RETRY_JITTER_MS = 500;
   /** Overpass policy: after a 429 or 406, pause at least 30 s before asking the server again. */
   const OVERPASS_BUSY_MS = 30000;
   const OVERPASS_BUSY_MAX_MS = 120000;
@@ -2076,9 +2081,15 @@
       : OVERPASS_BUSY_MS;
   }
 
-  /** 20261004b (gate 3): one Overpass server. One attempt with its own AbortController; after a timeout
-   * or 5xx, one retry on the same server if at least 8 s of the 25 s cap are left. A 429/406 shows the
-   * busy message at once (and cools the server for 30 s or Retry-After). An empty answer is a real empty list. */
+  /** 20261004b (gate 3): one Overpass server. One attempt with its own AbortController; after a timeout,
+   * 5xx or timeout remark, a backoff (overpassRetryBackoffMs) and then one retry on the same server if at
+   * least 8 s of the 25 s cap remain after the backoff. A 429/406 shows the busy message at once (and cools
+   * the server for 30 s or Retry-After). An empty answer is a real empty list. */
+  function overpassRetryBackoffMs(err, rand) {
+    const ra = err && err.retryAfterS;
+    if (Number.isFinite(ra) && ra > 0) return Math.min(ra * 1000, OVERPASS_BUSY_MAX_MS);
+    return OVERPASS_RETRY_BACKOFF_MS + Math.floor(rand() * (OVERPASS_RETRY_JITTER_MS + 1));
+  }
   async function fetchPlaces(lat, lng, radiusMiles, opts) {
     opts = opts || {};
     const now = opts.now || Date.now;
@@ -2086,6 +2097,7 @@
     const perMs = opts.perMs || OVERPASS_ATTEMPT_ABORT_MS;
     const capMs = opts.capMs || OVERPASS_TOTAL_CAP_MS;
     const retryMinMs = opts.retryMinMs == null ? OVERPASS_RETRY_MIN_MS : opts.retryMinMs;
+    const rand = opts.random || Math.random;
     // Shade R3: only typed-city searches (centred on the geocoded city point) are cached. A Locate Me
     // search is never cached, so no device-derived coordinate becomes a cache key.
     const cacheable = opts.cacheable === true;
@@ -2127,6 +2139,7 @@
         if (!res.ok) {
           const e = new Error("Overpass HTTP " + res.status);
           e.retryable = res.status >= 500;
+          e.retryAfterS = parseInt((res.headers && res.headers.get && res.headers.get("Retry-After")) || "", 10);
           throw e;
         }
         const data = await res.json();
@@ -2145,14 +2158,20 @@
     if ((overpassBusyUntil.get(url) || 0) > now()) throw busyError();
     let lastErr = null;
     for (let attempt = 0; attempt < 2; attempt++) {
-      const left = capMs - (now() - started);
       if (attempt > 0) {
         const retryable = lastErr && (lastErr.name === "AbortError" || lastErr.retryable);
-        if (!retryable || left < retryMinMs) break;
+        if (!retryable) break;
+        const backoff = overpassRetryBackoffMs(lastErr, rand);
+        // Only retry if at least 8 s of the cap are still left once the backoff is over.
+        if (capMs - (now() - started) - backoff < retryMinMs) break;
         try {
           setStatus("OpenStreetMap is slow… trying again");
         } catch (_) {}
+        await new Promise(function (resolve) {
+          setTimeout(resolve, backoff);
+        });
       }
+      const left = capMs - (now() - started);
       try {
         const elements = await fetchOne(Math.min(perMs, left));
         if (cacheable && gen === cacheGen) overpassCachePut(key, elements, now());
@@ -2213,8 +2232,9 @@
   const NOMINATIM_MIN_GAP_MS = 1100;
   let nominatimLastAt = 0;
   /* forge 20261003 (Gate G1): a 429/503 from the city lookup fails fast with a "busy" message, and further
-   * lookups wait out a short cooldown (Retry-After, capped at 60 s) without calling Nominatim again. */
-  const NOMINATIM_BUSY_MAX_MS = 60000;
+   * lookups wait out a cooldown (Retry-After, capped at 120 s like Overpass; 15 s if none is sent)
+   * without calling Nominatim again. */
+  const NOMINATIM_BUSY_MAX_MS = 120000;
   let nominatimBusyUntil = 0;
   function nominatimBusyError() {
     const e = new Error("Nominatim HTTP 429");

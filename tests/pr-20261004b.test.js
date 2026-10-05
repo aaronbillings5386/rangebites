@@ -14,7 +14,7 @@ function t(name, f) {
 }
 
 /* ---------- Overpass server (fake fetch + fake clock, no network) ---------- */
-function makeFetchPlaces(script) {
+function makeFetchPlaces(script, random = () => 0) {
   // script: url -> "hang" | {status, json, retryAfter}
   const log = [];
   let clock = 0;
@@ -81,6 +81,7 @@ function makeFetchPlaces(script) {
       "overpassCacheGet",
       "overpassCachePut",
       "overpassBusyMs",
+      "overpassRetryBackoffMs",
       "bumpCacheGen",
       "sweepAllCaches",
       "fetchPlaces",
@@ -92,6 +93,8 @@ function makeFetchPlaces(script) {
       "OVERPASS_ATTEMPT_ABORT_MS",
       "OVERPASS_TOTAL_CAP_MS",
       "OVERPASS_RETRY_MIN_MS",
+      "OVERPASS_RETRY_BACKOFF_MS",
+      "OVERPASS_RETRY_JITTER_MS",
       "CACHE_SWEEP_INTERVAL_MS",
       "GEOCODE_CACHE_TTL_MS",
       "OVERPASS_BUSY_MS",
@@ -102,7 +105,7 @@ function makeFetchPlaces(script) {
       "overpassCache",
       "overpassBusyUntil",
     ],
-    "let cacheGen = 0; const geocodeCache = new Map(); __hook.geo = function () { return geocodeCache.size; }; __hook.peek = function () { return overpassCache; }; const statuses = []; function setStatus(s) { statuses.push(s); } function normalizeElements(els, lat, lng) { return els.map((e) => ({ id: e.type + '/' + e.id, origin: [lat, lng] })); }",
+    "let cacheGen = 0; const geocodeCache = new Map(); __hook.geo = function () { return geocodeCache.size; }; __hook.peek = function () { return overpassCache; }; const statuses = []; __hook.statuses = () => statuses.slice(); function setStatus(s) { statuses.push(s); } function normalizeElements(els, lat, lng) { return els.map((e) => ({ id: e.type + '/' + e.id, origin: [lat, lng] })); }",
     g,
   );
   // Drive the fake clock: run due timers until the promise settles.
@@ -134,7 +137,7 @@ function makeFetchPlaces(script) {
     return val;
   }
   // Default: a typed-city search (cacheable). Pass false to model a Locate Me search.
-  const fp = (lat, lng, mi, cacheable = true) => F.fetchPlaces(lat, lng, mi, { now: () => clock, cacheable });
+  const fp = (lat, lng, mi, cacheable = true) => F.fetchPlaces(lat, lng, mi, { now: () => clock, cacheable, random });
   return {
     F,
     fp,
@@ -142,6 +145,7 @@ function makeFetchPlaces(script) {
     run,
     cache: () => g.__hook.peek(),
     geoSize: () => g.__hook.geo(),
+    statuses: () => [...g.__hook.statuses()],
     now: () => clock,
     maxInFlight: () => maxInFlight,
     advance: (ms) => {
@@ -194,7 +198,7 @@ t("overpass: one same-origin route to Private.coffee only; no OSM France, no ove
   }
   assert.ok(!/mail\.ru/.test(routes), "never the mail.ru server");
 });
-t("overpass: first attempt hangs, one retry on the same server answers; never in parallel", async () => {
+t("overpass: first attempt hangs, 3 s backoff, one retry on the same server answers; never in parallel", async () => {
   const h = makeFetchPlaces({ "/api/overpass": ["hang", OK(3)] });
   const places = await h.run(h.fp(36.9009, -82.0801, 10));
   assert.strictEqual(places.length, 3);
@@ -202,57 +206,101 @@ t("overpass: first attempt hangs, one retry on the same server answers; never in
     h.log.map((x) => x.url),
     ["/api/overpass", "/api/overpass"],
   );
-  assert.strictEqual(h.log[1].at, 11000, "retry starts when the first attempt aborts at 11 s");
+  assert.strictEqual(h.log[1].at, 14000, "abort at 11 s + 3 s backoff");
   assert.strictEqual(h.maxInFlight(), 1);
   assert.ok(decodeURIComponent(h.log[0].body).includes("[timeout:10]"));
 });
-t("overpass: a 5xx gets one retry; a second 5xx shows the clear error", async () => {
-  const h = makeFetchPlaces({ "/api/overpass": [{ status: 503, json: {} }, OK(2)] });
-  assert.strictEqual((await h.run(h.fp(36.9, -82.08, 10))).length, 2);
-  assert.strictEqual(h.log.length, 2);
-  const h2 = makeFetchPlaces({ "/api/overpass": { status: 502, json: {} } });
+t(
+  "Gate MED: 5xx -> 'trying again' -> ~3 s backoff (+0-500 ms jitter) -> one retry; a second 5xx shows the clear error",
+  async () => {
+    const h = makeFetchPlaces({ "/api/overpass": [{ status: 503, json: {} }, OK(2)] });
+    assert.strictEqual((await h.run(h.fp(36.9, -82.08, 10))).length, 2);
+    assert.strictEqual(h.log.length, 2);
+    assert.strictEqual(h.log[0].at, 0);
+    assert.strictEqual(h.log[1].at, 3000, "retry waits the 3 s backoff, not ~10 ms");
+    assert.deepStrictEqual(h.statuses(), ["OpenStreetMap is slow… trying again"], "status during the wait");
+    // Max jitter: 3.5 s.
+    const hj = makeFetchPlaces({ "/api/overpass": [{ status: 500, json: {} }, OK(1)] }, () => 0.999999);
+    await hj.run(hj.fp(36.9, -82.08, 10));
+    assert.strictEqual(hj.log[1].at, 3500);
+    const h2 = makeFetchPlaces({ "/api/overpass": { status: 502, json: {} } });
+    let err;
+    try {
+      await h2.run(h2.fp(36.9, -82.08, 10));
+    } catch (e) {
+      err = e;
+    }
+    assert.strictEqual(h2.log.length, 2, "exactly one retry");
+    assert.strictEqual(h2.F.overpassErrorMessage(err), "OpenStreetMap is down. Try again.");
+    // A plain 4xx is not retried.
+    const h3 = makeFetchPlaces({ "/api/overpass": { status: 400, json: {} } });
+    try {
+      await h3.run(h3.fp(36.9, -82.08, 10));
+    } catch (_) {}
+    assert.strictEqual(h3.log.length, 1);
+  },
+);
+t("Gate MED: a 5xx Retry-After is honoured for the backoff; too long a Retry-After means no retry", async () => {
+  const h = makeFetchPlaces({ "/api/overpass": [{ status: 503, json: {}, retryAfter: 5 }, OK(2)] });
+  await h.run(h.fp(36.9, -82.08, 10));
+  assert.strictEqual(h.log[1].at, 5000, "Retry-After: 5");
+  const h2 = makeFetchPlaces({ "/api/overpass": [{ status: 503, json: {}, retryAfter: 20 }, OK(2)] });
   let err;
   try {
     await h2.run(h2.fp(36.9, -82.08, 10));
   } catch (e) {
     err = e;
   }
-  assert.strictEqual(h2.log.length, 2, "exactly one retry");
+  assert.strictEqual(h2.log.length, 1, "25 - 20 = 5 s left after the wait, under 8 s: no retry");
+  assert.strictEqual(h2.now(), 0, "and no pointless wait");
   assert.strictEqual(h2.F.overpassErrorMessage(err), "OpenStreetMap is down. Try again.");
-  // A plain 4xx is not retried.
-  const h3 = makeFetchPlaces({ "/api/overpass": { status: 400, json: {} } });
-  try {
-    await h3.run(h3.fp(36.9, -82.08, 10));
-  } catch (_) {}
-  assert.strictEqual(h3.log.length, 1);
+  assert.strictEqual(
+    h.F.overpassRetryBackoffMs({ retryAfterS: 9999 }, () => 0),
+    120000,
+    "capped at 120 s",
+  );
+  assert.strictEqual(
+    h.F.overpassRetryBackoffMs({ retryAfterS: NaN }, () => 0.5),
+    3250,
+  );
 });
-t("overpass: both attempts hang -> clear timeout error at 22 s, under the 25 s cap", async () => {
-  const h = makeFetchPlaces({ "/api/overpass": "hang" });
-  let err;
-  try {
-    await h.run(h.fp(37.2698, -81.2223, 10));
-  } catch (e) {
-    err = e;
+t("Gate MED: worst case (hang, max backoff, hang) shows the clear timeout error by 25 s", async () => {
+  for (const r of [() => 0, () => 0.999999]) {
+    const h = makeFetchPlaces({ "/api/overpass": "hang" }, r);
+    let err;
+    try {
+      await h.run(h.fp(37.2698, -81.2223, 10));
+    } catch (e) {
+      err = e;
+    }
+    assert.ok(err && err.timedOut, String(err));
+    assert.strictEqual(h.F.overpassErrorMessage(err), "OpenStreetMap didn’t answer in time. Try again in a minute.");
+    assert.strictEqual(h.log.length, 2, "one attempt plus one retry, no more");
+    assert.ok(h.now() <= 25000, "gave up at " + h.now());
+    assert.strictEqual(h.now(), 25000, "11 s + backoff + the rest of the cap");
   }
-  assert.ok(err && err.timedOut, String(err));
-  assert.strictEqual(h.F.overpassErrorMessage(err), "OpenStreetMap didn’t answer in time. Try again in a minute.");
-  assert.strictEqual(h.now(), 22000, "11 s + one 11 s retry");
-  assert.ok(h.now() <= 25000);
-  assert.strictEqual(h.log.length, 2, "one attempt plus one retry, no more");
 });
-t("overpass: no retry when less than 8 s of the cap is left", async () => {
-  const h = makeFetchPlaces({ "/api/overpass": "hang" });
-  let err;
-  try {
-    await h.run(h.F.fetchPlaces(36.9, -82.08, 10, { now: h.now, capMs: 18000 })); // 18 - 11 = 7 s left
-  } catch (e) {
-    err = e;
-  }
-  assert.ok(err && err.timedOut);
+t("Gate MED: no retry unless at least 8 s of the cap remain AFTER the backoff", async () => {
+  const run = async (capMs) => {
+    const h = makeFetchPlaces({ "/api/overpass": "hang" });
+    try {
+      await h.run(h.F.fetchPlaces(36.9, -82.08, 10, { now: h.now, capMs, random: () => 0 }));
+    } catch (_) {}
+    return h;
+  };
+  // 21 s cap: 10 s left after the first attempt, 7 s after the 3 s backoff -> no retry, error at 11 s.
+  let h = await run(21000);
   assert.strictEqual(h.log.length, 1);
   assert.strictEqual(h.now(), 11000);
+  assert.deepStrictEqual(h.statuses(), [], "no 'trying again' when no retry follows");
+  // 22 s cap: exactly 8 s after the backoff -> retry at 14 s.
+  h = await run(22000);
+  assert.strictEqual(h.log.length, 2);
+  assert.strictEqual(h.log[1].at, 14000);
   assert.ok(/const OVERPASS_RETRY_MIN_MS = 8000;/.test(read("app.js")));
   assert.ok(/const OVERPASS_TOTAL_CAP_MS = 25000;/.test(read("app.js")));
+  assert.ok(/const OVERPASS_RETRY_BACKOFF_MS = 3000;/.test(read("app.js")));
+  assert.ok(/const OVERPASS_RETRY_JITTER_MS = 500;/.test(read("app.js")));
 });
 t("overpass: 429 shows the busy message at once (no retry) and cools the server for 30 s", async () => {
   const h = makeFetchPlaces({ "/api/overpass": [{ status: 429, json: {} }, OK(2)] });
@@ -301,18 +349,44 @@ t("overpass: a 406 is also 'busy' (all-busy message)", async () => {
     "The OpenStreetMap server is busy right now. Try again in a minute.",
   );
 });
-t("overpass: a healthy empty answer is a real empty list; an Overpass timeout remark gets the one retry", async () => {
-  const h = makeFetchPlaces({
-    "/api/overpass": [
-      { status: 200, json: { elements: [], remark: "runtime error: Query timed out" } },
-      { status: 200, json: { elements: [] } },
-    ],
-  });
-  assert.deepStrictEqual(await h.run(h.fp(36.9, -82.08, 10)), []);
-  assert.strictEqual(h.log.length, 2);
-  const h2 = makeFetchPlaces({ "/api/overpass": { status: 200, json: { elements: [] } } });
-  assert.deepStrictEqual(await h2.run(h2.fp(36.9, -82.08, 10)), []);
-  assert.strictEqual(h2.log.length, 1, "empty is not an error, no retry");
+t(
+  "overpass: a healthy empty answer is a real empty list; a 'timed out' remark -> backoff -> the one retry",
+  async () => {
+    const h = makeFetchPlaces({
+      "/api/overpass": [
+        { status: 200, json: { elements: [], remark: "runtime error: Query timed out" } },
+        { status: 200, json: { elements: [] } },
+      ],
+    });
+    assert.deepStrictEqual(await h.run(h.fp(36.9, -82.08, 10)), []);
+    assert.strictEqual(h.log.length, 2);
+    assert.strictEqual(h.log[1].at, 3000, "remark retry also waits the backoff");
+    assert.deepStrictEqual(h.statuses(), ["OpenStreetMap is slow… trying again"]);
+    const h2 = makeFetchPlaces({ "/api/overpass": { status: 200, json: { elements: [] } } });
+    assert.deepStrictEqual(await h2.run(h2.fp(36.9, -82.08, 10)), []);
+    assert.strictEqual(h2.log.length, 1, "empty is not an error, no retry");
+  },
+);
+t("Nominatim 429 cooldown honours Retry-After, capped at 120 s like Overpass", () => {
+  const src = read("app.js");
+  assert.ok(/const NOMINATIM_BUSY_MAX_MS = 120000;/.test(src));
+  const F = load(
+    "app.js",
+    ["noteNominatimBusy"],
+    ["NOMINATIM_BUSY_MAX_MS"],
+    "let nominatimBusyUntil = 0; __o.get = () => nominatimBusyUntil;",
+    {
+      __o: (globalThis.__o = {}),
+      Date: { now: () => 1000 },
+    },
+  );
+  const o = globalThis.__o;
+  F.noteNominatimBusy({ headers: { get: () => "90" } });
+  assert.strictEqual(o.get(), 1000 + 90000);
+  F.noteNominatimBusy({ headers: { get: () => "9999" } });
+  assert.strictEqual(o.get(), 1000 + 120000);
+  F.noteNominatimBusy({ headers: { get: () => null } });
+  assert.strictEqual(o.get(), 1000 + 15000);
 });
 t("cache: same rounded area within 10 min reuses the answer, distances use the new origin", async () => {
   const h = makeFetchPlaces({ "/api/overpass": OK(4) });
