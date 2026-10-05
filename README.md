@@ -1,124 +1,65 @@
-> **GitHub mirror** of the live static app at [rangebites.com](https://rangebites.com).  
-> Account: `aaronbillings5386/rangebites`. Deploy/publish still follows the live host — this repo is backup + public source.
-
 # RangeBites
 
-Privacy-first restaurant radar (mobile-first web demo): nearby food from OpenStreetMap, distance, illustrative deals, Reviews on Maps, and business contact when tagged.
+RangeBites ([rangebites.com](https://rangebites.com)) is a privacy-first food finder. Type a city or tap **Locate Me** to see nearby restaurants, cafes, bars, bakeries and tagged food pantries from OpenStreetMap, with distance, tagged hours, and links to call, get directions or read reviews on Maps. You don't need an account.
 
-**Find food near you. See the deal. No account required.**
+It's a static site: plain HTML, CSS and classic `<script>` files with no bundler and no framework. Leaflet is vendored under `vendor/`.
 
-**Quiet Precision:** slate / graphite UI; **amber only for deals**.
+## Privacy rule (non-negotiable)
 
-## Product bar (locked)
+- **No visitor data on any server.** There are no accounts, analytics, trackers, cookies or server logs of searches.
+- Searches go through same-origin here.now proxy routes (`/api/overpass*`, `/api/nominatim`; see `.herenow/proxy.json`). Upstream services see the host, not the visitor, and coordinates are rounded to 3 decimals (~100 m) before they're sent.
+- The device keeps only UI choices (filters, saved places as id/name/address, notice flags) in `localStorage`. It never stores coordinates, location history or search history.
+- Short caches (Overpass answers and city lookups, 10 min) live **in page memory only**. They're keyed by the rounded area or the city text, and they disappear when the page closes.
+- The service worker caches static icons only, never `/api/`, `/.herenow/` or a URL with coordinates.
+- Any change that adds storage, a third-party host or a new processor must update `privacy.html` and `privacy/index.html` in the same PR.
 
-Anywhere you open it:
-
-| # | Bar | MVP / P0 approach |
-|---|-----|-------------------|
-| 1 | Current position | Locate Me; demo / Try demo map if denied or chosen |
-| 2 | Local eats | Live OSM via Overpass for any lat/lng |
-| 3 | Coupons / deals | Illustrative / partner-ready, clearly labeled — **not** live Honey scrapes; real partners later |
-| 4 | Reviews | **Maps handoff** (Apple Maps + Google Maps). Optional real OSM rating tag only. **No fake stars.** |
-| 5 | Distance | Haversine + walk chips on cards / rail / sheet |
-| 6 | Business contact | Call / Website / Hours on cards + deal sheet when OSM has them; hide when missing |
-
-**Privacy:** no stored location history, no profile, no account required for core.
-
-**P0 today (from Product):** contact + hours on cards/sheet; Reviews → Maps handoff; no invented ratings. Full gap/ship list: **[PRODUCT_BAR_TODAY.md](./PRODUCT_BAR_TODAY.md)**. Brief: **[PRODUCT.md](./PRODUCT.md)**.
-
-## What’s included
-
-| File | Role |
-|------|------|
-| `index.html` | App shell, onboarding, About + Deal sheets, CSP + referrer meta |
-| `styles.css` | Quiet Precision: graphite/slate UI; amber only for deals |
-| `app.js` | Geolocation, Overpass, Leaflet, filters, locate-glow, privacy wipe |
-| `deals.js` | Sample / partner-ready deal matching + Sponsored flags (not live Honey) |
-| `analytics.js` | Empty on purpose. RangeBites does not load a tracker. |
-| `PRODUCT.md` | Product brief + locked bar |
-| `PRODUCT_BAR_TODAY.md` | Bar status vs code + today’s P0 ship list |
-| `PRIVACY_GUARDRAILS.md` | What leaves the device vs what never persists |
-| `ABOUT_AND_DISCLOSURES.md` | Full disclosure draft |
-| `OVERNIGHT.md` | Overnight changelog |
-| `AARON_AMPLITUDE.md` | Retired. Do not add a tracker. |
-
-## How to run
-
-### Option A — local static server (recommended)
+## Run it locally
 
 ```bash
-cd /workspace/food-radar-app
-python3 -m http.server 8765
+python3 -m http.server 8765      # or: npm run serve
+# open http://127.0.0.1:8765/
 ```
 
-Then open http://127.0.0.1:8765/
+The `/api/*` proxy routes only exist on here.now, so a plain static server can't run live searches. For a full local preview, use a small server that emulates the routes in `.herenow/proxy.json` (the PR QA used one) or test against the live site.
 
-Allow location when asked. If denied, **Demo mode** loads Bluefield WV / VA (~37.27, −81.22).
-
-### Option B — open the file
-
-`file://` often blocks geolocation and some CDN/map requests. Prefer Option A.
-
-### Phone tips
-
-1. Serve over HTTP on your LAN.
-2. iPhone Safari: Locate Me → Allow While Using.
-3. Add to Home Screen for a fuller-screen feel.
-4. HTTPS is required for geolocation on many phones when not localhost.
-
-## Privacy (short)
-
-- No accounts. No RangeBites backend.
-- Location is **when-in-use** for the current search only (browser → public Overpass + **OpenStreetMap tiles**, not CARTO).
-- No `localStorage` of location, places, or deal clicks. `sessionStorage` = UI flags only.
-- Leaving or closing the page clears in-memory location and results (web wipe — not iOS delete-app). Brief backgrounding (app switch, Maps, location prompt) does **not** wipe — so Locate Me results stay when you come back.
-- Details: **[PRIVACY_GUARDRAILS.md](./PRIVACY_GUARDRAILS.md)**
-
-## Deals, contact & reviews (Lawyer-safe)
-
-- **Deals:** illustrative / partner-ready badges and rail copy. Sample offers, not a promise. Confirm with the restaurant. CTA: **Open deal**. Sponsored pins are labeled.
-- **Contact / hours (P0):** Call (`tel:`), Website, Hours on place cards and the deal sheet when OSM tags exist; omit quietly when they don’t. Overpass should request `phone`, `contact:phone`, `website`, `contact:website`, `opening_hours`.
-- **Reviews (P0):** **Reviews** CTA → Apple Maps + Google Maps place handoff (`noopener` / `no-referrer`). Copy: “Reviews on Maps — we don’t store ratings.” If OSM has a real `stars` / rating tag (rare), show it with source “OpenStreetMap”. **Never invent stars or demo “4.5★” as if live.**
-
-## Deploy note (CSP)
-
-This demo ships a **meta** Content-Security-Policy that allows Leaflet (unpkg), Overpass, and OpenStreetMap tiles. For a real deploy, set CSP via **HTTP headers**, tighten script sources (drop `'unsafe-inline'` once scripts are non-inline), and add reporting.
-
-## Overpass race + demo fallback
-
-Locate Me **never** ends on an empty list:
-
-1. Overpass starts immediately (mirrors: `overpass-api.de` first, then `lz4.overpass-api.de`, then `overpass.kumi.systems`).
-2. If no successful Overpass response within **~4 seconds**, the UI shows **DEMO_FALLBACK_PLACES**. Deals / Sponsored via `deals.js`. **Try demo map** skips GPS entirely.
-3. If Overpass later succeeds and the search is still active, the list upgrades to live OSM results.
-4. Geo denied → Bluefield center + demo/privacy banners + the same race/fallback.
-
-Status line: “Searching…” → “Showing samples while map data loads” → “N places from OpenStreetMap” when live.
-
-## Limits
-
-- Overpass is a public API: timeouts / rate limits happen; the race/fallback keeps the demo usable.
-- Results capped (~40), sorted deals-first then by Haversine miles.
-- “Open-ish” is a rough OSM `opening_hours` heuristic.
-- OSM coverage varies; contact appears only when tags exist; reviews live on Maps, not as invented in-app stars.
-- Needs network for Overpass + tiles (fallback works offline for the place list only; map tiles still need network).
-- Deal badges are **not** live coupon inventory.
-
-## Stack
-
-Vanilla HTML/CSS/JS + Leaflet (CDN). No build step. Do not require a GitHub repo to run.
-
-## Overnight polish
-
-See **[OVERNIGHT.md](./OVERNIGHT.md)** for the changelog. Highlights: deals-first sort + amber deal-count pill; locate glow; place cards; skeleton→results; copy + About aligned with PRIVACY_GUARDRAILS.
-
-## Launch waitlist (local only)
-
-Email-only notify form, also linked from About. No name, phone, ZIP, location, city picker, testimonials, or counts. Support address pending — do not invent one.
+## Lint, format and test
 
 ```bash
-python3 waitlist_server.py
-# http://127.0.0.1:8765/waitlist.html
+npm ci                 # dev tooling only (ESLint 9, Prettier 3)
+npm run lint           # eslint . (flat config: eslint.config.js)
+npm run format:check   # prettier --check . (HTML and Markdown are deliberately not reformatted)
+npm test               # node harness tests + python3 tests/test_build_atp_hours.py
 ```
 
-Signups append to `waitlist.json` on this machine. **No deploy.**
+The tests are dependency-free. `tests/extract.js` pulls named functions out of `app.js` and runs them in a `vm` sandbox, so production code has no test hooks. CI (`.github/workflows/ci.yml`) runs lint, format:check and the tests on Node LTS for every PR and every push to main. `checks.yml` also runs `node --check` and the JSON and Python checks.
+
+## Deploy
+
+The site is published to **here.now** (slug `present-hollow-6jgb`, served at rangebites.com behind Cloudflare) with `ship_rangebites_once.py`, which runs from the box, not from this repo. here.now serves the repo root as-is, so **don't move or rename deployed paths** (`/index.html`, `/about/`, `/privacy/`, `/terms/`, `/deals/*`, `/icons/*`, `/themes/*`, `/data/*`, `/sw.js` and so on).
+
+Before publishing:
+
+1. Bump the build: the `<!-- rb-build -->` marker, every `?v=` in the HTML, and `CACHE` in `sw.js`.
+2. Keep dev files out of the upload. The ship script skips `.git`, `.github`, `tests` and `*.md`. It does **not** skip `node_modules/`, `package*.json`, `eslint.config.js`, `.prettier*`, `tools/` or `shot/`. See [docs/PUBLISH_SET.md](docs/PUBLISH_SET.md) for the skip list to add, and never run `npm ci` in the publish checkout until it's in place.
+3. Changes to `.herenow/proxy.json` (proxy routes) only take effect after a publish.
+
+## Layout
+
+| Path | What |
+| --- | --- |
+| `index.html`, `app.js`, `styles.css` | The app shell, all app logic, and styles |
+| `deals.js`, `disclaimers.js`, `config.js`, `metrics.js` | Listing-promo matching, legal copy, runtime config, legacy-ID cleanup (no analytics) |
+| `themes/` | Holiday themes: `us-holidays.js` (dates), `holiday-themes.js` (registry and art), `holiday.css` |
+| `about*`, `privacy*`, `terms*`, `specials.html`, `deals/`, `sitemap.*`, `404.html` | Static pages |
+| `data/` | `closed-places.json` (curated closures) and `atp-hours.json` (AllThePlaces chain hours, CC0) |
+| `.herenow/proxy.json` | here.now proxy routes (Overpass mirrors and Nominatim) with identifying UA |
+| `_headers`, `vercel.json` | Security headers (see [docs/HEADERS_AND_CSP.md](docs/HEADERS_AND_CSP.md)) |
+| `tools/` | Offline builders (`build-atp-hours.py`). Not part of the site |
+| `tests/` | Harness tests |
+| `docs/` | [Architecture](docs/ARCHITECTURE.md), [holiday themes](docs/HOLIDAY_THEMES.md), [headers and CSP](docs/HEADERS_AND_CSP.md), [hours parser](docs/HOURS_PARSER.md) |
+
+Product notes live in `PRODUCT.md`, `PRIVACY_GUARDRAILS.md` and `ABOUT_AND_DISCLOSURES.md`. The previous README is in `docs/LEGACY_README.md`.
+
+## Data and licences
+
+Map data © OpenStreetMap contributors (ODbL). Chain hours come from AllThePlaces (CC0). Tiles come from tile.openstreetmap.de. See `THIRD_PARTY_NOTICES.md`.
