@@ -1,11 +1,10 @@
 "use strict";
 /* 20261004b: Overpass mirror fallback, a11y names/lists, privacy copy, pantry tags, merged closed ids,
- * nth-weekday hours, and the holiday registry. Pure functions from app.js run in a sandbox (extract.js). */
+ * nth-weekday hours, share image. The holiday registry is covered in holiday-registry.test.js. Pure functions from app.js run in a sandbox (extract.js). */
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const { load } = require("./extract");
-const themes = require("../themes/holiday-themes");
 const root = path.join(__dirname, "..");
 const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
 
@@ -228,20 +227,6 @@ t("hours: Sa[4], Su[-1], Mo[1,3] match only those weeks (Oct 2026)", () => {
   assert.strictEqual(spans("Th 10:00-17:00; Sa[4] 09:00-11:00", 2026, 9, 22), 1, "plain rules still work beside nth");
   assert.strictEqual(spans("Mo-Fr 09:00-17:00", 2026, 9, 5), 1);
   assert.strictEqual(H.ohParse("[1] 09:00-10:00"), null, "a bare bracket is still unknown");
-});
-
-/* ---------- holidays ---------- */
-t("holidays: each registry entry wins at least one 2026 date; unbuilt ones paint the default theme", () => {
-  const seen = new Set();
-  for (let d = new Date(2026, 0, 1); d.getFullYear() === 2026; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
-    const id = themes.activeHolidayId(d);
-    if (!id) { assert.strictEqual(themes.selectHolidayTheme(d, {}), "default"); continue; }
-    seen.add(id);
-    const h = themes.HOLIDAYS.find((x) => x.id === id);
-    assert.strictEqual(themes.selectHolidayTheme(d, {}), h.built ? id : "default", id + " " + d.toDateString());
-  }
-  assert.deepStrictEqual([...seen].sort(), themes.HOLIDAYS.map((h) => h.id).sort());
-  assert.strictEqual(themes.selectHolidayTheme(new Date(2026, 9, 4), {}), "halloween");
 });
 
 /* ---------- assets ---------- */
