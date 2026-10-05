@@ -38,7 +38,7 @@
   const OVERPASS_TIMEOUT_S = 10;
   /** 20261004b: one attempt of up to 11 s. After a timeout or 5xx, one retry on the same server, but only
    * if at least 8 s of the 25 s cap are left, so the worst case (11 + 11 s) shows a clear error by 22 s. */
-  const OVERPASS_MIRROR_ABORT_MS = 11000;
+  const OVERPASS_ATTEMPT_ABORT_MS = 11000;
   const OVERPASS_TOTAL_CAP_MS = 25000;
   const OVERPASS_RETRY_MIN_MS = 8000;
   /** Overpass policy: after a 429 or 406, pause at least 30 s before asking the server again. */
@@ -2067,7 +2067,7 @@
     overpassCache.set(key, { at: now, elements });
     while (overpassCache.size > OVERPASS_CACHE_MAX) overpassCache.delete(overpassCache.keys().next().value);
   }
-  /** Per-mirror cooldown after 429/406 (Overpass policy). url -> epoch ms. In memory only. */
+  /** Server cooldown after 429/406 (Overpass policy). url -> epoch ms. In memory only. */
   const overpassBusyUntil = new Map();
   function overpassBusyMs(res) {
     const ra = parseInt((res && res.headers && res.headers.get && res.headers.get("Retry-After")) || "", 10);
@@ -2083,7 +2083,7 @@
     opts = opts || {};
     const now = opts.now || Date.now;
     const url = OVERPASS_SERVER.url;
-    const perMs = opts.perMs || OVERPASS_MIRROR_ABORT_MS;
+    const perMs = opts.perMs || OVERPASS_ATTEMPT_ABORT_MS;
     const capMs = opts.capMs || OVERPASS_TOTAL_CAP_MS;
     const retryMinMs = opts.retryMinMs == null ? OVERPASS_RETRY_MIN_MS : opts.retryMinMs;
     // Shade R3: only typed-city searches (centred on the geocoded city point) are cached. A Locate Me
@@ -2098,7 +2098,7 @@
     const started = now();
 
     function busyError() {
-      const e = new Error("Overpass all mirrors busy");
+      const e = new Error("Overpass server busy");
       e.allBusy = true;
       return e;
     }
@@ -3891,7 +3891,7 @@
     const fetchMi = state.radiusMiles;
 
     try {
-      // 20261004b: one Overpass request per search, mirrors in series (Overpass policy: no parallel
+      // 20261004b: one Overpass request per search, attempts in series (Overpass policy: no parallel
       // queries). The old parallel inner-ring pass is gone; the total cap bounds the wait.
       const places = await fetchPlaces(lat, lng, fetchMi, { cacheable: state.searchCacheable });
       if (!stillActiveSearch(gen, lat, lng)) return;

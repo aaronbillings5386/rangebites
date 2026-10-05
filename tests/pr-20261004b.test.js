@@ -1,5 +1,5 @@
 "use strict";
-/* 20261004b: Overpass mirror fallback, a11y names/lists, privacy copy, pantry tags, merged closed ids,
+/* 20261004b: Overpass single server + retry, a11y names/lists, privacy copy, pantry tags, merged closed ids,
  * nth-weekday hours, share image. The holiday registry is covered in holiday-registry.test.js. Pure functions from app.js run in a sandbox (extract.js). */
 const assert = require("assert");
 const fs = require("fs");
@@ -13,7 +13,7 @@ function t(name, f) {
   tests.push([name, f]);
 }
 
-/* ---------- Overpass mirrors (fake fetch + fake clock, no network) ---------- */
+/* ---------- Overpass server (fake fetch + fake clock, no network) ---------- */
 function makeFetchPlaces(script) {
   // script: url -> "hang" | {status, json, retryAfter}
   const log = [];
@@ -89,7 +89,7 @@ function makeFetchPlaces(script) {
     [
       "OVERPASS_SERVER",
       "OVERPASS_TIMEOUT_S",
-      "OVERPASS_MIRROR_ABORT_MS",
+      "OVERPASS_ATTEMPT_ABORT_MS",
       "OVERPASS_TOTAL_CAP_MS",
       "OVERPASS_RETRY_MIN_MS",
       "CACHE_SWEEP_INTERVAL_MS",
@@ -158,7 +158,7 @@ t("overpass: one same-origin route to Private.coffee only; no OSM France, no ove
   const src = read("app.js");
   const proxy = JSON.parse(read(".herenow/proxy.json"));
   assert.ok(src.includes('const OVERPASS_SERVER = { url: "/api/overpass", operator: "Private.coffee" };'));
-  assert.ok(!/OVERPASS_MIRRORS|overpass-fr/.test(src), "no mirror list or France route in app.js");
+  assert.ok(!/OVERPASS_MIRRORS|overpass-fr/.test(src), "no server list or France route in app.js");
   assert.deepStrictEqual(Object.keys(proxy.proxies).sort(), ["/api/nominatim", "/api/overpass"]);
   assert.strictEqual(proxy.proxies["/api/overpass"].upstream, "https://overpass.private.coffee/api/interpreter");
   const routes = JSON.stringify(proxy);
@@ -532,6 +532,17 @@ t("gate 3 nits: Terms 'never saved' and Continue assent; Privacy Share-link exce
       f,
     );
   }
+});
+t("Shade C1/C3: Privacy §9 links Private.coffee's policy; no leftover 'mirror' wording in app.js", () => {
+  for (const f of ["privacy.html", "privacy/index.html"])
+    assert.ok(
+      read(f).includes(
+        '(Private.coffee; see its <a href="https://private.coffee/privacy.html" target="_blank" rel="noopener noreferrer">privacy policy</a>)',
+      ),
+      f,
+    );
+  assert.ok(!/mirror/i.test(read("app.js")), "app.js still says mirror");
+  assert.ok(!/mirror order/.test(read("docs/LEGACY_README.md")));
 });
 t("runSearch failsafe fires after the total cap, not after 40 s+", () => {
   const src = read("app.js");
