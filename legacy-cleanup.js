@@ -170,7 +170,7 @@
     } catch (_) {}
   }
 
-  window.RangeBitesMetrics = {
+  window.RangeBitesLegacyCleanup = {
     clearLegacyLocationKeys: clearLegacyLocationKeys,
   };
 

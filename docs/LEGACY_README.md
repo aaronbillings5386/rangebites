@@ -88,7 +88,7 @@ This demo ships a **meta** Content-Security-Policy that allows Leaflet (unpkg), 
 
 Locate Me **never** ends on an empty list:
 
-1. Overpass starts immediately (mirrors: `overpass-api.de` first, then `lz4.overpass-api.de`, then `overpass.kumi.systems`).
+1. Overpass starts immediately (historical note; the current mirror order is in docs/ARCHITECTURE.md).
 2. If no successful Overpass response within **~4 seconds**, the UI shows **DEMO_FALLBACK_PLACES**. Deals / Sponsored via `deals.js`. **Try demo map** skips GPS entirely.
 3. If Overpass later succeeds and the search is still active, the list upgrades to live OSM results.
 4. Geo denied → Bluefield center + demo/privacy banners + the same race/fallback.

@@ -806,7 +806,9 @@ t(
     // runSearch: a late Overpass answer checks the token before painting.
     const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
     assert.ok(
-      /await fetchPlaces\(lat, lng, fetchMi\);\s*\n\s*if \(!stillActiveSearch\(gen, lat, lng\)\) return;/.test(rs),
+      /await fetchPlaces\(lat, lng, fetchMi, \{ cacheable: state\.searchCacheable \}\);\s*\n\s*if \(!stillActiveSearch\(gen, lat, lng\)\) return;/.test(
+        rs,
+      ),
     );
   },
 );

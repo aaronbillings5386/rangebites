@@ -323,6 +323,8 @@
     glowTimer: null,
     /** Honest Overpass / geocode error, or null */
     searchError: null,
+    /** True only for a typed-city origin; Locate Me searches are never cached (Shade R3) */
+    searchCacheable: false,
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -1525,8 +1527,8 @@
     uiPrefs.units = "mi";
     persistUiPrefs();
     try {
-      if (window.RangeBitesMetrics && window.RangeBitesMetrics.clearLegacyLocationKeys) {
-        window.RangeBitesMetrics.clearLegacyLocationKeys(window.localStorage, window.sessionStorage);
+      if (window.RangeBitesLegacyCleanup && window.RangeBitesLegacyCleanup.clearLegacyLocationKeys) {
+        window.RangeBitesLegacyCleanup.clearLegacyLocationKeys(window.localStorage, window.sessionStorage);
       }
     } catch (_) {}
     const input = $("#placeSearch");
@@ -2037,17 +2039,19 @@
       roundCoord3(lat).toFixed(3) + "," + roundCoord3(lng).toFixed(3) + "," + Math.round(Number(radiusMiles) * 10) / 10
     );
   }
+  /** 20261004b (Shade R2): drop every entry older than ttlMs. Run on every read and write of both caches,
+   * so nothing outlives the stated 10 minutes in page memory without a fresh write. */
+  function cacheSweep(map, ttlMs, now) {
+    for (const [k, v] of map) if (now - v.at >= ttlMs) map.delete(k);
+  }
   const overpassCache = new Map(); // key -> { at, elements } (raw OSM elements; distances are recomputed per search)
   function overpassCacheGet(key, now) {
+    cacheSweep(overpassCache, OVERPASS_CACHE_TTL_MS, now);
     const hit = overpassCache.get(key);
-    if (!hit) return null;
-    if (now - hit.at > OVERPASS_CACHE_TTL_MS) {
-      overpassCache.delete(key);
-      return null;
-    }
-    return hit.elements;
+    return hit ? hit.elements : null;
   }
   function overpassCachePut(key, elements, now) {
+    cacheSweep(overpassCache, OVERPASS_CACHE_TTL_MS, now);
     overpassCache.delete(key);
     overpassCache.set(key, { at: now, elements });
     while (overpassCache.size > OVERPASS_CACHE_MAX) overpassCache.delete(overpassCache.keys().next().value);
@@ -2071,8 +2075,11 @@
     const perMs = opts.perMs || OVERPASS_MIRROR_ABORT_MS;
     const capMs = opts.capMs || OVERPASS_TOTAL_CAP_MS;
     const minTryMs = opts.minTryMs == null ? OVERPASS_MIN_TRY_MS : opts.minTryMs;
-    const key = overpassCacheKey(lat, lng, radiusMiles);
-    const cached = overpassCacheGet(key, now());
+    // Shade R3: only typed-city searches (centred on the geocoded city point) are cached. A Locate Me
+    // search is never cached, so no device-derived coordinate becomes a cache key.
+    const cacheable = opts.cacheable === true;
+    const key = cacheable ? overpassCacheKey(lat, lng, radiusMiles) : null;
+    const cached = cacheable ? overpassCacheGet(key, now()) : null;
     if (cached) return normalizeElements(cached, lat, lng);
     const query = buildOverpassQuery(lat, lng, milesToMeters(radiusMiles));
     const body = "data=" + encodeURIComponent(query);
@@ -2130,7 +2137,7 @@
       tried++;
       try {
         const elements = await fetchOne(url, Math.min(perMs, left));
-        overpassCachePut(key, elements, now());
+        if (cacheable) overpassCachePut(key, elements, now());
         return normalizeElements(elements, lat, lng);
       } catch (err) {
         if (err && err.busy) busyCount++;
@@ -2298,9 +2305,11 @@
       .toLowerCase()
       .replace(/\s+/g, " ");
     if (!key) return null;
+    cacheSweep(geocodeCache, GEOCODE_CACHE_TTL_MS, Date.now());
     const hit = geocodeCache.get(key);
-    if (hit && Date.now() - hit.at < GEOCODE_CACHE_TTL_MS) return hit.value;
+    if (hit) return hit.value;
     const value = await geocodePlaceFromNetwork(q);
+    cacheSweep(geocodeCache, GEOCODE_CACHE_TTL_MS, Date.now());
     geocodeCache.delete(key);
     geocodeCache.set(key, { at: Date.now(), value });
     while (geocodeCache.size > GEOCODE_CACHE_MAX) geocodeCache.delete(geocodeCache.keys().next().value);
@@ -3823,8 +3832,10 @@
     } catch (_) {}
   }
 
-  async function runSearch(lat, lng, { glow, placeLabel } = {}) {
+  async function runSearch(lat, lng, { glow, placeLabel, cacheable } = {}) {
     const gen = ++state.searchGen;
+    // Shade R3: remember whether this origin is a typed city (cacheable) or the device (never cached).
+    state.searchCacheable = cacheable === true;
     // 20261003i: a new origin drops the old area's cards and pins at once, so the skeleton shows and
     // nothing from the previous city can be kept as a "fallback" for this one. Late responses from
     // older searches are already ignored by gen (stillActiveSearch).
@@ -3868,7 +3879,7 @@
     try {
       // 20261004b: one Overpass request per search, mirrors in series (Overpass policy: no parallel
       // queries). The old parallel inner-ring pass is gone; the total cap bounds the wait.
-      const places = await fetchPlaces(lat, lng, fetchMi);
+      const places = await fetchPlaces(lat, lng, fetchMi, { cacheable: state.searchCacheable });
       if (!stillActiveSearch(gen, lat, lng)) return;
       state.searchError = null;
       state.fetchedRadiusMiles = fetchMi;
@@ -3954,7 +3965,7 @@
       renderPlaceAlternates(hit.alternates, Object.assign({}, hit, { shortLabel: near }));
       setStatus("Searching near " + near + "…");
       cityInFlight = null;
-      await runSearch(hit.lat, hit.lng, { glow: false, placeLabel: near });
+      await runSearch(hit.lat, hit.lng, { glow: false, placeLabel: near, cacheable: true });
     } catch (err) {
       cityInFlight = null;
       if (gen !== state.searchGen) return;
@@ -4014,7 +4025,7 @@
     setNearLine("Showing results near " + near, false);
     renderPlaceAlternates(rest, alt);
     setStatus("Searching near " + near + "…");
-    runSearch(alt.lat, alt.lng, { glow: false, placeLabel: near });
+    runSearch(alt.lat, alt.lng, { glow: false, placeLabel: near, cacheable: true });
   }
 
   function geoErrorMessage(err) {
@@ -4106,7 +4117,7 @@
             history.replaceState({}, "", u);
           }
         } catch (_) {}
-        runSearch(pos.coords.latitude, pos.coords.longitude, { glow: true });
+        runSearch(pos.coords.latitude, pos.coords.longitude, { glow: true, cacheable: false });
       },
       (err) => {
         if (locateGen !== state.searchGen) return;
@@ -4139,6 +4150,10 @@
     state.loading = false;
     state.searchError = null;
     state.fetchedRadiusMiles = null;
+    state.searchCacheable = false;
+    // Shade R1: Clear location also empties the in-page Overpass and city-lookup caches.
+    overpassCache.clear();
+    geocodeCache.clear();
     // Wipe GPS + places only. Keep UI prefs (range, filters, city/zip text).
     clearMapLayers();
     if (typeof markerById !== "undefined") markerById.clear();
@@ -4411,7 +4426,7 @@
       const fetched = state.fetchedRadiusMiles;
       const have = state.lat != null && fetched != null && mi <= fetched + 0.001;
       if (state.lat != null && !have) {
-        runSearch(state.lat, state.lng, { glow: false });
+        runSearch(state.lat, state.lng, { glow: false, cacheable: state.searchCacheable });
         return;
       }
       if (state.lat != null && state.lng != null) updateMapCenter(state.lat, state.lng, mi);

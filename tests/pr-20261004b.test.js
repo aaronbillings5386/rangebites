@@ -22,6 +22,7 @@ function makeFetchPlaces(script) {
   let inFlight = 0,
     maxInFlight = 0;
   const g = {
+    __hook: {},
     setTimeout: (fn, ms) => {
       const h = { at: clock + ms, fn };
       timers.push(h);
@@ -75,6 +76,7 @@ function makeFetchPlaces(script) {
       "milesToMeters",
       "buildOverpassQuery",
       "overpassCacheKey",
+      "cacheSweep",
       "overpassCacheGet",
       "overpassCachePut",
       "overpassBusyMs",
@@ -95,7 +97,7 @@ function makeFetchPlaces(script) {
       "overpassCache",
       "overpassBusyUntil",
     ],
-    "const statuses = []; function setStatus(s) { statuses.push(s); } function normalizeElements(els, lat, lng) { return els.map((e) => ({ id: e.type + '/' + e.id, origin: [lat, lng] })); }",
+    "__hook.peek = function () { return overpassCache; }; const statuses = []; function setStatus(s) { statuses.push(s); } function normalizeElements(els, lat, lng) { return els.map((e) => ({ id: e.type + '/' + e.id, origin: [lat, lng] })); }",
     g,
   );
   // Drive the fake clock: run due timers until the promise settles.
@@ -126,12 +128,14 @@ function makeFetchPlaces(script) {
     if (err) throw err;
     return val;
   }
-  const fp = (lat, lng, mi) => F.fetchPlaces(lat, lng, mi, { now: () => clock });
+  // Default: a typed-city search (cacheable). Pass false to model a Locate Me search.
+  const fp = (lat, lng, mi, cacheable = true) => F.fetchPlaces(lat, lng, mi, { now: () => clock, cacheable });
   return {
     F,
     fp,
     log,
     run,
+    cache: () => g.__hook.peek(),
     now: () => clock,
     maxInFlight: () => maxInFlight,
     advance: (ms) => {
@@ -254,6 +258,92 @@ t("cache: same rounded area within 10 min reuses the answer, distances use the n
   const block = src.slice(src.indexOf("const overpassCache = new Map()"), src.indexOf("async function fetchPlaces("));
   assert.ok(!/localStorage|sessionStorage|indexedDB|caches\./.test(block), "memory only");
 });
+t("Shade R2: the 10-minute TTL is enforced on every write and read, not only when the same key is read", async () => {
+  const h = makeFetchPlaces({ "/api/overpass": OK(2) });
+  await h.run(h.fp(36.9, -82.08, 10)); // Lebanon at t=0
+  assert.strictEqual(h.cache().size, 1);
+  h.advance(10 * 60 * 1000); // exactly 10 min later
+  await h.run(h.fp(37.27, -81.22, 10)); // Bluefield write sweeps the stale Lebanon entry
+  assert.strictEqual(JSON.stringify([...h.cache().keys()]), '["37.270,-81.220,10"]', "unrelated stale key is gone");
+  h.advance(10 * 60 * 1000);
+  assert.strictEqual(h.F.overpassCacheGet("nope", h.now()), null);
+  assert.strictEqual(h.cache().size, 0, "a read sweeps too");
+  const m = new Map([
+    ["a", { at: 0 }],
+    ["b", { at: 500 }],
+  ]);
+  h.F.cacheSweep(m, 1000, 1000);
+  assert.deepStrictEqual([...m.keys()], ["b"]);
+  const src = read("app.js");
+  const geo = src.slice(
+    src.indexOf("async function geocodePlace("),
+    src.indexOf("async function geocodePlaceFromNetwork("),
+  );
+  assert.strictEqual(
+    (geo.match(/cacheSweep\(geocodeCache, GEOCODE_CACHE_TTL_MS, Date\.now\(\)\)/g) || []).length,
+    2,
+    "geocode read + write sweep",
+  );
+  assert.ok(/const GEOCODE_CACHE_TTL_MS = 10 \* 60 \* 1000;/.test(src));
+});
+t("Shade R3: Locate Me (device) searches are never cached; only typed-city searches are", async () => {
+  const h = makeFetchPlaces({ "/api/overpass": OK(3) });
+  await h.run(h.fp(36.90091, -82.08012, 10, false));
+  await h.run(h.fp(36.90091, -82.08012, 10, false));
+  assert.strictEqual(h.cache().size, 0, "no device-derived key in overpassCache");
+  assert.strictEqual(h.log.length, 2, "each device search asks the server");
+  const g2 = makeFetchPlaces({ "/api/overpass": OK(3) });
+  await g2.run(g2.F.fetchPlaces(36.9, -82.08, 10, { now: g2.now })); // no flag -> not cached (safe default)
+  assert.strictEqual(g2.cache().size, 0);
+  const src = read("app.js");
+  assert.ok(src.includes("runSearch(pos.coords.latitude, pos.coords.longitude, { glow: true, cacheable: false });"));
+  assert.ok(src.includes("await runSearch(hit.lat, hit.lng, { glow: false, placeLabel: near, cacheable: true });"));
+  assert.ok(src.includes("runSearch(alt.lat, alt.lng, { glow: false, placeLabel: near, cacheable: true });"));
+  assert.ok(
+    src.includes("runSearch(state.lat, state.lng, { glow: false, cacheable: state.searchCacheable });"),
+    "radius re-search keeps the origin kind",
+  );
+  assert.ok(src.includes("const places = await fetchPlaces(lat, lng, fetchMi, { cacheable: state.searchCacheable });"));
+  const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
+  assert.ok(/state\.searchCacheable = cacheable === true;/.test(rs));
+  const calls = src.match(/\brunSearch\([^)]*\)/g).filter((c) => !/^runSearch\(lat, lng/.test(c));
+  assert.ok(calls.length >= 4);
+  for (const c of calls) assert.ok(/cacheable:/.test(c), "every call site states its origin kind: " + c);
+});
+t("Shade R1: Clear location empties both in-page caches", () => {
+  const src = read("app.js");
+  const wipe = src.slice(src.indexOf("function wipeLocationState("), src.indexOf("/* ---------- About ---------- */"));
+  assert.ok(/overpassCache\.clear\(\);/.test(wipe) && /geocodeCache\.clear\(\);/.test(wipe));
+  const vm = require("vm");
+  const overpassCache = new Map([["36.901,-82.080,10", { at: 0, elements: [] }]]);
+  const geocodeCache = new Map([["lebanon va", { at: 0, value: { lat: 36.9, lng: -82.08 } }]]);
+  const noop = () => {};
+  const ctx = vm.createContext({
+    state: { searchGen: 1, lat: 36.9, lng: -82.08, places: [{}], searchCacheable: true },
+    overpassCache,
+    geocodeCache,
+    clearMapLayers: noop,
+    showBanner: noop,
+    closeDealSheet: noop,
+    setLocateBusy: noop,
+    syncDietChipsUI: noop,
+    syncTrustStrip: noop,
+    $: () => null,
+    setListRole: noop,
+    renderList: noop,
+    setNearLine: noop,
+    renderPlaceAlternates: noop,
+    setStatus: noop,
+  });
+  vm.runInContext(
+    src.match(/\n\s*function wipeLocationState\(\)[\s\S]*?\n {2}\}\n/)[0] + "; wipeLocationState();",
+    ctx,
+  );
+  assert.strictEqual(overpassCache.size, 0);
+  assert.strictEqual(geocodeCache.size, 0);
+  assert.strictEqual(ctx.state.lat, null);
+  assert.strictEqual(ctx.state.searchCacheable, false);
+});
 t("runSearch failsafe fires after the total cap, not after 40 s+", () => {
   const src = read("app.js");
   const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
@@ -310,8 +400,10 @@ t("privacy: §1 Operator / §1a Non-tracking in the right places; new storage se
     "Files are hosted on here.now, which runs on Cloudflare. If a page fails to load, your browser may send Cloudflare a network-error report; RangeBites does not receive or keep it.";
   const gavel = [
     "The proxy asks one server at a time, in this order, until one answers: Private.coffee (overpass.private.coffee) and OpenStreetMap France (overpass.openstreetmap.fr).",
-    "Our host sees your IP address when it passes the search along. Because the request goes through our host, the Overpass and Nominatim servers see our host's address, not yours.",
-    "The host may keep its own connection log. The host also briefly counts requests from each IP address to stop overuse; RangeBites cannot see or keep those counts.",
+    "Our host sees your IP address when it passes the search along. Because the request goes through our host, the Overpass and Nominatim servers connect to our host, not to your device.",
+    "Your browser’s language preference (Accept-Language) is passed along so results come back in your language.",
+    "Locate Me searches are never cached. Cached answers are dropped after 10 minutes, when you tap Clear location, or when the page closes, and are never written to this device or to our host.",
+    "The host may keep its own connection log. The host also counts requests from each IP address for up to about an hour to stop overuse; RangeBites cannot see or keep those counts.",
     "A city you type is looked up by the Nominatim geocoder run by the OpenStreetMap Foundation (nominatim.openstreetmap.org).",
     "Restaurant names, hours, and maps come from OpenStreetMap (ODbL), and some chain hours come from AllThePlaces store-locator data (CC0). Both are used as-is and may be wrong.",
     "which sees your IP address and the map area you view",
@@ -341,7 +433,7 @@ t("privacy: §1 Operator / §1a Non-tracking in the right places; new storage se
     assert.ok(!/FOSSGIS e\.V\. \(overpass/.test(s), f + " FOSSGIS named only for tiles");
   }
   const about =
-    "Our host sees the search and your IP address; the Overpass and Nominatim servers see the search and our host's address.";
+    "Our host sees the search and your IP address; the Overpass and Nominatim servers get the search from our host, not from your device.";
   for (const f of ["about.html", "about/index.html", "index.html"]) {
     assert.ok(read(f).includes(about), f);
     assert.ok(!read(f).includes("The host and those services see the search and your IP."), f);
