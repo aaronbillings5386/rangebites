@@ -29,11 +29,12 @@
   /** Neutral map view until Locate Me — not a fake city of places */
   const MAP_DEFAULT = { lat: 20, lng: 0, zoom: 2 };
   const MAX_RESULTS = 120;
-  /** 20261004b: the one Overpass server. It is a same-origin here.now proxy route (.herenow/proxy.json),
+  /** 20261005b: the one Overpass server. It is a same-origin here.now proxy route (.herenow/proxy.json),
    * so connect-src stays 'self' and the server gets the request from the host, not the visitor.
-   * Only Private.coffee: another public instance's usage policy excludes AI fast-deployment hosts (Gavel
-   * gate 1), and the French instance has been whitelist-only since Apr 2026 (Navi gate 3). Named in Privacy §5 and §9. */
-  const OVERPASS_SERVER = { url: "/api/overpass", operator: "Private.coffee" }; // overpass.private.coffee
+   * Same upstream as live 20261004a: OpenStreetMap France (overpass.openstreetmap.fr).
+   * The client list is /api/overpass only. Named in Privacy §5 and §9. */
+  const OVERPASS_URLS = ["/api/overpass"];
+  const OVERPASS_SERVER = { url: OVERPASS_URLS[0], operator: "OpenStreetMap France" }; // overpass.openstreetmap.fr
   /** Server-side Overpass [timeout:N]. Kept under the per-attempt client budget. */
   const OVERPASS_TIMEOUT_S = 10;
   /** 20261004b: one attempt of up to 11 s. After a timeout, 5xx or Overpass timeout remark, wait a backoff
@@ -2019,7 +2020,7 @@
       `)$"]${named}${around};` +
       `node["shop"~"^(bakery|deli)$"]${named}${around};` +
       `way["shop"~"^(bakery|deli)$"]${named}${around};` +
-      `nwr["amenity"="social_facility"]["social_facility"~"^(food_bank|soup_kitchen)$"]${named}${around};` +
+      `nwr["amenity"~"^social_facility$"]["social_facility"~"^(food_bank|soup_kitchen)$"]${named}${around};` +
       `);out center;`
     );
   }

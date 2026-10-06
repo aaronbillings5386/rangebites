@@ -267,9 +267,9 @@ t("theme source does not touch storage, network, or trackers", () => {
   assert.ok(!/holiday-bg|hb-bat/.test(themeJs));
   assert.ok(/focusable="false"/.test(themeJs));
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  assert.ok(html.includes('href="themes/holiday.css?v=20261004b"'));
-  assert.ok(html.includes('src="themes/us-holidays.js?v=20261004b"'));
-  assert.ok(html.includes('src="themes/holiday-themes.js?v=20261004b"'));
+  assert.ok(html.includes('href="themes/holiday.css?v=20261005b"'));
+  assert.ok(html.includes('src="themes/us-holidays.js?v=20261005b"'));
+  assert.ok(html.includes('src="themes/holiday-themes.js?v=20261005b"'));
   assert.ok(css.length < 15 * 1024, "shared holiday css stays under 15KB");
 });
 
