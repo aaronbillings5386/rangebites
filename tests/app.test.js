@@ -570,7 +570,7 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   );
   assert.ok(!terms.includes("or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
-  assert.ok(terms.includes('src="/config.js?v=20261004b"'));
+  assert.ok(terms.includes('src="/config.js?v=20261005b"'));
   assert.ok(/Effective <span data-publish-date>October 5, 2026<\/span>/.test(terms));
   for (const legal of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"]) {
     const legalSrc = fs.readFileSync(path.join(__dirname, "..", legal), "utf8");

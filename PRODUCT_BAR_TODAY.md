@@ -18,7 +18,7 @@ Local web MVP in `/workspace/food-radar-app/`. No deploy. No git push. Support a
 
 | # | Bar item | Status | Notes |
 |---|----------|--------|-------|
-| 1 | Locate / current position | **Met** | Locate Me + Overpass race (incl. `overpass.private.coffee`); demo on deny / Try demo map |
+| 1 | Locate / current position | **Met** | Locate Me + Overpass race (via `/api/overpass` → `overpass.openstreetmap.fr`); demo on deny / Try demo map |
 | 2 | Local eats | **Met** | Live OSM via Overpass; **OpenStreetMap tiles** (not CARTO) |
 | 3 | Coupons / deals | **Partial** | Illustrative matcher + honest empty-state when no match. **Not live Honey.** Partner notes in `LIVE_DEALS_PARTNERS.md` (CJ / Awin / Impact — no publisher account yet) |
 | 4 | Reviews | **Met (MVP A)** | Maps handoff CTAs; optional OSM stars tagged; no fake ratings |
