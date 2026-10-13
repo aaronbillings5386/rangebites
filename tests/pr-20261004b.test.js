@@ -91,7 +91,9 @@ function makeFetchPlaces(script, random = () => 0) {
       "OVERPASS_URLS",
       "OVERPASS_SERVER",
       "OVERPASS_TIMEOUT_S",
+      "OVERPASS_FAST_TIMEOUT_S",
       "OVERPASS_ATTEMPT_ABORT_MS",
+      "OVERPASS_FAST_ABORT_MS",
       "OVERPASS_TOTAL_CAP_MS",
       "OVERPASS_RETRY_MIN_MS",
       "OVERPASS_RETRY_BACKOFF_MS",
@@ -224,16 +226,34 @@ t("name-soften (live since 2026-10-05): no personal GitHub handle on visitor pag
     assert.ok(!/aaronbillings5386/.test(read(f)), f + " names the GitHub handle");
   }
 });
-t("overpass: first attempt hangs, 3 s backoff, one retry on the same server answers; never in parallel", async () => {
+t("overpass (20261005c): full pass is one ~22 s attempt; a hang leaves under 8 s after the backoff, so no retry", async () => {
   const h = makeFetchPlaces({ "/api/overpass": ["hang", OK(3)] });
-  const places = await h.run(h.fp(36.9009, -82.0801, 10));
-  assert.strictEqual(places.length, 3);
+  let err;
+  try {
+    await h.run(h.fp(36.9009, -82.0801, 10));
+  } catch (e) {
+    err = e;
+  }
+  assert.ok(err && err.timedOut, String(err));
   assert.deepStrictEqual(
     h.log.map((x) => x.url),
-    ["/api/overpass", "/api/overpass"],
+    ["/api/overpass"],
   );
-  assert.strictEqual(h.log[1].at, 14000, "abort at 11 s + 3 s backoff");
-  assert.strictEqual(h.maxInFlight(), 1);
+  assert.strictEqual(h.now(), 22000, "abort at 22 s");
+  assert.strictEqual(h.maxInFlight(), 1, "one full-pass request at a time");
+  assert.ok(decodeURIComponent(h.log[0].body).includes("[timeout:20]"));
+});
+t("overpass (20261005c): quick inner ring is one ~12 s attempt with [timeout:10] and no retry", async () => {
+  const h = makeFetchPlaces({ "/api/overpass": ["hang", OK(3)] });
+  let err;
+  try {
+    await h.run(h.F.fetchPlaces(36.9, -82.08, 3, { now: h.now, mode: "fast", random: () => 0 }));
+  } catch (e) {
+    err = e;
+  }
+  assert.ok(err && err.timedOut, String(err));
+  assert.strictEqual(h.log.length, 1);
+  assert.strictEqual(h.now(), 12000);
   assert.ok(decodeURIComponent(h.log[0].body).includes("[timeout:10]"));
 });
 t(
@@ -270,14 +290,14 @@ t("Gate MED: a 5xx Retry-After is honoured for the backoff; too long a Retry-Aft
   const h = makeFetchPlaces({ "/api/overpass": [{ status: 503, json: {}, retryAfter: 5 }, OK(2)] });
   await h.run(h.fp(36.9, -82.08, 10));
   assert.strictEqual(h.log[1].at, 5000, "Retry-After: 5");
-  const h2 = makeFetchPlaces({ "/api/overpass": [{ status: 503, json: {}, retryAfter: 20 }, OK(2)] });
+  const h2 = makeFetchPlaces({ "/api/overpass": [{ status: 503, json: {}, retryAfter: 25 }, OK(2)] });
   let err;
   try {
     await h2.run(h2.fp(36.9, -82.08, 10));
   } catch (e) {
     err = e;
   }
-  assert.strictEqual(h2.log.length, 1, "25 - 20 = 5 s left after the wait, under 8 s: no retry");
+  assert.strictEqual(h2.log.length, 1, "30 - 25 = 5 s left after the wait, under 8 s: no retry");
   assert.strictEqual(h2.now(), 0, "and no pointless wait");
   assert.strictEqual(h2.F.overpassErrorMessage(err), "OpenStreetMap is down. Try again.");
   assert.strictEqual(
@@ -290,7 +310,7 @@ t("Gate MED: a 5xx Retry-After is honoured for the backoff; too long a Retry-Aft
     3250,
   );
 });
-t("Gate MED: worst case (hang, max backoff, hang) shows the clear timeout error by 25 s", async () => {
+t("Gate MED (20261005c): worst case (hang) shows the clear timeout error at 22 s, well inside the 30 s cap", async () => {
   for (const r of [() => 0, () => 0.999999]) {
     const h = makeFetchPlaces({ "/api/overpass": "hang" }, r);
     let err;
@@ -301,9 +321,9 @@ t("Gate MED: worst case (hang, max backoff, hang) shows the clear timeout error 
     }
     assert.ok(err && err.timedOut, String(err));
     assert.strictEqual(h.F.overpassErrorMessage(err), "OpenStreetMap didn’t answer in time. Try again in a minute.");
-    assert.strictEqual(h.log.length, 2, "one attempt plus one retry, no more");
-    assert.ok(h.now() <= 25000, "gave up at " + h.now());
-    assert.strictEqual(h.now(), 25000, "11 s + backoff + the rest of the cap");
+    assert.strictEqual(h.log.length, 1, "22 s + >=3 s backoff leaves under 8 s of 30 s: no retry");
+    assert.ok(h.now() <= 30000, "gave up at " + h.now());
+    assert.strictEqual(h.now(), 22000);
   }
 });
 t("Gate MED: no retry unless at least 8 s of the cap remain AFTER the backoff", async () => {
@@ -314,17 +334,17 @@ t("Gate MED: no retry unless at least 8 s of the cap remain AFTER the backoff", 
     } catch (_) {}
     return h;
   };
-  // 21 s cap: 10 s left after the first attempt, 7 s after the 3 s backoff -> no retry, error at 11 s.
-  let h = await run(21000);
+  // 32 s cap: 10 s left after the 22 s attempt, 7 s after the 3 s backoff -> no retry, error at 22 s.
+  let h = await run(32000);
   assert.strictEqual(h.log.length, 1);
-  assert.strictEqual(h.now(), 11000);
+  assert.strictEqual(h.now(), 22000);
   assert.deepStrictEqual(h.statuses(), [], "no 'trying again' when no retry follows");
-  // 22 s cap: exactly 8 s after the backoff -> retry at 14 s.
-  h = await run(22000);
+  // 33 s cap: exactly 8 s after the backoff -> retry at 25 s.
+  h = await run(33000);
   assert.strictEqual(h.log.length, 2);
-  assert.strictEqual(h.log[1].at, 14000);
+  assert.strictEqual(h.log[1].at, 25000);
   assert.ok(/const OVERPASS_RETRY_MIN_MS = 8000;/.test(read("app.js")));
-  assert.ok(/const OVERPASS_TOTAL_CAP_MS = 25000;/.test(read("app.js")));
+  assert.ok(/const OVERPASS_TOTAL_CAP_MS = 30000;/.test(read("app.js")));
   assert.ok(/const OVERPASS_RETRY_BACKOFF_MS = 3000;/.test(read("app.js")));
   assert.ok(/const OVERPASS_RETRY_JITTER_MS = 500;/.test(read("app.js")));
 });
@@ -473,7 +493,8 @@ t("Shade R3: Locate Me (device) searches are never cached; only typed-city searc
     src.includes("runSearch(state.lat, state.lng, { glow: false, cacheable: state.searchCacheable });"),
     "radius re-search keeps the origin kind",
   );
-  assert.ok(src.includes("const places = await fetchPlaces(lat, lng, fetchMi, { cacheable: state.searchCacheable });"));
+  assert.ok(src.includes("places = await fetchPlaces(lat, lng, fetchMi, { cacheable: state.searchCacheable });"));
+  assert.ok(src.includes('fetchPlaces(lat, lng, FAST_RING_MILES, { mode: "fast", cacheable: state.searchCacheable })'));
   const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
   assert.ok(/state\.searchCacheable = cacheable === true;/.test(rs));
   const calls = src.match(/\brunSearch\([^)]*\)/g).filter((c) => !/^runSearch\(lat, lng/.test(c));
@@ -516,8 +537,8 @@ t("Shade R1: Clear location empties both in-page caches", () => {
   assert.strictEqual(ctx.state.searchCacheable, false);
 });
 t("Shade B2: a search that started before Clear location never writes to either cache", async () => {
-  const h = makeFetchPlaces({ "/api/overpass": ["hang", OK(2)] });
-  const p = h.fp(36.9, -82.08, 10); // typed-city search, first attempt in flight
+  const h = makeFetchPlaces({ "/api/overpass": [{ status: 503, json: {} }, OK(2)] });
+  const p = h.fp(36.9, -82.08, 10); // typed-city search, 5xx then retry in flight
   h.F.bumpCacheGen(); // Clear location while it is in flight
   const places = await h.run(p);
   assert.strictEqual(places.length, 2, "the answer is still returned to its (stale) caller");
