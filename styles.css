@@ -4541,6 +4541,135 @@ body,
 .list-section h2 {
   text-wrap: balance;
 }
+
+/* 20261014 visual freshen: spacing, type scale, link contrast, shared controls. No behavior changes. */
+html,
+body {
+  line-height: 1.5;
+}
+.header {
+  gap: 12px;
+}
+.about-btn {
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.search-first .free-note {
+  font-size: 15px;
+  line-height: 1.45;
+}
+.place-search-row input,
+.place-search-field input,
+.place-search-row .btn-secondary,
+.place-search-row .btn-filters,
+.search-first #locateBtn,
+.search-first .btn-primary {
+  height: 48px;
+  min-height: 48px;
+  padding-top: 0;
+  padding-bottom: 0;
+  box-sizing: border-box;
+}
+.btn-filters {
+  font-size: 15px;
+}
+.place-list > .empty,
+.list-section .empty {
+  color: #cbb8a4;
+}
+.list-header {
+  margin: 2px 2px 10px;
+}
+.list-header h2 {
+  font-size: 1.25rem;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.place-list {
+  gap: 12px;
+}
+.place-list > .empty,
+.list-section .empty {
+  padding: 12px 2px 8px !important;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.place-card {
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(255, 214, 170, 0.16);
+}
+.place-card .nav-btn,
+.sheet-actions .nav-btn {
+  border-radius: 999px;
+}
+.site-footer {
+  padding: 20px 20px calc(20px + var(--safe-bottom));
+}
+.site-footer-nav {
+  gap: 2px 12px;
+  font-size: 15px;
+}
+.site-footer-assent,
+.site-footer-note,
+.legal-foot {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.legal-foot {
+  color: #cbb8a4;
+}
+.site-footer-assent a,
+.legal-foot a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 767px) {
+  .header {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .place-search-row {
+    gap: 8px !important;
+  }
+  .place-search-field {
+    flex: 1 1 100% !important;
+  }
+  .place-search-row .btn-secondary,
+  .place-search-row .btn-filters,
+  #placeSearchBtn,
+  #filtersBtn {
+    flex: 1 1 calc(50% - 8px) !important;
+    width: auto !important;
+    min-height: 48px !important;
+    padding: 0 12px !important;
+    font-size: 15px;
+  }
+  .search-first {
+    padding: 12px 16px 10px;
+    gap: 10px;
+  }
+  .list-section,
+  html[data-device="desktop"] .list-section {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+@media (min-width: 1100px) {
+  .place-search-row input,
+  .place-search-field input,
+  .place-search-row .btn-secondary,
+  .place-search-row .btn-filters,
+  .search-first #locateBtn,
+  .search-first .btn-primary,
+  html[data-device="desktop"] .search-first #locateBtn,
+  html[data-device="desktop"] .search-first .btn-primary {
+    min-height: 48px !important;
+  }
+}
 /* Button labels never break mid-word (".place-card { overflow-wrap: anywhere }" was splitting "Directions" at 320). */
 .nav-btn,
 .place-card button,

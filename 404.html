@@ -12,10 +12,34 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20261013" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <meta name="description" content="That page isn’t on RangeBites. Go back to the home page to find food nearby." />
+  <style>
+    body.legal-page { background: #14110e; color: #fff6ea; }
+    .legal { max-width: 40rem; margin: 0 auto; padding: calc(24px + env(safe-area-inset-top, 0px)) 20px calc(28px + env(safe-area-inset-bottom, 0px)); }
+    .not-found-nav { justify-content: flex-start; gap: 4px 8px; margin: 0 0 16px; }
+    .not-found-nav a { text-decoration: none; }
+    .legal h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; margin: 0 0 12px; }
+    .legal p { color: #e2d2c0; font-size: 16px; line-height: 1.6; margin: 0 0 16px; }
+    .legal a { color: #ffc43a; text-decoration: underline; text-underline-offset: 3px; }
+    .legal .not-found-nav a { text-decoration: none; }
+    .not-found-home {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 20px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #ffd56a 0%, #ffb020 100%);
+      border: 1px solid rgba(255, 176, 32, 0.7);
+      color: #1a1400 !important;
+      font-weight: 800;
+      font-size: 16px;
+      text-decoration: none !important;
+    }
+  </style>
 </head>
 <body class="legal-page">
-  <main class="legal" style="max-width:44rem;margin:0 auto;padding:32px 22px;">
-    <nav class="site-footer-nav" aria-label="Main" style="margin:0 0 18px;">
+  <main class="legal">
+    <nav class="site-footer-nav not-found-nav" aria-label="Main">
       <a href="/">Home</a>
       <a href="/about">About</a>
       <a href="/specials">Specials</a>
@@ -25,7 +49,7 @@
     </nav>
     <h1>Page not found</h1>
     <p>That page isn’t here. Try the <a href="/">home page</a> to find food nearby, or the <a href="/sitemap.html">sitemap</a>.</p>
-    <p><a href="/" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#ffc43a;color:#14110e;font-weight:700;text-decoration:none;">Go to RangeBites home</a></p>
+    <p><a class="not-found-home" href="/">Go to RangeBites home</a></p>
   </main>
   <footer class="site-footer">
     <nav class="site-footer-nav" aria-label="Site">

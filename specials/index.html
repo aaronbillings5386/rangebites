@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#161a21" />
+  <meta name="theme-color" content="#14110e" />
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'; upgrade-insecure-requests" />
@@ -27,11 +27,11 @@
   <meta name="twitter:image" content="https://rangebites.com/og-image.png?v=20261013" />
   <style>
     :root {
-      --bg: #161a21;
-      --surface: #232a34;
-      --border: rgba(255, 255, 255, 0.14);
-      --text: #f2f4f7;
-      --muted: #8a93a5;
+      --bg: #14110e;
+      --text: #fff6ea;
+      --body: #e2d2c0;
+      --muted: #cbb8a4;
+      --link: #ffc43a;
       --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
         "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       --safe-top: env(safe-area-inset-top, 0px);
@@ -41,36 +41,48 @@
     html, body {
       margin: 0; padding: 0; min-height: 100%;
       background: var(--bg); color: var(--text);
-      font-family: var(--font); font-size: 16px; line-height: 1.45;
+      font-family: var(--font); font-size: 16px; line-height: 1.6;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
     }
     .wrap {
-      max-width: 420px; margin: 0 auto;
-      padding: calc(48px + var(--safe-top)) 20px calc(32px + var(--safe-bottom));
+      max-width: 40rem; margin: 0 auto;
+      padding: calc(24px + var(--safe-top)) 20px 8px;
     }
     .kicker {
-      font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
-      color: var(--muted); font-weight: 600; margin: 0 0 10px;
+      font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--link); font-weight: 700; margin: 0 0 8px;
     }
     h1 {
-      margin: 0 0 10px; font-size: 25px; font-weight: 800;
-      letter-spacing: -0.03em; line-height: 1.2;
+      margin: 0 0 8px; font-size: 2rem; font-weight: 800;
+      letter-spacing: -0.03em; line-height: 1.15;
     }
     .lede {
-      margin: 0 0 22px; font-size: 16px; font-weight: 600; line-height: 1.35; color: var(--text);
+      margin: 0 0 16px; font-size: 17px; font-weight: 700; line-height: 1.4; color: var(--text);
     }
-    .lede a { color: var(--text); }
+    .wrap p { color: var(--body); margin: 0 0 0.85rem; }
+    .wrap .kicker { color: var(--link); font-size: 13px; font-weight: 700; letter-spacing: 0.12em; }
+    .wrap .lede { color: var(--text); margin: 0 0 16px; }
+    .wrap .foot { color: var(--muted); }
+    .wrap .privacy { color: var(--muted); }
+    .wrap a, .lede a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
     .privacy {
-      margin: 16px 0 0; font-size: 13px; color: var(--muted); line-height: 1.4;
+      margin: 1.15rem 0 0; font-size: 14px; color: var(--muted); line-height: 1.55;
     }
-    .wrap p { color: var(--text); }
-    .wrap a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
-    .foot { margin: 28px 0 0; font-size: 13px; color: var(--muted); }
-    .foot a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
-    .foot a:hover { color: var(--text); }
-    /* 20261004b (a11y): footer links were browser-default blue on dark (fails 4.5:1). */
-    .legal-foot a, .lede a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+    .foot {
+      margin: 1.35rem 0 0; font-size: 15px; font-weight: 700; color: var(--muted); line-height: 1.5;
+    }
+    .foot a { display: inline-flex; align-items: center; min-height: 44px; color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
+    .site-footer {
+      max-width: 40rem; margin: 8px auto 0;
+      padding: 16px 20px calc(28px + var(--safe-bottom));
+      border-top: 1px solid rgba(255, 214, 170, 0.16);
+    }
+    .legal-foot {
+      margin: 0; font-size: 14px; line-height: 1.55; color: var(--muted); text-align: center;
+    }
+    /* Links in sentences are underlined so they are not identified by color alone. */
+    .legal-foot a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
   </style>
   <link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png?v=20261005c" />
   <link rel="icon" type="image/png" sizes="512x512" href="../icons/icon-512.png?v=20261005c" />
