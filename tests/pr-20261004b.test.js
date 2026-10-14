@@ -161,42 +161,45 @@ const OK = (n) => ({
   json: { elements: Array.from({ length: n }, (_, i) => ({ type: "node", id: i + 1 })) },
 });
 
-t("overpass: one same-origin route to OpenStreetMap France (same upstream as live 20261004a); no overpass-api.de (20261005b)", () => {
-  const src = read("app.js");
-  const proxy = JSON.parse(read(".herenow/proxy.json"));
-  assert.ok(src.includes('const OVERPASS_URLS = ["/api/overpass"];'), "client list is /api/overpass only");
-  assert.ok(src.includes('const OVERPASS_SERVER = { url: OVERPASS_URLS[0], operator: "OpenStreetMap France" };'));
-  assert.ok(!/OVERPASS_MIRRORS|overpass-fr|overpass-mail/.test(src), "no server list or extra route in app.js");
-  assert.deepStrictEqual(Object.keys(proxy.proxies).sort(), ["/api/nominatim", "/api/overpass"]);
-  assert.strictEqual(proxy.proxies["/api/overpass"].upstream, "https://overpass.openstreetmap.fr/api/interpreter");
-  const routes = JSON.stringify(proxy);
-  for (const f of [
-    "app.js",
-    ".herenow/proxy.json",
-    "privacy.html",
-    "privacy/index.html",
-    "about.html",
-    "about/index.html",
-    "index.html",
-    "terms.html",
-    "terms/index.html",
-    "THIRD_PARTY_NOTICES.md",
-    "README.md",
-    "PRIVACY_GUARDRAILS.md",
-    "docs/ARCHITECTURE.md",
-  ]) {
-    const s = read(f);
-    assert.ok(!/overpass-api\.de|overpass-de/.test(s), f);
-    assert.ok(!/private\.coffee/i.test(s), f + " still names the old Overpass server");
-  }
-  for (const f of ["THIRD_PARTY_NOTICES.md", "README.md", "PRIVACY_GUARDRAILS.md", "docs/ARCHITECTURE.md"]) {
-    assert.ok(
-      /OpenStreetMap France/.test(read(f)) && /overpass\.openstreetmap\.fr|\/api\/overpass/.test(read(f)),
-      f + " names OpenStreetMap France",
-    );
-  }
-  assert.ok(!/mail\.ru/.test(routes), "never the mail.ru server");
-});
+t(
+  "overpass: one same-origin route to OpenStreetMap France (same upstream as live 20261004a); no overpass-api.de (20261005b)",
+  () => {
+    const src = read("app.js");
+    const proxy = JSON.parse(read(".herenow/proxy.json"));
+    assert.ok(src.includes('const OVERPASS_URLS = ["/api/overpass"];'), "client list is /api/overpass only");
+    assert.ok(src.includes('const OVERPASS_SERVER = { url: OVERPASS_URLS[0], operator: "OpenStreetMap France" };'));
+    assert.ok(!/OVERPASS_MIRRORS|overpass-fr|overpass-mail/.test(src), "no server list or extra route in app.js");
+    assert.deepStrictEqual(Object.keys(proxy.proxies).sort(), ["/api/nominatim", "/api/overpass"]);
+    assert.strictEqual(proxy.proxies["/api/overpass"].upstream, "https://overpass.openstreetmap.fr/api/interpreter");
+    const routes = JSON.stringify(proxy);
+    for (const f of [
+      "app.js",
+      ".herenow/proxy.json",
+      "privacy.html",
+      "privacy/index.html",
+      "about.html",
+      "about/index.html",
+      "index.html",
+      "terms.html",
+      "terms/index.html",
+      "THIRD_PARTY_NOTICES.md",
+      "README.md",
+      "PRIVACY_GUARDRAILS.md",
+      "docs/ARCHITECTURE.md",
+    ]) {
+      const s = read(f);
+      assert.ok(!/overpass-api\.de|overpass-de/.test(s), f);
+      assert.ok(!/private\.coffee/i.test(s), f + " still names the old Overpass server");
+    }
+    for (const f of ["THIRD_PARTY_NOTICES.md", "README.md", "PRIVACY_GUARDRAILS.md", "docs/ARCHITECTURE.md"]) {
+      assert.ok(
+        /OpenStreetMap France/.test(read(f)) && /overpass\.openstreetmap\.fr|\/api\/overpass/.test(read(f)),
+        f + " names OpenStreetMap France",
+      );
+    }
+    assert.ok(!/mail\.ru/.test(routes), "never the mail.ru server");
+  },
+);
 t("overpass: pantry social_facility clause is indexed by (around:), not a planet-wide amenity scan (20261005b)", () => {
   const src = read("app.js");
   assert.ok(!src.includes('nwr["amenity"="social_facility"]'), "equality form timed out at 23 s on OSM France");
@@ -226,23 +229,26 @@ t("name-soften (live since 2026-10-05): no personal GitHub handle on visitor pag
     assert.ok(!/aaronbillings5386/.test(read(f)), f + " names the GitHub handle");
   }
 });
-t("overpass (20261005c): full pass is one ~22 s attempt; a hang leaves under 8 s after the backoff, so no retry", async () => {
-  const h = makeFetchPlaces({ "/api/overpass": ["hang", OK(3)] });
-  let err;
-  try {
-    await h.run(h.fp(36.9009, -82.0801, 10));
-  } catch (e) {
-    err = e;
-  }
-  assert.ok(err && err.timedOut, String(err));
-  assert.deepStrictEqual(
-    h.log.map((x) => x.url),
-    ["/api/overpass"],
-  );
-  assert.strictEqual(h.now(), 22000, "abort at 22 s");
-  assert.strictEqual(h.maxInFlight(), 1, "one full-pass request at a time");
-  assert.ok(decodeURIComponent(h.log[0].body).includes("[timeout:20]"));
-});
+t(
+  "overpass (20261005c): full pass is one ~22 s attempt; a hang leaves under 8 s after the backoff, so no retry",
+  async () => {
+    const h = makeFetchPlaces({ "/api/overpass": ["hang", OK(3)] });
+    let err;
+    try {
+      await h.run(h.fp(36.9009, -82.0801, 10));
+    } catch (e) {
+      err = e;
+    }
+    assert.ok(err && err.timedOut, String(err));
+    assert.deepStrictEqual(
+      h.log.map((x) => x.url),
+      ["/api/overpass"],
+    );
+    assert.strictEqual(h.now(), 22000, "abort at 22 s");
+    assert.strictEqual(h.maxInFlight(), 1, "one full-pass request at a time");
+    assert.ok(decodeURIComponent(h.log[0].body).includes("[timeout:20]"));
+  },
+);
 t("overpass (20261005c): quick inner ring is one ~12 s attempt with [timeout:10] and no retry", async () => {
   const h = makeFetchPlaces({ "/api/overpass": ["hang", OK(3)] });
   let err;
@@ -310,22 +316,25 @@ t("Gate MED: a 5xx Retry-After is honoured for the backoff; too long a Retry-Aft
     3250,
   );
 });
-t("Gate MED (20261005c): worst case (hang) shows the clear timeout error at 22 s, well inside the 30 s cap", async () => {
-  for (const r of [() => 0, () => 0.999999]) {
-    const h = makeFetchPlaces({ "/api/overpass": "hang" }, r);
-    let err;
-    try {
-      await h.run(h.fp(37.2698, -81.2223, 10));
-    } catch (e) {
-      err = e;
+t(
+  "Gate MED (20261005c): worst case (hang) shows the clear timeout error at 22 s, well inside the 30 s cap",
+  async () => {
+    for (const r of [() => 0, () => 0.999999]) {
+      const h = makeFetchPlaces({ "/api/overpass": "hang" }, r);
+      let err;
+      try {
+        await h.run(h.fp(37.2698, -81.2223, 10));
+      } catch (e) {
+        err = e;
+      }
+      assert.ok(err && err.timedOut, String(err));
+      assert.strictEqual(h.F.overpassErrorMessage(err), "OpenStreetMap didn’t answer in time. Try again in a minute.");
+      assert.strictEqual(h.log.length, 1, "22 s + >=3 s backoff leaves under 8 s of 30 s: no retry");
+      assert.ok(h.now() <= 30000, "gave up at " + h.now());
+      assert.strictEqual(h.now(), 22000);
     }
-    assert.ok(err && err.timedOut, String(err));
-    assert.strictEqual(h.F.overpassErrorMessage(err), "OpenStreetMap didn’t answer in time. Try again in a minute.");
-    assert.strictEqual(h.log.length, 1, "22 s + >=3 s backoff leaves under 8 s of 30 s: no retry");
-    assert.ok(h.now() <= 30000, "gave up at " + h.now());
-    assert.strictEqual(h.now(), 22000);
-  }
-});
+  },
+);
 t("Gate MED: no retry unless at least 8 s of the cap remain AFTER the backoff", async () => {
   const run = async (capMs) => {
     const h = makeFetchPlaces({ "/api/overpass": "hang" });

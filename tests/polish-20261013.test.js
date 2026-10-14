@@ -1,5 +1,7 @@
 // polish-20261013: share tags, canonicals, /specials twin, 404 nav, sitemap.
-const fs = require("fs"), path = require("path"), assert = require("assert");
+const fs = require("fs"),
+  path = require("path"),
+  assert = require("assert");
 const R = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
 const attr = (s, re) => (s.match(re) || [])[1];
 const pages = { about: "/about", privacy: "/privacy", terms: "/terms", specials: "/specials" };
@@ -11,13 +13,25 @@ for (const [k, url] of Object.entries(pages)) {
     assert.ok(d, f + " description");
     assert.strictEqual(attr(s, /property="og:description" content="([^"]+)"/), d, f + " og desc");
     assert.strictEqual(attr(s, /name="twitter:description" content="([^"]+)"/), d, f + " tw desc");
-    assert.match(attr(s, /property="og:image" content="([^"]+)"/), /^https:\/\/rangebites\.com\/og-image\.png\?v=\d+$/, f);
-    assert.match(attr(s, /name="twitter:image" content="([^"]+)"/), /^https:\/\/rangebites\.com\/og-image\.png\?v=\d+$/, f);
+    assert.match(
+      attr(s, /property="og:image" content="([^"]+)"/),
+      /^https:\/\/rangebites\.com\/og-image\.png\?v=\d+$/,
+      f,
+    );
+    assert.match(
+      attr(s, /name="twitter:image" content="([^"]+)"/),
+      /^https:\/\/rangebites\.com\/og-image\.png\?v=\d+$/,
+      f,
+    );
     assert.ok(!/here\.now\/og/.test(s), f + " no foreign og image");
-    if (f.includes("/")) assert.ok(!/(href|src)="(?!\/|\.\.\/|https?:|mailto:|#)[^"]+"/.test(s), f + " relative paths fixed");
+    if (f.includes("/"))
+      assert.ok(!/(href|src)="(?!\/|\.\.\/|https?:|mailto:|#)[^"]+"/.test(s), f + " relative paths fixed");
   }
 }
-for (const f of fs.readdirSync(path.join(__dirname, "..")).filter((x) => x.endsWith(".html")).concat(["about/index.html","privacy/index.html","terms/index.html","specials/index.html"])) {
+for (const f of fs
+  .readdirSync(path.join(__dirname, ".."))
+  .filter((x) => x.endsWith(".html"))
+  .concat(["about/index.html", "privacy/index.html", "terms/index.html", "specials/index.html"])) {
   const s = R(f);
   assert.ok(!/aaronbillings5386|private\.coffee/.test(s), f + " no stray handles");
 }
