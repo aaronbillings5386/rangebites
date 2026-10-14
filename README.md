@@ -7,7 +7,7 @@ It's a static site: plain HTML, CSS and classic `<script>` files with no bundler
 ## Privacy rule (non-negotiable)
 
 - **No visitor data on any server.** There are no accounts, analytics, trackers, cookies or server logs of searches.
-- Searches go through same-origin here.now proxy routes (`/api/overpass` to Private.coffee, the only Overpass server, and `/api/nominatim`; see `.herenow/proxy.json`). Upstream services receive the request from the host, not from the visitor's device, and coordinates are rounded to 3 decimals (~100 m) before they're sent.
+- Searches go through same-origin here.now proxy routes (`/api/overpass` to OpenStreetMap France (overpass.openstreetmap.fr), the only Overpass server, and `/api/nominatim`; see `.herenow/proxy.json`). Upstream services receive the request from the host, not from the visitor's device, and coordinates are rounded to 3 decimals (~100 m) before they're sent.
 - The device keeps only UI choices (filters, saved places as id/name/address, notice flags) in `localStorage`. It never stores coordinates, location history or search history.
 - Short caches (Overpass answers and city lookups, 10 min) live **in page memory only**. They're keyed by the rounded area or the city text, and they disappear when the page closes.
 - The service worker caches static icons only, never `/api/`, `/.herenow/` or a URL with coordinates.
@@ -52,7 +52,7 @@ Before publishing:
 | `themes/` | Holiday themes: `us-holidays.js` (dates), `holiday-themes.js` (registry and art), `holiday.css` |
 | `about*`, `privacy*`, `terms*`, `specials.html`, `deals/`, `sitemap.*`, `404.html` | Static pages |
 | `data/` | `closed-places.json` (curated closures) and `atp-hours.json` (AllThePlaces chain hours, CC0) |
-| `.herenow/proxy.json` | here.now proxy routes (Overpass via Private.coffee, and Nominatim) with identifying UA |
+| `.herenow/proxy.json` | here.now proxy routes (Overpass via OpenStreetMap France, and Nominatim) with identifying UA |
 | `_headers`, `vercel.json` | Security headers (see [docs/HEADERS_AND_CSP.md](docs/HEADERS_AND_CSP.md)) |
 | `tools/` | Offline builders (`build-atp-hours.py`). Not part of the site |
 | `tests/` | Harness tests |

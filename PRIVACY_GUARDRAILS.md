@@ -6,7 +6,7 @@ This demo is **privacy-first** and has **no RangeBites backend**. There is no se
 
 | Destination | What | Why |
 |-------------|------|-----|
-| Public **Overpass** API via the same-origin proxy (`overpass.private.coffee`, run by Private.coffee, the only Overpass server) | Lat/lng rounded to 3 decimals + search radius in the Overpass query | Load nearby OSM restaurants / cafés / fast food |
+| Public **Overpass** API via the same-origin proxy (`overpass.openstreetmap.fr`, run by OpenStreetMap France, the only Overpass server) | Lat/lng rounded to 3 decimals + search radius in the Overpass query | Load nearby OSM restaurants / cafés / fast food |
 | **OpenStreetMap** tile CDN | Tile XYZ requests around the map viewport | Render the Leaflet map |
 | Place search through our host | Rounded coordinates for the current search only | Show nearby places. Not stored as a visitor log. |
 

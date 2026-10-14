@@ -29,20 +29,27 @@
   /** Neutral map view until Locate Me — not a fake city of places */
   const MAP_DEFAULT = { lat: 20, lng: 0, zoom: 2 };
   const MAX_RESULTS = 120;
-  /** 20261004b: the one Overpass server. It is a same-origin here.now proxy route (.herenow/proxy.json),
+  /** 20261005b: the one Overpass server. It is a same-origin here.now proxy route (.herenow/proxy.json),
    * so connect-src stays 'self' and the server gets the request from the host, not the visitor.
-   * Only Private.coffee: another public instance's usage policy excludes AI fast-deployment hosts (Gavel
-   * gate 1), and the French instance has been whitelist-only since Apr 2026 (Navi gate 3). Named in Privacy §5 and §9. */
-  const OVERPASS_SERVER = { url: "/api/overpass", operator: "Private.coffee" }; // overpass.private.coffee
-  /** Server-side Overpass [timeout:N]. Kept under the per-attempt client budget. */
-  const OVERPASS_TIMEOUT_S = 10;
-  /** 20261004b: one attempt of up to 11 s. After a timeout, 5xx or Overpass timeout remark, wait a backoff
-   * (3 s + 0-500 ms jitter, or the server's Retry-After), then one retry on the same server, but only if at
-   * least 8 s of the 25 s cap are still left after the backoff. The retry's budget is what is left of the
-   * cap, so the clear error always shows by 25 s (the failsafe is at 27 s). */
-  const OVERPASS_ATTEMPT_ABORT_MS = 11000;
-  const OVERPASS_TOTAL_CAP_MS = 25000;
+   * Same upstream as live 20261004a: OpenStreetMap France (overpass.openstreetmap.fr).
+   * The client list is /api/overpass only. Named in Privacy §5 and §9. */
+  const OVERPASS_URLS = ["/api/overpass"];
+  const OVERPASS_SERVER = { url: OVERPASS_URLS[0], operator: "OpenStreetMap France" }; // overpass.openstreetmap.fr
+  /** Server-side Overpass [timeout:N], each kept under its client abort. */
+  const OVERPASS_TIMEOUT_S = 20;
+  const OVERPASS_FAST_TIMEOUT_S = 10;
+  /** 20261005c (live checklist): client abort ~22 s for the full radius, ~12 s for the quick inner ring.
+   * Do not cut to 6-8 s (slow mobile + busy Overpass). The inner ring and the full radius start together;
+   * the ring usually paints cards first and the full pass replaces it. Only the full pass retries: after a
+   * timeout, 5xx or timeout remark, a backoff (3 s + 0-500 ms jitter, or Retry-After), then one retry on
+   * the same server, but only if at least 8 s of the 30 s cap are left after the backoff. So a quick 5xx or
+   * remark gets a full retry, a 22 s hang does not, and the clear error always shows by 30 s (failsafe 32 s). */
+  const OVERPASS_ATTEMPT_ABORT_MS = 22000;
+  const OVERPASS_FAST_ABORT_MS = 12000;
+  const OVERPASS_TOTAL_CAP_MS = 30000;
   const OVERPASS_RETRY_MIN_MS = 8000;
+  /** Progressive search: inner ring first (cards paint fast), then full radius. */
+  const FAST_RING_MILES = 3;
   /** Gate MED (868f800): pause before the single retry instead of retrying within milliseconds. */
   const OVERPASS_RETRY_BACKOFF_MS = 3000;
   const OVERPASS_RETRY_JITTER_MS = 500;
@@ -1995,11 +2002,11 @@
     return Math.round(Number(v) * 1000) / 1000;
   }
 
-  function buildOverpassQuery(lat, lng, radiusM) {
+  function buildOverpassQuery(lat, lng, radiusM, mode) {
     // +120 m pad so rounding the centre never drops a place near the edge; distances and the
     // radius cut-off still use the full-precision origin on this device (normalizeElements).
     const r = Math.round(radiusM) + 120;
-    const t = OVERPASS_TIMEOUT_S;
+    const t = mode === "fast" ? OVERPASS_FAST_TIMEOUT_S : OVERPASS_TIMEOUT_S;
     const around = `(around:${r},${roundCoord3(lat).toFixed(3)},${roundCoord3(lng).toFixed(3)})`;
     const named = '["name"]';
     // Lean query — same food types, fewer unions so phones finish before timeout.
@@ -2019,7 +2026,7 @@
       `)$"]${named}${around};` +
       `node["shop"~"^(bakery|deli)$"]${named}${around};` +
       `way["shop"~"^(bakery|deli)$"]${named}${around};` +
-      `nwr["amenity"="social_facility"]["social_facility"~"^(food_bank|soup_kitchen)$"]${named}${around};` +
+      `nwr["amenity"~"^social_facility$"]["social_facility"~"^(food_bank|soup_kitchen)$"]${named}${around};` +
       `);out center;`
     );
   }
@@ -2094,9 +2101,12 @@
     opts = opts || {};
     const now = opts.now || Date.now;
     const url = OVERPASS_SERVER.url;
-    const perMs = opts.perMs || OVERPASS_ATTEMPT_ABORT_MS;
-    const capMs = opts.capMs || OVERPASS_TOTAL_CAP_MS;
+    // 20261005c: the quick inner ring is one ~12 s attempt with no retry; the full pass keeps the retry.
+    const fast = opts.mode === "fast";
+    const perMs = opts.perMs || (fast ? OVERPASS_FAST_ABORT_MS : OVERPASS_ATTEMPT_ABORT_MS);
+    const capMs = opts.capMs || (fast ? OVERPASS_FAST_ABORT_MS : OVERPASS_TOTAL_CAP_MS);
     const retryMinMs = opts.retryMinMs == null ? OVERPASS_RETRY_MIN_MS : opts.retryMinMs;
+    const maxAttempts = fast ? 1 : 2;
     const rand = opts.random || Math.random;
     // Shade R3: only typed-city searches (centred on the geocoded city point) are cached. A Locate Me
     // search is never cached, so no device-derived coordinate becomes a cache key.
@@ -2105,7 +2115,7 @@
     const key = cacheable ? overpassCacheKey(lat, lng, radiusMiles) : null;
     const cached = cacheable ? overpassCacheGet(key, now()) : null;
     if (cached) return normalizeElements(cached, lat, lng);
-    const query = buildOverpassQuery(lat, lng, milesToMeters(radiusMiles));
+    const query = buildOverpassQuery(lat, lng, milesToMeters(radiusMiles), fast ? "fast" : "full");
     const body = "data=" + encodeURIComponent(query);
     const started = now();
 
@@ -2157,7 +2167,7 @@
 
     if ((overpassBusyUntil.get(url) || 0) > now()) throw busyError();
     let lastErr = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (attempt > 0) {
         const retryable = lastErr && (lastErr.name === "AbortError" || lastErr.retryable);
         if (!retryable) break;
@@ -3741,6 +3751,15 @@
 
   /* ---------- Search / locate ---------- */
 
+  /** 20261005c: when the list changes after the status was set (curated closures arrive late), keep a
+   * leading "N nearby" / "N tagged open" / "N within" count equal to the list header. */
+  function refreshCountStatus() {
+    const el = $("#statusLine");
+    const cur = String((el && el.textContent) || "");
+    if (!/^\d+ (nearby|tagged open|within)/.test(cur)) return;
+    setStatus(cur.replace(/^\d+/, String(filteredPlaces().length)));
+  }
+
   function applyPlaces(places, { live, statusMsg, fetchedRadius } = {}) {
     state.places = (places || []).filter((p) => !isCuratedClosed(p));
     if (!closedLoading) {
@@ -3749,6 +3768,7 @@
         if (state.places === batch && batch.some(isCuratedClosed)) {
           for (let i = batch.length - 1; i >= 0; i--) if (isCuratedClosed(batch[i])) batch.splice(i, 1); // in place: keeps ATP's batch identity
           renderList();
+          refreshCountStatus();
           try {
             renderMarkers(filteredPlaces());
           } catch (_) {}
@@ -3909,11 +3929,33 @@
     }, OVERPASS_TOTAL_CAP_MS + 2000);
 
     const fetchMi = state.radiusMiles;
+    // 20261005c: curated closures load alongside Overpass, so the first status count already excludes them.
+    try {
+      loadClosedPlaces();
+    } catch (_) {}
+    // Declared outside try so the catch below can still await the inner ring.
+    let fastP = Promise.resolve([]);
 
     try {
-      // 20261004b: one Overpass request per search, attempts in series (Overpass policy: no parallel
-      // queries). The old parallel inner-ring pass is gone; the total cap bounds the wait.
-      const places = await fetchPlaces(lat, lng, fetchMi, { cacheable: state.searchCacheable });
+      // 20261005c (live checklist): inner ring (~12 s) and full radius (~22 s + one retry) start together.
+      // The inner ring usually lands first and paints cards; the full pass replaces it.
+      let fullSettled = false;
+      if (fetchMi > FAST_RING_MILES) {
+        fastP = fetchPlaces(lat, lng, FAST_RING_MILES, { mode: "fast", cacheable: state.searchCacheable }).catch(
+          () => [],
+        );
+        fastP.then((near) => {
+          if (fullSettled || !stillActiveSearch(gen, lat, lng) || !near.length) return;
+          applyPlaces(near, { live: true, fetchedRadius: FAST_RING_MILES });
+          setStatus(filteredPlaces().length + " nearby · widening to " + formatRadiusChipLabel(fetchMi) + "…");
+        });
+      }
+      let places;
+      try {
+        places = await fetchPlaces(lat, lng, fetchMi, { cacheable: state.searchCacheable });
+      } finally {
+        fullSettled = true;
+      }
       if (!stillActiveSearch(gen, lat, lng)) return;
       state.searchError = null;
       state.fetchedRadiusMiles = fetchMi;
@@ -3928,6 +3970,26 @@
       applyPlaces(places, { live: true, fetchedRadius: fetchMi });
     } catch (err) {
       if (!stillActiveSearch(gen, lat, lng)) return;
+      // Full pass failed. If the inner ring is still in flight, give it its own (<= 12 s) chance.
+      if (!(state.places && state.places.length)) {
+        const near = await fastP;
+        if (!stillActiveSearch(gen, lat, lng)) return;
+        if (near && near.length) applyPlaces(near, { live: true, fetchedRadius: FAST_RING_MILES });
+      }
+      if (state.places && state.places.length) {
+        state.loading = false;
+        state.searchError = null;
+        state.fetchedRadiusMiles = FAST_RING_MILES;
+        setStatus(
+          filteredPlaces().length +
+            " within " +
+            formatRadiusChipLabel(FAST_RING_MILES) +
+            " · couldn’t load the full " +
+            formatRadiusChipLabel(fetchMi) +
+            ". Try again.",
+        );
+        return;
+      }
       const why = overpassErrorMessage(err);
       state.searchError = why;
       applyPlaces([], { live: false, statusMsg: why });

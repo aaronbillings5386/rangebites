@@ -1,7 +1,7 @@
 {
   "proxies": {
     "/api/overpass": {
-      "upstream": "https://overpass.private.coffee/api/interpreter",
+      "upstream": "https://overpass.openstreetmap.fr/api/interpreter",
       "method": "POST",
       "headers": {
         "User-Agent": "RangeBites/1.0 (+https://rangebites.com; rangebites@agentmail.to)",

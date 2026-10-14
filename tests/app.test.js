@@ -48,8 +48,8 @@ t("Overpass query: coordinates rounded to 3 decimals, radius padded 120 m", () =
   const q = A.buildOverpassQuery(37.2698123, -81.2223456, 16093.4, "full");
   assert.ok(q.includes("(around:16213,37.270,-81.222)"), q.slice(0, 300));
   assert.ok(!/37\.2698/.test(q) && !/81\.2223/.test(q));
-  // 20261004b: one query shape; [timeout:10] stays under the ~11 s per-attempt client budget.
-  assert.ok(q.startsWith("[out:json][timeout:10]"));
+  // 20261005c: full pass [timeout:20] under the ~22 s client abort.
+  assert.ok(q.startsWith("[out:json][timeout:20]"));
   assert.strictEqual(A.roundCoord3(-0.0004), -0);
 });
 t("dedupe: node + way same name nearby merge; two nodes (chain branches) stay", () => {
@@ -570,7 +570,7 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   );
   assert.ok(!terms.includes("or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
-  assert.ok(terms.includes('src="/config.js?v=20261004b"'));
+  assert.ok(terms.includes('src="/config.js?v=20261005c"'));
   assert.ok(/Effective <span data-publish-date>October 5, 2026<\/span>/.test(terms));
   for (const legal of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"]) {
     const legalSrc = fs.readFileSync(path.join(__dirname, "..", legal), "utf8");
@@ -733,10 +733,11 @@ t("city switch (20261003i): new origin clears old cards/pins; late older respons
   assert.ok(/if \(searchOriginChanged\(state\.lat, state\.lng, lat, lng\)\) clearResultsForNewSearch\(\);/.test(rs));
   assert.ok(rs.indexOf("clearResultsForNewSearch();") < rs.indexOf("state.lat = lat;"));
   assert.ok(rs.indexOf("renderList();") > rs.indexOf("clearResultsForNewSearch();"));
-  // 20261004b: one sequential Overpass pass per search; no parallel inner ring.
+  // 20261005c (live): quick inner ring + full radius; the ring's late answer is dropped once the full pass settles.
   const body = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
-  assert.strictEqual((body.match(/fetchPlaces\(/g) || []).length, 1);
-  assert.ok(!/fastP|firstFulfilled|Promise\.(any|race)/.test(body));
+  assert.strictEqual((body.match(/fetchPlaces\(/g) || []).length, 2);
+  assert.ok(/if \(fullSettled \|\| !stillActiveSearch\(gen, lat, lng\) \|\| !near\.length\) return;/.test(body));
+  assert.ok(!/firstFulfilled|Promise\.(any|race)/.test(body));
 });
 t("pantries status (20261003i): count matches the pantry list; other filters unchanged", () => {
   const src = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
@@ -811,7 +812,7 @@ t(
     // runSearch: a late Overpass answer checks the token before painting.
     const rs = src.slice(src.indexOf("async function runSearch("), src.indexOf("let cityInFlight"));
     assert.ok(
-      /await fetchPlaces\(lat, lng, fetchMi, \{ cacheable: state\.searchCacheable \}\);\s*\n\s*if \(!stillActiveSearch\(gen, lat, lng\)\) return;/.test(
+      /await fetchPlaces\(lat, lng, fetchMi, \{ cacheable: state\.searchCacheable \}\);\s*\n\s*\} finally \{\s*\n\s*fullSettled = true;\s*\n\s*\}\s*\n\s*if \(!stillActiveSearch\(gen, lat, lng\)\) return;/.test(
         rs,
       ),
     );

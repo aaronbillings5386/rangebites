@@ -1,28 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- rb-build 20261004b -->
+  <!-- rb-build 20261005c -->
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests" />
   <meta name="referrer" content="no-referrer" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="robots" content="noindex" />
   <title>Page not found — RangeBites</title>
-  <link rel="stylesheet" href="/styles.css?v=20261004b" />
+  <link rel="stylesheet" href="/styles.css?v=20261005c" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20261013" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
+  <meta name="description" content="That page isn’t on RangeBites. Go back to the home page to find food nearby." />
+  <style>
+    body.legal-page { background: #14110e; color: #fff6ea; }
+    .legal { max-width: 40rem; margin: 0 auto; padding: calc(24px + env(safe-area-inset-top, 0px)) 20px calc(28px + env(safe-area-inset-bottom, 0px)); }
+    .not-found-nav { justify-content: flex-start; gap: 4px 8px; margin: 0 0 16px; }
+    .not-found-nav a { text-decoration: none; }
+    .legal h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; margin: 0 0 12px; }
+    .legal p { color: #e2d2c0; font-size: 16px; line-height: 1.6; margin: 0 0 16px; }
+    .legal a { color: #ffc43a; text-decoration: underline; text-underline-offset: 3px; }
+    .legal .not-found-nav a { text-decoration: none; }
+    .not-found-home {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 20px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #ffd56a 0%, #ffb020 100%);
+      border: 1px solid rgba(255, 176, 32, 0.7);
+      color: #1a1400 !important;
+      font-weight: 800;
+      font-size: 16px;
+      text-decoration: none !important;
+    }
+  </style>
 </head>
 <body class="legal-page">
-  <main class="legal" style="max-width:44rem;margin:0 auto;padding:32px 22px;">
-    <p class="legal-back"><a href="/">← RangeBites</a></p>
+  <main class="legal">
+    <nav class="site-footer-nav not-found-nav" aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/about">About</a>
+      <a href="/specials">Specials</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/sitemap.html">Sitemap</a>
+    </nav>
     <h1>Page not found</h1>
     <p>That page isn’t here. Try the <a href="/">home page</a> to find food nearby, or the <a href="/sitemap.html">sitemap</a>.</p>
+    <p><a class="not-found-home" href="/">Go to RangeBites home</a></p>
   </main>
   <footer class="site-footer">
     <nav class="site-footer-nav" aria-label="Site">
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/about">About</a>
-      <a href="/specials.html">Specials</a>
+      <a href="/specials">Specials</a>
       <a href="/sitemap.html">Sitemap</a>
     </nav>
     <p class="legal-foot">RangeBites is an independent food finder run by one person in Virginia, not affiliated with or endorsed by any business, pantry, or map service shown. Listings come from OpenStreetMap and may be wrong, so check with the place before you go · Map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
