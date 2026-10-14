@@ -7,7 +7,24 @@
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.de; connect-src 'self'; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'; upgrade-insecure-requests" />
-  <title>RangeBites — restaurant specials</title>
+  <title>Restaurant specials — RangeBites</title>
+  <link rel="canonical" href="https://rangebites.com/specials" />
+  <meta name="description" content="How restaurant specials work on RangeBites. No specials are listed right now, and RangeBites never invents deals, prices or coupons." />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20261013" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="RangeBites" />
+  <meta property="og:url" content="https://rangebites.com/specials" />
+  <meta property="og:title" content="Restaurant specials — RangeBites" />
+  <meta property="og:description" content="How restaurant specials work on RangeBites. No specials are listed right now, and RangeBites never invents deals, prices or coupons." />
+  <meta property="og:image" content="https://rangebites.com/og-image.png?v=20261013" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="RangeBites. Find restaurants, cafes, and food nearby. Search any city." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Restaurant specials — RangeBites" />
+  <meta name="twitter:description" content="How restaurant specials work on RangeBites. No specials are listed right now, and RangeBites never invents deals, prices or coupons." />
+  <meta name="twitter:image" content="https://rangebites.com/og-image.png?v=20261013" />
   <style>
     :root {
       --bg: #161a21;
@@ -47,6 +64,8 @@
     .privacy {
       margin: 16px 0 0; font-size: 13px; color: var(--muted); line-height: 1.4;
     }
+    .wrap p { color: var(--text); }
+    .wrap a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
     .foot { margin: 28px 0 0; font-size: 13px; color: var(--muted); }
     .foot a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
     .foot a:hover { color: var(--text); }
@@ -61,8 +80,13 @@
   <main class="wrap">
     <p class="kicker">Restaurants</p>
     <h1>Restaurant specials</h1>
-    <p class="lede">Restaurants can email <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a> about a special. Nothing is collected through this site.</p>
-    <p class="foot"><a href="index.html">RangeBites</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="sitemap.html">Sitemap</a></p>
+    <p class="lede">No specials are listed right now.</p>
+    <p>Restaurants can email <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a> about a special. Nothing is collected through this site.</p>
+    <p>This page is where RangeBites would show specials that a restaurant has told us about directly. RangeBites does not invent deals, prices, or coupons, and it does not scrape them from other sites.</p>
+    <p><strong>How a special gets listed.</strong> The email should include the restaurant’s name and address, what the special is, and when it runs. A special is only posted after a person reads it, and it comes down when it ends.</p>
+    <p><strong>In the food finder.</strong> Separately, the Filters sheet can show promo text only when the OpenStreetMap listing itself already mentions a promo. That is not a live coupon feed, so confirm with the restaurant before you go.</p>
+    <p>Nothing is collected through this page. There is no diner mailing list and no account.</p>
+    <p class="foot"><a href="/">RangeBites</a> · <a href="/about">About</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/sitemap.html">Sitemap</a></p>
     <p class="privacy">RangeBites helps you find food nearby. Nearby restaurants and listed promo text. No account. Not a reservation. Not legal, tax, or finance advice. Not RangeBits.</p>
   </main>
   <script src="legacy-cleanup.js?v=20261005c"></script>
