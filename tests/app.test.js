@@ -365,7 +365,6 @@ t("shipped JS does not store a device identifier", () => {
   const files = [
     "app.js",
     "legacy-cleanup.js",
-    "analytics.js",
     "deals.js",
     "disclaimers.js",
     "config.js",
@@ -570,7 +569,7 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   );
   assert.ok(!terms.includes("or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
-  assert.ok(terms.includes('src="/config.js?v=20261005c"'));
+  assert.ok(terms.includes('src="/config.js?v=20261015b"'));
   assert.ok(/Effective <span data-publish-date>October 5, 2026<\/span>/.test(terms));
   for (const legal of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"]) {
     const legalSrc = fs.readFileSync(path.join(__dirname, "..", legal), "utf8");
@@ -632,9 +631,9 @@ t("shipped site does not add visitor tracking", () => {
   assert.ok(!/webdriver/.test(metrics));
   assert.ok(!/\bfetch\s*\(/.test(metrics));
   assert.ok(!/markHelped/.test(metrics));
-  const stats = fs.readFileSync(path.join(root, "metrics.html"), "utf8");
-  assert.ok(stats.includes("tracks nobody"));
-  assert.ok(!/<script/i.test(stats));
+  for (const gone of ["metrics.html", "waitlist.html", "analytics.js"]) {
+    assert.ok(!fs.existsSync(path.join(root, gone)), gone + " is not part of the deploy");
+  }
   for (const page of ["privacy.html", "privacy/index.html"]) {
     const privacy = fs.readFileSync(path.join(root, page), "utf8");
     assert.ok(privacy.includes("RangeBites is a free site that tracks nobody."), page);
@@ -676,7 +675,7 @@ t("no storage of location, last city, or visitor records", () => {
   const putAt = sw.indexOf("c.put");
   const guardAt = sw.lastIndexOf("isStaticAsset", putAt);
   assert.ok(guardAt >= 0 && putAt > guardAt);
-  const files = ["app.js", "legacy-cleanup.js", "sw.js", "analytics.js", "deals.js", "config.js"];
+  const files = ["app.js", "legacy-cleanup.js", "sw.js", "deals.js", "config.js"];
   const locWrite =
     /(?:localStorage|sessionStorage)\.setItem\s*\(\s*["'][^"']*(?:lat|lng|latitude|longitude|lastCity|last_city|lastPlace|searchHistory|search_history)/i;
   for (const file of files) {
@@ -837,7 +836,6 @@ t("specials (20261003j): no submission form and nothing posts or stores restaura
     "config.js",
     "sw.js",
     "disclaimers.js",
-    "analytics.js",
   ]) {
     const src = fs.readFileSync(path.join(root, file), "utf8");
     assert.ok(!/specials_inbox/.test(src), file);
