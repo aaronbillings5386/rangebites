@@ -829,14 +829,7 @@ t("specials (20261003j): no submission form and nothing posts or stores restaura
       'Restaurants can email <a href="mailto:rangebites@agentmail.to">rangebites@agentmail.to</a> about a special. Nothing is collected through this site.',
     ),
   );
-  for (const file of [
-    "app.js",
-    "legacy-cleanup.js",
-    "deals.js",
-    "config.js",
-    "sw.js",
-    "disclaimers.js",
-  ]) {
+  for (const file of ["app.js", "legacy-cleanup.js", "deals.js", "config.js", "sw.js", "disclaimers.js"]) {
     const src = fs.readFileSync(path.join(root, file), "utf8");
     assert.ok(!/specials_inbox/.test(src), file);
     assert.ok(!/\.herenow\/data\//.test(src), file);

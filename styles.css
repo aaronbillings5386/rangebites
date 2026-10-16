@@ -4681,19 +4681,75 @@ body {
 }
 
 /* 20261015b: at-a-glance icon badges (Wi-Fi, Starlink, accessible, curbside, roadside) */
-.icon-badge-row { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
-.icon-badge { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; background: rgba(255, 196, 58, 0.1); border: 1px solid rgba(255, 196, 58, 0.22); color: #f0d9a8; cursor: help; }
-.icon-badge svg { width: 16px; height: 16px; display: block; }
-.icon-badge-wifi { color: #7cc7ff; }
-.icon-badge-starlink { color: #c9b6ff; }
-.icon-badge-accessible { color: #6fb6ff; }
-.icon-badge-curbside { color: #8fe0a0; }
-.icon-badge-roadside { color: #ffb86b; }
+.icon-badge-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  align-items: center;
+}
+.icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(255, 196, 58, 0.1);
+  border: 1px solid rgba(255, 196, 58, 0.22);
+  color: #f0d9a8;
+  cursor: help;
+}
+.icon-badge svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+.icon-badge-wifi {
+  color: #7cc7ff;
+}
+.icon-badge-starlink {
+  color: #c9b6ff;
+}
+.icon-badge-accessible {
+  color: #6fb6ff;
+}
+.icon-badge-curbside {
+  color: #8fe0a0;
+}
+.icon-badge-roadside {
+  color: #ffb86b;
+}
 
 /* 20261015b: collapsible icon legend */
-.icon-legend { margin: 4px 0 8px; font-size: 13px; color: #c9c3b8; }
-.icon-legend summary { cursor: pointer; display: inline-block; padding: 2px 0; color: #f0d9a8; }
-.icon-legend-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
-.icon-legend-list li { display: flex; align-items: center; gap: 8px; }
-.icon-legend-list .icon-badge { cursor: default; flex: none; }
-.icon-legend-note { margin: 6px 0 0; font-size: 12px; opacity: 0.8; }
+.icon-legend {
+  margin: 4px 0 8px;
+  font-size: 13px;
+  color: #c9c3b8;
+}
+.icon-legend summary {
+  cursor: pointer;
+  display: inline-block;
+  padding: 2px 0;
+  color: #f0d9a8;
+}
+.icon-legend-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.icon-legend-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.icon-legend-list .icon-badge {
+  cursor: default;
+  flex: none;
+}
+.icon-legend-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  opacity: 0.8;
+}

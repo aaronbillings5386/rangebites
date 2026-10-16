@@ -2605,8 +2605,10 @@
     badgesLoading = fetch(BADGES_URL, { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
-        placeBadges = (j && j.places && typeof j.places === "object") ? j.places : {};
-        try { renderList(); } catch (_) {}
+        placeBadges = j && j.places && typeof j.places === "object" ? j.places : {};
+        try {
+          renderList();
+        } catch (_) {}
         return placeBadges;
       })
       .catch(() => placeBadges);
@@ -2620,10 +2622,14 @@
   }
   const BADGE_SVG = {
     wifi: '<path d="M2 8.5a14 14 0 0 1 20 0"/><path d="M5.5 12a9 9 0 0 1 13 0"/><path d="M9 15.5a4 4 0 0 1 6 0"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/>',
-    starlink: '<rect x="9" y="9" width="6" height="6" rx="1" transform="rotate(45 12 12)"/><path d="M4 4l4 4M20 20l-4-4"/><path d="M2.5 9.5 7 5M17 19l4.5-4.5"/><path d="M15 3.5a6 6 0 0 1 5.5 5.5"/>',
-    accessible: '<circle cx="12" cy="4" r="1.8" fill="currentColor" stroke="none"/><path d="M12 7v6h5l2 5"/><path d="M12 10h4"/><path d="M8.5 11.5a5 5 0 1 0 6.8 6.3"/>',
-    curbside: '<path d="M3 15l2-5h10l3 5"/><rect x="2" y="15" width="17" height="3" rx="1"/><circle cx="6" cy="18.5" r="1.5"/><circle cx="15" cy="18.5" r="1.5"/><path d="M20 21h3M20 21V9"/><path d="M17.5 6h5v3h-5z"/>',
-    roadside: '<path d="M8 22l2.5-9M16 22l-2.5-9"/><path d="M12 15v1.5M12 19v2"/><path d="M12 2a4 4 0 0 1 4 4c0 3-4 6-4 6s-4-3-4-6a4 4 0 0 1 4-4z"/><circle cx="12" cy="6" r="1.2"/>',
+    starlink:
+      '<rect x="9" y="9" width="6" height="6" rx="1" transform="rotate(45 12 12)"/><path d="M4 4l4 4M20 20l-4-4"/><path d="M2.5 9.5 7 5M17 19l4.5-4.5"/><path d="M15 3.5a6 6 0 0 1 5.5 5.5"/>',
+    accessible:
+      '<circle cx="12" cy="4" r="1.8" fill="currentColor" stroke="none"/><path d="M12 7v6h5l2 5"/><path d="M12 10h4"/><path d="M8.5 11.5a5 5 0 1 0 6.8 6.3"/>',
+    curbside:
+      '<path d="M3 15l2-5h10l3 5"/><rect x="2" y="15" width="17" height="3" rx="1"/><circle cx="6" cy="18.5" r="1.5"/><circle cx="15" cy="18.5" r="1.5"/><path d="M20 21h3M20 21V9"/><path d="M17.5 6h5v3h-5z"/>',
+    roadside:
+      '<path d="M8 22l2.5-9M16 22l-2.5-9"/><path d="M12 15v1.5M12 19v2"/><path d="M12 2a4 4 0 0 1 4 4c0 3-4 6-4 6s-4-3-4-6a4 4 0 0 1 4-4z"/><circle cx="12" cy="6" r="1.2"/>',
   };
   function iconBadge(kind, label) {
     const t = escapeHtml(label);
@@ -2635,7 +2641,14 @@
     const wifi = String(b.wifi || "").toLowerCase();
     if (wifi === "free" || wifi === "paid" || wifi === "customers") {
       const kind = wifi === "free" ? "Free" : wifi === "paid" ? "Paid" : "Customers-only";
-      const src = b.wifi_source === "owner" ? "owner confirmed" : b.wifi_source === "diner" ? "diner reported" : b.wifi_source ? String(b.wifi_source) : "reported";
+      const src =
+        b.wifi_source === "owner"
+          ? "owner confirmed"
+          : b.wifi_source === "diner"
+            ? "diner reported"
+            : b.wifi_source
+              ? String(b.wifi_source)
+              : "reported";
       const when = b.wifi_confirmed ? ` ${b.wifi_confirmed}` : "";
       out.push(iconBadge("wifi", `${kind} public Wi-Fi · ${src}${when} · reported, may change`));
     }
