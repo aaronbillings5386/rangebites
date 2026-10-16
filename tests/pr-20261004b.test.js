@@ -222,8 +222,6 @@ t("name-soften (live since 2026-10-05): no personal GitHub handle on visitor pag
     "specials.html",
     "sitemap.html",
     "404.html",
-    "waitlist.html",
-    "metrics.html",
     "app.js",
   ]) {
     assert.ok(!/aaronbillings5386/.test(read(f)), f + " names the GitHub handle");

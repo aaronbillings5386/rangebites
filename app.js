@@ -38,7 +38,7 @@
   /** Server-side Overpass [timeout:N], each kept under its client abort. */
   const OVERPASS_TIMEOUT_S = 20;
   const OVERPASS_FAST_TIMEOUT_S = 10;
-  /** 20261005c (live checklist): client abort ~22 s for the full radius, ~12 s for the quick inner ring.
+  /** 20261015b (live checklist): client abort ~22 s for the full radius, ~12 s for the quick inner ring.
    * Do not cut to 6-8 s (slow mobile + busy Overpass). The inner ring and the full radius start together;
    * the ring usually paints cards first and the full pass replaces it. Only the full pass retries: after a
    * timeout, 5xx or timeout remark, a backoff (3 s + 0-500 ms jitter, or Retry-After), then one retry on
@@ -2101,7 +2101,7 @@
     opts = opts || {};
     const now = opts.now || Date.now;
     const url = OVERPASS_SERVER.url;
-    // 20261005c: the quick inner ring is one ~12 s attempt with no retry; the full pass keeps the retry.
+    // 20261015b: the quick inner ring is one ~12 s attempt with no retry; the full pass keeps the retry.
     const fast = opts.mode === "fast";
     const perMs = opts.perMs || (fast ? OVERPASS_FAST_ABORT_MS : OVERPASS_ATTEMPT_ABORT_MS);
     const capMs = opts.capMs || (fast ? OVERPASS_FAST_ABORT_MS : OVERPASS_TOTAL_CAP_MS);
@@ -2589,6 +2589,75 @@
     if (closedIds.has(String(p.id))) return true;
     // A node+way pair is merged under the node's id; an entry keyed on either id hides it (20261004b, Scout).
     return Array.isArray(p.mergedIds) && p.mergedIds.some((id) => closedIds.has(String(id)));
+  }
+
+  /* ---------- At-a-glance icon badges (data/place-badges.json) ----------
+   * Hand-entered per place, keyed by OSM "type/id" like closed-places.json. Every field is
+   * optional and unset by default; a badge shows only when its field is set. Never guessed.
+   * Fields: wifi "free"|"paid"|"customers", wifi_confirmed "YYYY-MM-DD", wifi_source
+   * "owner"|"diner"|text, starlink true, accessible true, curbside true, roadside true.
+   * Accessible also shows from the OSM tag wheelchair=yes. Fails open (no file → no badges). */
+  const BADGES_URL = "data/place-badges.json";
+  let placeBadges = {};
+  let badgesLoading = null;
+  function loadPlaceBadges() {
+    if (badgesLoading) return badgesLoading;
+    badgesLoading = fetch(BADGES_URL, { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        placeBadges = j && j.places && typeof j.places === "object" ? j.places : {};
+        try {
+          renderList();
+        } catch (_) {}
+        return placeBadges;
+      })
+      .catch(() => placeBadges);
+    return badgesLoading;
+  }
+  function badgeDataFor(p) {
+    if (!p) return null;
+    const ids = [String(p.id)].concat(Array.isArray(p.mergedIds) ? p.mergedIds.map(String) : []);
+    for (const id of ids) if (placeBadges[id]) return placeBadges[id];
+    return null;
+  }
+  const BADGE_SVG = {
+    wifi: '<path d="M2 8.5a14 14 0 0 1 20 0"/><path d="M5.5 12a9 9 0 0 1 13 0"/><path d="M9 15.5a4 4 0 0 1 6 0"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/>',
+    starlink:
+      '<rect x="9" y="9" width="6" height="6" rx="1" transform="rotate(45 12 12)"/><path d="M4 4l4 4M20 20l-4-4"/><path d="M2.5 9.5 7 5M17 19l4.5-4.5"/><path d="M15 3.5a6 6 0 0 1 5.5 5.5"/>',
+    accessible:
+      '<circle cx="12" cy="4" r="1.8" fill="currentColor" stroke="none"/><path d="M12 7v6h5l2 5"/><path d="M12 10h4"/><path d="M8.5 11.5a5 5 0 1 0 6.8 6.3"/>',
+    curbside:
+      '<path d="M3 15l2-5h10l3 5"/><rect x="2" y="15" width="17" height="3" rx="1"/><circle cx="6" cy="18.5" r="1.5"/><circle cx="15" cy="18.5" r="1.5"/><path d="M20 21h3M20 21V9"/><path d="M17.5 6h5v3h-5z"/>',
+    roadside:
+      '<path d="M8 22l2.5-9M16 22l-2.5-9"/><path d="M12 15v1.5M12 19v2"/><path d="M12 2a4 4 0 0 1 4 4c0 3-4 6-4 6s-4-3-4-6a4 4 0 0 1 4-4z"/><circle cx="12" cy="6" r="1.2"/>',
+  };
+  function iconBadge(kind, label) {
+    const t = escapeHtml(label);
+    return `<span class="icon-badge icon-badge-${kind}" role="img" aria-label="${t}" title="${t}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${BADGE_SVG[kind]}</svg></span>`;
+  }
+  function iconBadgesHtml(p) {
+    const b = badgeDataFor(p) || {};
+    const out = [];
+    const wifi = String(b.wifi || "").toLowerCase();
+    if (wifi === "free" || wifi === "paid" || wifi === "customers") {
+      const kind = wifi === "free" ? "Free" : wifi === "paid" ? "Paid" : "Customers-only";
+      const src =
+        b.wifi_source === "owner"
+          ? "owner confirmed"
+          : b.wifi_source === "diner"
+            ? "diner reported"
+            : b.wifi_source
+              ? String(b.wifi_source)
+              : "reported";
+      const when = b.wifi_confirmed ? ` ${b.wifi_confirmed}` : "";
+      out.push(iconBadge("wifi", `${kind} public Wi-Fi · ${src}${when} · reported, may change`));
+    }
+    if (b.starlink === true) out.push(iconBadge("starlink", "Starlink satellite Wi-Fi · reported, may change"));
+    if (b.accessible === true) out.push(iconBadge("accessible", "Wheelchair accessible · reported · call to confirm"));
+    else if (p.wheelchair) out.push(iconBadge("accessible", "Wheelchair accessible · OSM tag · call to confirm"));
+    if (b.curbside === true) out.push(iconBadge("curbside", "Curbside pickup"));
+    if (b.roadside === true) out.push(iconBadge("roadside", "Roadside pickup"));
+    return out.length ? `<div class="icon-badge-row">${out.join("")}</div>` : "";
   }
 
   /* ---------- AllThePlaces chain hours (CC0, weekly store-locator scrape) ----------
@@ -3346,9 +3415,7 @@
           ? `<span class="badge badge-kitchen">Kitchen closed · OSM</span>`
           : "";
         const outdoorBadge = p.outdoorSeating ? `<span class="badge badge-tag">Outdoor seating</span>` : "";
-        const wheelchairBadge = p.wheelchair
-          ? `<span class="badge badge-tag">Wheelchair access · OSM tag · call to confirm</span>`
-          : "";
+        const iconBadges = iconBadgesHtml(p);
         const takeoutBadge = p.takeout ? `<span class="badge badge-tag">Takeout</span>` : "";
         const deliveryBadge = p.delivery ? `<span class="badge badge-tag">Delivery · OSM tag · verify</span>` : "";
         const driveBadge = p.driveThru ? `<span class="badge badge-tag">Drive-thru</span>` : "";
@@ -3417,7 +3484,8 @@
       <div class="place-meta">${cuisine}</div>
       ${p.street ? `<div class="place-addr">${escapeHtml(p.street)}</div>` : ""}
       ${hoursLine}
-      <div class="badge-row">${dealBadge}${sponsoredBadge}${typeBadge}${openBadge}${kitchenBadge}${outdoorBadge}${wheelchairBadge}${takeoutBadge}${deliveryBadge}${driveBadge}${restroomBadge}${dogsBadge}${acBadge}${changingBadge}${smokeBadge}${kidsBadge}</div>
+      ${iconBadges}
+      <div class="badge-row">${dealBadge}${sponsoredBadge}${typeBadge}${openBadge}${kitchenBadge}${outdoorBadge}${takeoutBadge}${deliveryBadge}${driveBadge}${restroomBadge}${dogsBadge}${acBadge}${changingBadge}${smokeBadge}${kidsBadge}</div>
     </div>
     <div class="place-side">
       ${heartBtnHtml(p)}
@@ -3751,7 +3819,7 @@
 
   /* ---------- Search / locate ---------- */
 
-  /** 20261005c: when the list changes after the status was set (curated closures arrive late), keep a
+  /** 20261015b: when the list changes after the status was set (curated closures arrive late), keep a
    * leading "N nearby" / "N tagged open" / "N within" count equal to the list header. */
   function refreshCountStatus() {
     const el = $("#statusLine");
@@ -3929,15 +3997,18 @@
     }, OVERPASS_TOTAL_CAP_MS + 2000);
 
     const fetchMi = state.radiusMiles;
-    // 20261005c: curated closures load alongside Overpass, so the first status count already excludes them.
+    // 20261015b: curated closures load alongside Overpass, so the first status count already excludes them.
     try {
       loadClosedPlaces();
+    } catch (_) {}
+    try {
+      loadPlaceBadges();
     } catch (_) {}
     // Declared outside try so the catch below can still await the inner ring.
     let fastP = Promise.resolve([]);
 
     try {
-      // 20261005c (live checklist): inner ring (~12 s) and full radius (~22 s + one retry) start together.
+      // 20261015b (live checklist): inner ring (~12 s) and full radius (~22 s + one retry) start together.
       // The inner ring usually lands first and paints cards; the full pass replaces it.
       let fullSettled = false;
       if (fetchMi > FAST_RING_MILES) {
