@@ -157,13 +157,13 @@ a {
   min-width: 0;
   flex-wrap: wrap;
 }
-.brand h1 {
+.brand .brand-wordmark {
   margin: 0;
   font-size: 21px;
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--text);
-  white-space: nowrap;
+  white-space: normal;
 }
 .brand .tagline {
   font-size: 15px;
@@ -2048,11 +2048,11 @@ body {
 }
 
 /* ---- 20260829d visual polish: wordmark, glass header, expensive CTA, iOS sheet ---- */
-.brand h1 {
+.brand .brand-wordmark {
   font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.048em;
-  line-height: 1.05;
+  line-height: 1.2;
 }
 .brand .tagline {
   font-size: 12px;
@@ -3769,7 +3769,7 @@ body,
     width: 40px !important;
     height: 40px !important;
   }
-  .brand h1 {
+  .brand .brand-wordmark {
     font-size: 18px;
   }
   .brand .tagline {
@@ -3827,7 +3827,7 @@ body,
     padding-left: 22px;
     padding-right: 22px;
   }
-  .brand h1 {
+  .brand .brand-wordmark {
     font-size: 20px;
   }
   .brand .tagline {
@@ -3876,7 +3876,7 @@ body,
     width: 44px !important;
     height: 44px !important;
   }
-  .brand h1 {
+  .brand .brand-wordmark {
     font-size: 20px;
   }
   .brand .tagline {
@@ -3932,9 +3932,10 @@ body,
   gap: 10px;
   min-width: 0;
 }
-.brand h1 {
+.brand .brand-wordmark {
   margin: 0;
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
 }
 
 .vis-hide {
@@ -4038,7 +4039,7 @@ body,
     width: 40px !important;
     height: 40px !important;
   }
-  .brand h1 {
+  .brand .brand-wordmark {
     font-size: 18px;
   }
   .search-first {
@@ -4098,7 +4099,7 @@ body,
     width: 44px !important;
     height: 44px !important;
   }
-  .brand h1 {
+  .brand .brand-wordmark {
     font-size: 20px;
   }
   .stage,
@@ -4148,7 +4149,7 @@ body,
     width: 44px !important;
     height: 44px !important;
   }
-  .brand h1 {
+  .brand .brand-wordmark {
     font-size: 20px;
   }
   .search-first {
@@ -4236,7 +4237,7 @@ body,
 }
 
 @media (max-width: 380px) {
-  .brand h1 {
+  .brand .brand-wordmark {
     font-size: 18px;
   }
   .visit-count-label {
