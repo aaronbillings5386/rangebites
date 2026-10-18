@@ -4679,3 +4679,72 @@ body {
 .rb-nowrap {
   white-space: nowrap;
 }
+
+/* ==== 20261018a: walk-time contrast, search hint, map pin size ==== */
+
+/* The distance chip was translucent amber (12% over the card). On a deal card the
+   gradient lets the page wash through, and #c4b09a on that stack is about 4.4:1.
+   #3d301c is the composite the chip already has on a solid card, where the same
+   text is 6.1:1. There is no light theme. Holiday washes stay behind this opaque chip. */
+.place-distance {
+  background-color: #3d301c !important;
+  background-image: none !important;
+}
+.place-distance .dist-walk {
+  color: #c4b09a !important;
+}
+
+/* The clear control is hidden until the field has text, so an empty hint should not
+   reserve 48px. The hint is a complete string chosen to fit; do not ellipsize it. */
+.place-search-field input {
+  padding-right: 14px;
+}
+.place-search-field:has(.place-search-clear:not([hidden])) input {
+  padding-right: 48px;
+}
+.place-search-field input,
+.place-search-field input::placeholder {
+  text-overflow: clip;
+}
+
+/* Phone and tablet: give the city field the whole row so the example is not squeezed
+   beside Search and Filters. The buttons wrap underneath and stay at least 44px tall. */
+@media (max-width: 1099px) {
+  .search-first .place-search-row {
+    flex-wrap: wrap !important;
+  }
+  .search-first .place-search-field {
+    flex: 1 1 100% !important;
+    min-width: 0;
+  }
+  .search-first .place-search-row .btn-secondary,
+  .search-first .place-search-row .btn-filters,
+  .search-first #placeSearchBtn,
+  .search-first #filtersBtn {
+    flex: 1 1 calc(50% - 8px) !important;
+    width: auto !important;
+    min-height: 48px !important;
+  }
+}
+
+/* Place dots were a 14px circle inside a 32px hit box. The drawn dot is 26px
+   (24px on wide screens so a dense city does not turn into blobs). The hit box is 44px. */
+.radar-marker,
+.radar-marker.deal,
+.place-marker,
+.place-marker.has-deal {
+  width: 26px;
+  height: 26px;
+}
+@media (min-width: 1100px) {
+  .radar-marker,
+  .radar-marker.deal,
+  .place-marker,
+  .place-marker.has-deal {
+    width: 24px;
+    height: 24px;
+  }
+}
+.leaflet-marker-icon.pin-hit-icon {
+  overflow: visible;
+}

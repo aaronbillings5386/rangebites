@@ -1855,6 +1855,10 @@
     state.markersLayer = L.layerGroup().addTo(state.map);
   }
 
+  /** 20261018a: drawn dot is 26px (24px from CSS on wide screens). Place pins use a 44px hit box. */
+  const PIN_VISIBLE_PX = 26;
+  const PIN_HIT_PX = 44;
+
   /** 20261004b (Gate): every Leaflet marker gets an accessible name. Leaflet copies `title` onto the
    * marker element (role=button) and `alt` onto image icons, so pins are told apart by name. */
   function markerOptions(name, extra) {
@@ -1874,10 +1878,10 @@
     if (state.radiusCircle) state.map.removeLayer(state.radiusCircle);
 
     const icon = L.divIcon({
-      className: "",
-      html: '<div class="radar-marker"></div>',
-      iconSize: [14, 14],
-      iconAnchor: [7, 7],
+      className: "pin-hit-icon",
+      html: '<div class="pin-hit"><div class="radar-marker"></div></div>',
+      iconSize: [PIN_VISIBLE_PX, PIN_VISIBLE_PX],
+      iconAnchor: [PIN_VISIBLE_PX / 2, PIN_VISIBLE_PX / 2],
     });
     state.userMarker = L.marker([lat, lng], markerOptions("Search center", { icon, zIndexOffset: 1000 })).addTo(
       state.map,
@@ -1964,11 +1968,9 @@
     places.forEach((p) => {
       const isDeal = !!p.deal;
       const isSponsored = !!p.sponsored;
-      const size = isDeal ? 16 : 12;
-      // forge 20261003 (Lens): 32px invisible hit box around the same small visual dot.
-      const HIT = 32;
-      const iconW = isSponsored ? 76 : HIT;
-      const iconH = isSponsored ? size + 14 : HIT;
+      // 20261018a: 26px dot (CSS may draw 24px on wide screens) inside a 44px hit box.
+      const iconW = isSponsored ? 88 : PIN_HIT_PX;
+      const iconH = isSponsored ? PIN_VISIBLE_PX + 18 : PIN_HIT_PX;
       const pinClass = `radar-marker${isDeal ? " deal" : ""}${isSponsored ? " sponsored" : ""}`;
       const pinHtml = isSponsored
         ? `<div class="${pinClass}"></div><span class="pin-sponsored">Sponsored</span>`
@@ -1977,7 +1979,7 @@
         className: isSponsored ? "sponsored-pin-icon" : "pin-hit-icon",
         html: pinHtml,
         iconSize: [iconW, iconH],
-        iconAnchor: isSponsored ? [iconW / 2, size / 2] : [HIT / 2, HIT / 2],
+        iconAnchor: isSponsored ? [iconW / 2, PIN_VISIBLE_PX / 2] : [PIN_HIT_PX / 2, PIN_HIT_PX / 2],
       });
       const m = L.marker([p.lat, p.lng], markerOptions(p.name, { icon }));
       const sponsoredPopup = isSponsored ? `<br><span class="popup-sponsored">Sponsored</span>` : "";
@@ -4352,7 +4354,10 @@
     "Taipei",
   ];
 
-  function pickPlaceHint() {
+  let placeHintCity = "";
+
+  function currentPlaceHintCity() {
+    if (placeHintCity) return placeHintCity;
     const pool = PLACE_HINT_CITIES.slice();
     for (let i = pool.length - 1; i > 0; i--) {
       const k = Math.floor(Math.random() * (i + 1));
@@ -4360,16 +4365,60 @@
       pool[i] = pool[k];
       pool[k] = tmp;
     }
-    // forge 20261003 (Lens): one short hint so it fits the phone field (was three cities, cut off).
-    return "City or ZIP, e.g. " + pool[0];
+    placeHintCity = pool[0];
+    return placeHintCity;
+  }
+
+  /** Longest complete hint first. A narrow field gets a shorter complete hint, never an ellipsis. */
+  function placeHintCandidates(city) {
+    const name = String(city || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const full = name ? "City or ZIP, e.g. " + name : "City or ZIP";
+    const shorter = name ? "e.g. " + name : "City or ZIP";
+    const base = "City or ZIP";
+    const list = [];
+    if (full !== base) list.push(full);
+    if (shorter !== full && shorter !== base) list.push(shorter);
+    list.push(base);
+    return list;
+  }
+
+  function pickFittingHint(candidates, fits) {
+    const list = candidates && candidates.length ? candidates : ["City or ZIP"];
+    for (let i = 0; i < list.length; i++) {
+      if (typeof fits === "function" && fits(list[i])) return list[i];
+    }
+    return list[list.length - 1];
+  }
+
+  function hintFitsField(input, text) {
+    if (!input || !input.clientWidth) return false;
+    const cs = getComputedStyle(input);
+    let probe = hintFitsField.probe;
+    if (!probe) {
+      probe = document.createElement("span");
+      probe.setAttribute("aria-hidden", "true");
+      probe.style.cssText =
+        "position:absolute;left:-9999px;top:0;white-space:nowrap;visibility:hidden;pointer-events:none;";
+      document.body.appendChild(probe);
+      hintFitsField.probe = probe;
+    }
+    probe.style.font = cs.font;
+    probe.textContent = text;
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const padR = parseFloat(cs.paddingRight) || 0;
+    const avail = input.clientWidth - padL - padR - 8;
+    return probe.getBoundingClientRect().width <= avail;
   }
 
   function applyPlaceHint() {
     const input = document.getElementById("placeSearch");
     if (!input) return;
-    const hint = pickPlaceHint();
-    // Very narrow fields get the shortest hint.
-    input.placeholder = input.clientWidth && input.clientWidth < 200 ? "City or ZIP" : hint;
+    const candidates = placeHintCandidates(currentPlaceHintCity());
+    input.placeholder = pickFittingHint(candidates, function (text) {
+      return hintFitsField(input, text);
+    });
   }
 
   function hidePlaceSuggest() {
@@ -4420,6 +4469,7 @@
     }
     hidePlaceSuggest();
     syncPlaceClear();
+    applyPlaceHint();
   }
 
   function bindPlaceAlternates() {
@@ -4439,6 +4489,7 @@
     const clearBtn = $("#placeSearchClear");
     if (!input) return;
     applyPlaceHint();
+    requestAnimationFrame(applyPlaceHint);
     syncPlaceClear();
     if (clearBtn) {
       clearBtn.addEventListener("click", (e) => {
@@ -4925,6 +4976,7 @@
     let resizeTimer = null;
     function onResizeLayout() {
       detectDevice();
+      applyPlaceHint();
       if (state.map) state.map.invalidateSize();
     }
     window.addEventListener("resize", () => {

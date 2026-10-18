@@ -36,4 +36,6 @@ jobs:
           node tests/holiday-themes.test.js
           node tests/holiday-registry.test.js
           node tests/pr-20261004b.test.js
+          node tests/polish-20261013.test.js
+          node tests/display-20261018.test.js
           python3 tests/test_build_atp_hours.py
