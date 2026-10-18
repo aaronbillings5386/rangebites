@@ -350,7 +350,7 @@ t("stored acceptance matches TERMS_VERSION only", () => {
     /Use of RangeBites is subject to the <a href="\/terms">Terms<\/a> and <a href="\/privacy">Privacy<\/a>/.test(html),
   );
   assert.ok(/const PUBLISH_DATE = "2026-10-16"/.test(cfg));
-  assert.ok(/const BUILD_DATE = "2026-10-16"/.test(cfg));
+  assert.ok(/const BUILD_DATE = "2026-10-18"/.test(cfg));
   assert.strictEqual((cfg.match(/2026-10-0[34]/g) || []).length, 0);
   for (const page of ["index.html", "about.html", "about/index.html", "privacy.html", "privacy/index.html"]) {
     const pageSrc = fs.readFileSync(path.join(__dirname, "..", page), "utf8");
@@ -571,7 +571,7 @@ t("continue is the default and opens until this TERMS_VERSION", () => {
   );
   assert.ok(!terms.includes("or by using the site"));
   assert.ok(terms.includes("RangeBites (rangebites.com), contact:"));
-  assert.ok(terms.includes('src="/config.js?v=20261016e"'));
+  assert.ok(terms.includes('src="/config.js?v=20261018a"'));
   assert.ok(/Effective <span data-publish-date>October 16, 2026<\/span>/.test(terms));
   for (const legal of ["terms.html", "terms/index.html", "privacy.html", "privacy/index.html"]) {
     const legalSrc = fs.readFileSync(path.join(__dirname, "..", legal), "utf8");

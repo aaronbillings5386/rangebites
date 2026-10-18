@@ -4720,3 +4720,126 @@ button.icon-badge:focus-visible { outline: 2px solid #ffc43a; outline-offset: 2p
   .header .brand { flex: 0 1 auto; min-width: 0; }
   .brand .brand-wordmark.brand-tagline { font-size: 10.5px !important; }
 }
+
+/* ==== 20261018a: walk-time contrast, search hint, map pins, card badges ==== */
+
+/* Opaque chip. Translucent amber on a deal card was about 4.4:1; #3d301c is 6.1:1 with #c4b09a. */
+.place-distance {
+  background-color: #3d301c !important;
+  background-image: none !important;
+}
+.place-distance .dist-walk {
+  color: #c4b09a !important;
+}
+
+/* Phone: the distance pill sits on the name row, above the heart, so the open/closed
+   badge cannot paint across it. Badges wrap inside the name column. */
+.place-main { min-width: 0; }
+.place-hours { max-width: 100%; min-width: 0; }
+.badge-row { min-width: 0; max-width: 100%; }
+.place-card .badge {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
+  vertical-align: top;
+}
+@media (max-width: 767px) {
+  .place-side { flex-direction: column-reverse; }
+}
+
+.place-search-field input { padding-right: 14px; }
+.place-search-field:has(.place-search-clear:not([hidden])) input { padding-right: 48px; }
+.place-search-field input,
+.place-search-field input::placeholder { text-overflow: clip; }
+
+@media (max-width: 1099px) {
+  .search-first .place-search-row { flex-wrap: wrap !important; }
+  .search-first .place-search-field { flex: 1 1 100% !important; min-width: 0; }
+  .search-first .place-search-row .btn-secondary,
+  .search-first .place-search-row .btn-filters,
+  .search-first #placeSearchBtn,
+  .search-first #filtersBtn {
+    flex: 1 1 calc(50% - 8px) !important;
+    width: auto !important;
+    min-height: 48px !important;
+  }
+}
+
+.radar-marker,
+.radar-marker.deal,
+.place-marker,
+.place-marker.has-deal {
+  width: var(--pin-dot, 26px);
+  height: var(--pin-dot, 26px);
+}
+@media (min-width: 1100px) {
+  .radar-marker,
+  .radar-marker.deal,
+  .place-marker,
+  .place-marker.has-deal {
+    width: 24px;
+    height: 24px;
+  }
+}
+.leaflet-marker-icon.pin-hit-icon,
+.leaflet-marker-icon.sponsored-pin-icon,
+.leaflet-marker-icon.pin-cluster-icon {
+  background: transparent;
+  border: 0;
+  overflow: visible;
+}
+.pin-hit { position: relative; overflow: visible; }
+.pin-hit .pin-sponsored {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  margin: 0;
+  max-width: 44px;
+  max-height: 24px;
+  padding: 0 1px;
+  font-size: 11px;
+  line-height: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* The open label used to sit above the icon and cover the hours line. It opens below,
+   and the row reserves that height so it does not cover the badges either. */
+.icon-badge-tip.icon-badge-tip-below {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+.pin-cluster {
+  width: 44px;
+  height: 44px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #3d301c;
+  border: 2px solid #ffc43a;
+  color: #fff6ea;
+  box-shadow: 0 0 0 2px rgba(61, 48, 28, 0.45);
+}
+.pin-cluster-count { font-size: 15px; font-weight: 800; line-height: 1; }
+.pin-cluster.active-pin { outline: 2px solid #fff; outline-offset: 2px; }
+
+.leaflet-marker-icon.user-location-icon { background: transparent; border: 0; pointer-events: none; }
+.user-location-marker {
+  width: 15px;
+  height: 15px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: radial-gradient(circle, #2a6aaf 0 2px, #f4f8ff 3px 100%);
+  border: 2px solid #2a6aaf;
+  box-shadow: 0 0 0 1px rgba(244, 248, 255, 0.9);
+}
