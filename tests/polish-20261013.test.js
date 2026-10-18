@@ -15,12 +15,12 @@ for (const [k, url] of Object.entries(pages)) {
     assert.strictEqual(attr(s, /name="twitter:description" content="([^"]+)"/), d, f + " tw desc");
     assert.match(
       attr(s, /property="og:image" content="([^"]+)"/),
-      /^https:\/\/rangebites\.com\/og-image\.png\?v=\d+$/,
+      /^https:\/\/rangebites\.com\/og-image\.png\?v=20261016e$/,
       f,
     );
     assert.match(
       attr(s, /name="twitter:image" content="([^"]+)"/),
-      /^https:\/\/rangebites\.com\/og-image\.png\?v=\d+$/,
+      /^https:\/\/rangebites\.com\/og-image\.png\?v=20261016e$/,
       f,
     );
     assert.ok(!/here\.now\/og/.test(s), f + " no foreign og image");

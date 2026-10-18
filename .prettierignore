@@ -10,3 +10,8 @@ icons/
 *.ico
 package-lock.json
 sitemap.xml
+# Kept byte-identical to the live 20261016e deploy.
+app.js
+config.js
+styles.css
+themes/holiday.css

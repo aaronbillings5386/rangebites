@@ -8,7 +8,10 @@
  * Terms-updated notice both come from it. The same date is also plain text
  * in the HTML (Terms, Privacy, and the home notice) so it shows without JS.
  */
-const PUBLISH_DATE = "2026-10-05";
+const PUBLISH_DATE = "2026-10-16";
+/** BUILD_ID / BUILD_DATE: when the site files were last published. Separate from PUBLISH_DATE (Terms). */
+const BUILD_ID = "20261016e";
+const BUILD_DATE = "2026-10-16";
 
 function publishDateLabel(iso) {
   const parts = String(iso || "").split("-");
@@ -38,12 +41,18 @@ window.RB_CONFIG = Object.freeze({
   PUBLISH_DATE: PUBLISH_DATE,
   TERMS_VERSION: PUBLISH_DATE,
   TERMS_UPDATED_LABEL: publishDateLabel(PUBLISH_DATE),
+  BUILD_ID: BUILD_ID,
+  BUILD_DATE: BUILD_DATE,
+  BUILD_DATE_LABEL: publishDateLabel(BUILD_DATE),
 });
 
 function applyPublishDate() {
   const label = (window.RB_CONFIG && window.RB_CONFIG.TERMS_UPDATED_LABEL) || "";
   const nodes = document.querySelectorAll("[data-publish-date]");
   for (let i = 0; i < nodes.length; i++) nodes[i].textContent = label;
+  const c = window.RB_CONFIG || {};
+  document.querySelectorAll("[data-build-date]").forEach((n) => { if (c.BUILD_DATE_LABEL) n.textContent = c.BUILD_DATE_LABEL; });
+  document.querySelectorAll("[data-build-id]").forEach((n) => { if (c.BUILD_ID) n.textContent = c.BUILD_ID; });
 }
 
 if (typeof document !== "undefined") {

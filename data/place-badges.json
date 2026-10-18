@@ -1,0 +1,5 @@
+{
+  "note": "At-a-glance card badges, hand-entered per place. Key = OSM type/id (same as closed-places.json). Every field is optional; a badge shows only when its field is set. Never guess. Fields: wifi = free | paid | customers; wifi_confirmed = YYYY-MM-DD; wifi_source = owner | diner; starlink = true; accessible = true; curbside = true; roadside = true. No passwords, no brand logos.",
+  "updated": "2026-10-16",
+  "places": {}
+}

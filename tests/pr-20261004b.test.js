@@ -768,7 +768,7 @@ t("privacy: §1 Operator / §1a Non-tracking in the right places; new storage se
     assert.ok(s.includes(nel), f);
     for (const g of gavel) assert.ok(s.includes(g), f + ": " + g.slice(0, 50));
     for (const g of gone) assert.ok(!s.includes(g), f + " still has: " + g.slice(0, 50));
-    assert.ok(s.includes("Effective <span data-publish-date>October 5, 2026</span>"), f + " effective date");
+    assert.ok(s.includes("Effective <span data-publish-date>October 16, 2026</span>"), f + " effective date");
     const op = s.indexOf("1. Operator"),
       nt = s.indexOf("1a.");
     assert.ok(op > 0 && nt > op, f + " heading order");
@@ -915,7 +915,7 @@ t("share image and favicons exist at the declared sizes", () => {
   assert.deepStrictEqual(png("favicon-32.png"), [32, 32]);
   assert.deepStrictEqual(png("favicon-16.png"), [16, 16]);
   const html = read("index.html");
-  assert.ok(/content="https:\/\/rangebites\.com\/og-image\.png(\?v=\d+)?"/.test(html));
+  assert.ok(/content="https:\/\/rangebites\.com\/og-image\.png\?v=20261016e"/.test(html));
   assert.ok(
     html.includes('<meta property="og:image:width" content="1200"') &&
       html.includes('<meta property="og:image:height" content="630"'),

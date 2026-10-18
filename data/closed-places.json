@@ -1,6 +1,6 @@
 {
   "note": "Curated permanently-closed places hidden from results even if OSM still tags them. Key = OSM type/id. Remove an entry once OSM is fixed and the fix has propagated.",
-  "updated": "2026-10-04",
+  "updated": "2026-10-16",
   "places": {
     "way/580777677": {
       "name": "Wendy's",
