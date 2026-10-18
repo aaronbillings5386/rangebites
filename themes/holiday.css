@@ -598,3 +598,15 @@ html.theme-halloween .hh-glow {
     opacity: 0.4;
   }
 }
+
+/* 20261016e: on phones the header art only fills the free gap between brand and About (never overlaps) */
+@media (max-width: 767px) {
+  html.theme-holiday .header { display: flex; align-items: center; }
+  html.theme-holiday .brand { flex: 0 1 auto; min-width: 0; max-width: calc(100% - 96px); }
+  html.theme-holiday .holiday-header-art { min-width: 0; }
+  html.theme-holiday .holiday-header-art { position: relative !important; top: auto; bottom: auto; right: auto !important; left: auto !important; width: auto !important; flex: 1 1 0; min-width: 0; align-self: stretch; order: 1; }
+  html.theme-holiday .header-right { order: 2; flex: none; }
+}
+@media (max-width: 480px) {
+  html.theme-holiday .holiday-header-art { display: none !important; }
+}
