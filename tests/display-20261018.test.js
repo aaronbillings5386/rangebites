@@ -60,12 +60,20 @@ assert.ok(clip > ellip, "placeholder ellipsis is overridden");
 
 assert.ok(/const PIN_VISIBLE_PX = 26;/.test(src));
 assert.ok(/const PIN_HIT_PX = 44;/.test(src));
+assert.ok(/const USER_PIN_PX = 15;/.test(src));
 assert.ok(src.includes("const iconW = isSponsored ? 88 : PIN_HIT_PX"));
 assert.ok(src.includes("const iconH = isSponsored ? PIN_VISIBLE_PX + 18 : PIN_HIT_PX"));
 assert.ok(src.includes("iconSize: [iconW, iconH]"));
-assert.ok(src.includes("iconSize: [PIN_VISIBLE_PX, PIN_VISIBLE_PX]"));
+assert.ok(src.includes("iconSize: [USER_PIN_PX, USER_PIN_PX]"));
+assert.ok(src.includes("html: '<div class=\"user-location-marker\"></div>'"));
+assert.ok(
+  !src.includes(
+    'className: "pin-hit-icon",\n      html: \'<div class="pin-hit"><div class="radar-marker"></div></div>\'',
+  ),
+);
 assert.ok(/width: 26px;\s*height: 26px;/.test(css));
 assert.ok(/@media \(min-width: 1100px\) \{[\s\S]*width: 24px;\s*height: 24px;/.test(css));
+assert.ok(/\.user-location-marker \{\s*width: 15px;\s*height: 15px;/.test(css));
 
 assert.ok(css.includes(".site-footer-nav a"), "footer tap targets stay");
 assert.ok(/min-height:\s*44px/.test(css));

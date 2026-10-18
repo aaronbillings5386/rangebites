@@ -1855,9 +1855,11 @@
     state.markersLayer = L.layerGroup().addTo(state.map);
   }
 
-  /** 20261018a: drawn dot is 26px (24px from CSS on wide screens). Place pins use a 44px hit box. */
+  /** 20261018a: place dots are 26px (24px from CSS on wide screens) inside a 44px hit box.
+   * The search-center marker is a separate 15px ring so it never reads as a place pin. */
   const PIN_VISIBLE_PX = 26;
   const PIN_HIT_PX = 44;
+  const USER_PIN_PX = 15;
 
   /** 20261004b (Gate): every Leaflet marker gets an accessible name. Leaflet copies `title` onto the
    * marker element (role=button) and `alt` onto image icons, so pins are told apart by name. */
@@ -1878,10 +1880,10 @@
     if (state.radiusCircle) state.map.removeLayer(state.radiusCircle);
 
     const icon = L.divIcon({
-      className: "pin-hit-icon",
-      html: '<div class="pin-hit"><div class="radar-marker"></div></div>',
-      iconSize: [PIN_VISIBLE_PX, PIN_VISIBLE_PX],
-      iconAnchor: [PIN_VISIBLE_PX / 2, PIN_VISIBLE_PX / 2],
+      className: "user-location-icon",
+      html: '<div class="user-location-marker"></div>',
+      iconSize: [USER_PIN_PX, USER_PIN_PX],
+      iconAnchor: [USER_PIN_PX / 2, USER_PIN_PX / 2],
     });
     state.userMarker = L.marker([lat, lng], markerOptions("Search center", { icon, zIndexOffset: 1000 })).addTo(
       state.map,

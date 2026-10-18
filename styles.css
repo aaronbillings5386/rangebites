@@ -4748,3 +4748,18 @@ body {
 .leaflet-marker-icon.pin-hit-icon {
   overflow: visible;
 }
+
+/* Search center is not a place pin: a 15px pale dot with a blue ring, not the amber place dot. */
+.leaflet-marker-icon.user-location-icon {
+  background: transparent;
+  border: 0;
+}
+.user-location-marker {
+  width: 15px;
+  height: 15px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: radial-gradient(circle, #2a6aaf 0 2px, #f4f8ff 3px 100%);
+  border: 2px solid #2a6aaf;
+  box-shadow: 0 0 0 1px rgba(244, 248, 255, 0.9);
+}
