@@ -1900,10 +1900,12 @@
     return Array.from(groups.values());
   }
 
-  /** Pixel offsets so n markers sit on a circle with neighboring centers at least minDist apart. */
+  /** Pixel offsets so n markers sit on a circle. The hit is a square, so centers minDist apart
+   * on a diagonal still overlap; the chord is the square's diagonal plus 2px. */
   function spiderOffsets(n, minDist) {
     if (n <= 1) return [{ x: 0, y: 0 }];
-    const radius = (minDist + 2) / (2 * Math.sin(Math.PI / n));
+    const sep = Math.ceil(minDist * Math.SQRT2) + 2;
+    const radius = sep / (2 * Math.sin(Math.PI / n));
     const out = [];
     for (let i = 0; i < n; i++) {
       const angle = -Math.PI / 2 + (2 * Math.PI * i) / n;
@@ -1936,9 +1938,11 @@
       iconSize: [USER_PIN_PX, USER_PIN_PX],
       iconAnchor: [USER_PIN_PX / 2, USER_PIN_PX / 2],
     });
-    state.userMarker = L.marker([lat, lng], markerOptions("Search center", { icon, zIndexOffset: 1000 })).addTo(
-      state.map,
-    );
+    // The dot stays 15px. It is not a button: a 24px hit box would cover nearby place pins.
+    const userOpts = markerOptions("Search center", { icon, zIndexOffset: 1000 });
+    userOpts.keyboard = false;
+    userOpts.interactive = false;
+    state.userMarker = L.marker([lat, lng], userOpts).addTo(state.map);
     // Warm kitchen radius — not teal
     state.radiusCircle = L.circle([lat, lng], {
       radius: milesToMeters(radiusMi),
@@ -2047,28 +2051,88 @@
     state.markersLayer.addLayer(m);
   }
 
+  /** "zoom" only when a padded fit would actually zoom in. Otherwise the tap must spread the pins. */
+  function clusterTapAction(currentZoom, fitZoom, maxZoom) {
+    if (currentZoom >= maxZoom || !(fitZoom > currentZoom)) return "spider";
+    return "zoom";
+  }
+
   function focusCluster(members) {
     const map = state.map;
     if (!map || !members || !members.length) return;
     const bounds = L.latLngBounds(members.map((p) => [p.lat, p.lng]));
     const zoom = map.getZoom();
-    let target = zoom + 1;
-    try {
-      target = map.getBoundsZoom(bounds, false);
-    } catch (_) {
-      /* keep the one-step zoom */
-    }
     const key = members
       .map((p) => p.id)
       .sort()
       .join("|");
-    if (zoom >= map.getMaxZoom() || target <= zoom) {
+    // getBoundsZoom subtracts this padding from the map. The zoom control is bottom-right,
+    // so that side is larger, and the total stays inside the map.
+    const size = map.getSize();
+    const padTL = L.point(28, 28);
+    const padBR = L.point(
+      Math.min(72, Math.max(36, size.x - padTL.x - 80)),
+      Math.min(120, Math.max(36, size.y - padTL.y - 80)),
+    );
+    let fitZoom = zoom;
+    try {
+      fitZoom = map.getBoundsZoom(bounds, false, padTL.add(padBR));
+    } catch (_) {
+      /* same zoom: spread the pins */
+    }
+    if (clusterTapAction(zoom, fitZoom, map.getMaxZoom()) === "spider") {
       state.spiderIds = key;
       renderMarkers(filteredPlaces());
       return;
     }
     state.spiderIds = "";
-    map.fitBounds(bounds, { padding: [36, 36], maxZoom: map.getMaxZoom(), animate: true });
+    const before = zoom;
+    map.once("moveend", function () {
+      if (!state.map || state.map.getZoom() > before || state.spiderIds === key) return;
+      state.spiderIds = key;
+      renderMarkers(filteredPlaces());
+    });
+    map.fitBounds(bounds, {
+      paddingTopLeft: [padTL.x, padTL.y],
+      paddingBottomRight: [padBR.x, padBR.y],
+      maxZoom: map.getMaxZoom(),
+      animate: true,
+    });
+  }
+
+  /** Slide the map so a place pin or cluster is not sitting under the zoom buttons. */
+  function nudgeMarkersOffZoomControl() {
+    const map = state.map;
+    if (!map || state._nudgeLock) return;
+    const ctrl = map.getContainer().querySelector(".leaflet-control-zoom");
+    if (!ctrl) return;
+    const mr = map.getContainer().getBoundingClientRect();
+    const cr = ctrl.getBoundingClientRect();
+    const gap = 8;
+    const boxL = cr.left - mr.left - gap;
+    const boxR = cr.right - mr.left + gap;
+    const boxT = cr.top - mr.top - gap;
+    const boxB = cr.bottom - mr.top + gap;
+    let shift = 0;
+    const icons = map.getContainer().querySelectorAll(".leaflet-marker-icon");
+    for (let i = 0; i < icons.length; i++) {
+      const el = icons[i];
+      if (el.classList.contains("user-location-icon")) continue;
+      const r = el.getBoundingClientRect();
+      const left = r.left - mr.left;
+      const right = r.right - mr.left;
+      const top = r.top - mr.top;
+      const bottom = r.bottom - mr.top;
+      if (right > boxL && left < boxR && bottom > boxT && top < boxB) {
+        const need = right - boxL + 2;
+        if (need > shift) shift = need;
+      }
+    }
+    if (shift > 1) {
+      state._nudgeLock = true;
+      map.panBy([shift, 0], { animate: false });
+      state._nudgeLock = false;
+    }
   }
 
   function renderMarkers(places) {
@@ -2106,19 +2170,51 @@
         return;
       }
       const offsets = members.length > 1 ? spiderOffsets(members.length, PIN_HIT_PX) : [{ x: 0, y: 0 }];
+      let origin = null;
+      if (members.length > 1) {
+        const lat = members.reduce((sum, p) => sum + p.lat, 0) / members.length;
+        const lng = members.reduce((sum, p) => sum + p.lng, 0) / members.length;
+        origin = state.map.latLngToContainerPoint([lat, lng]);
+        const blocked = [];
+        for (let i = 0; i < points.length; i++) {
+          let mine = false;
+          for (let j = 0; j < members.length; j++) if (points[i].p === members[j]) mine = true;
+          if (!mine) blocked.push(points[i]);
+        }
+        let scale = 1;
+        let placed = [];
+        for (let attempt = 0; attempt < 5; attempt++) {
+          placed = [];
+          let hit = false;
+          for (let i = 0; i < offsets.length; i++) {
+            const x = origin.x + offsets[i].x * scale;
+            const y = origin.y + offsets[i].y * scale;
+            for (let j = 0; j < placed.length; j++) {
+              if (Math.abs(placed[j].x - x) < PIN_HIT_PX && Math.abs(placed[j].y - y) < PIN_HIT_PX) hit = true;
+            }
+            for (let j = 0; j < blocked.length; j++) {
+              if (Math.abs(blocked[j].x - x) < PIN_HIT_PX && Math.abs(blocked[j].y - y) < PIN_HIT_PX) hit = true;
+            }
+            placed.push({ x: x, y: y });
+          }
+          if (!hit) break;
+          scale += 0.6;
+        }
+        for (let i = 0; i < offsets.length; i++) offsets[i] = { x: placed[i].x - origin.x, y: placed[i].y - origin.y };
+      }
       members.forEach((p, index) => {
         const off = offsets[index];
-        if (!off.x && !off.y) {
+        if (!origin || (!off.x && !off.y)) {
           const m = L.marker([p.lat, p.lng], markerOptions(p.name, { icon: placePinIcon(p) }));
           bindPlaceMarker(m, p);
           return;
         }
-        const origin = state.map.latLngToContainerPoint([p.lat, p.lng]);
         const ll = state.map.containerPointToLatLng(L.point(origin.x + off.x, origin.y + off.y));
         const m = L.marker([ll.lat, ll.lng], markerOptions(p.name, { icon: placePinIcon(p) }));
         bindPlaceMarker(m, p);
       });
     });
+    requestAnimationFrame(nudgeMarkersOffZoomControl);
   }
 
   /* ---------- Overpass ---------- */
@@ -2778,6 +2874,8 @@
       if (open) {
         const tip = open.querySelector(".icon-badge-tip");
         if (tip) tip.hidden = true;
+        const row = open.closest(".icon-badge-row");
+        if (row) row.style.marginBottom = "";
         open.setAttribute("aria-expanded", "false");
       }
       open = null;
@@ -2789,10 +2887,14 @@
       const tip = btn.querySelector(".icon-badge-tip");
       if (!tip) return;
       tip.hidden = false;
+      // Below the icon. The old spot (above the icon) covered the hours line.
+      tip.classList.add("icon-badge-tip-below");
       tip.classList.remove("icon-badge-tip-left", "icon-badge-tip-right");
       const r = tip.getBoundingClientRect();
       if (r.left < 8) tip.classList.add("icon-badge-tip-left");
       else if (r.right > document.documentElement.clientWidth - 8) tip.classList.add("icon-badge-tip-right");
+      const row = btn.closest(".icon-badge-row");
+      if (row) row.style.marginBottom = Math.ceil(r.height + 10) + "px";
       btn.setAttribute("aria-expanded", "true");
       open = btn;
       openKey = keyOf(btn);

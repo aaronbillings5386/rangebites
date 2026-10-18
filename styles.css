@@ -4799,14 +4799,23 @@ button.icon-badge:focus-visible { outline: 2px solid #ffc43a; outline-offset: 2p
   bottom: 1px;
   margin: 0;
   max-width: 44px;
-  padding: 0 2px;
-  font-size: 8px;
-  line-height: 9px;
+  max-height: 24px;
+  padding: 0 1px;
+  font-size: 11px;
+  line-height: 12px;
   letter-spacing: 0;
+  text-transform: none;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   overflow: hidden;
   pointer-events: none;
+}
+/* The open label used to sit above the icon and cover the hours line. It opens below,
+   and the row reserves that height so it does not cover the badges either. */
+.icon-badge-tip.icon-badge-tip-below {
+  bottom: auto;
+  top: calc(100% + 6px);
 }
 .pin-cluster {
   width: 44px;
@@ -4824,7 +4833,7 @@ button.icon-badge:focus-visible { outline: 2px solid #ffc43a; outline-offset: 2p
 .pin-cluster-count { font-size: 15px; font-weight: 800; line-height: 1; }
 .pin-cluster.active-pin { outline: 2px solid #fff; outline-offset: 2px; }
 
-.leaflet-marker-icon.user-location-icon { background: transparent; border: 0; }
+.leaflet-marker-icon.user-location-icon { background: transparent; border: 0; pointer-events: none; }
 .user-location-marker {
   width: 15px;
   height: 15px;

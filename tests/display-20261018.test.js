@@ -9,7 +9,13 @@ const root = path.join(__dirname, "..");
 const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
 const css = read("styles.css");
 const src = read("app.js");
-const M = load("app.js", ["placeHintCandidates", "pickFittingHint", "clusterByPixel", "spiderOffsets"]);
+const M = load("app.js", [
+  "placeHintCandidates",
+  "pickFittingHint",
+  "clusterByPixel",
+  "spiderOffsets",
+  "clusterTapAction",
+]);
 
 function lin(c) {
   c = c / 255;
@@ -99,10 +105,31 @@ const near = Array.from(
 assert.strictEqual(near.length, 1, "a chain of overlapping 44px boxes is one cluster");
 assert.strictEqual(near[0].length, 3);
 
-const pair = Array.from(M.spiderOffsets(2, 44));
-const dx = pair[0].x - pair[1].x;
-const dy = pair[0].y - pair[1].y;
-assert.ok(Math.hypot(dx, dy) >= 44, "spiderfied pins stay at least 44px apart");
+assert.strictEqual(M.clusterTapAction(14, 15, 18), "zoom");
+assert.strictEqual(M.clusterTapAction(14, 14, 18), "spider", "same zoom must spread the pins");
+assert.strictEqual(M.clusterTapAction(14, 13, 18), "spider", "a padded fit that would zoom out must spread");
+assert.strictEqual(M.clusterTapAction(18, 19, 18), "spider");
+assert.ok(src.includes("getBoundsZoom(bounds, false, padTL.add(padBR))"));
+assert.ok(src.includes("userOpts.keyboard = false"));
+assert.ok(src.includes("userOpts.interactive = false"));
+assert.ok(src.includes('markerOptions("Search center", { icon, zIndexOffset: 1000 })'));
+assert.ok(css.includes("icon-badge-tip-below"));
+assert.ok(css.includes("pointer-events: none"));
+assert.ok(/\.pin-hit \.pin-sponsored \{[\s\S]*font-size: 11px;/.test(css));
+assert.ok(!/\.pin-hit \.pin-sponsored \{[\s\S]*font-size: 8px;/.test(css));
+
+function squaresClear(n) {
+  const pts = Array.from(M.spiderOffsets(n, 44));
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      if (Math.abs(pts[i].x - pts[j].x) < 44 && Math.abs(pts[i].y - pts[j].y) < 44) return false;
+    }
+  }
+  return pts.length === n;
+}
+assert.ok(squaresClear(2), "two spread pins do not share a 44px box");
+assert.ok(squaresClear(7), "a spread group of 7 does not share 44px boxes");
+assert.ok(squaresClear(8), "a spread group of 8 does not share 44px boxes");
 
 assert.ok(css.includes(".site-footer-nav a"), "footer tap targets stay");
 assert.ok(/min-height:\s*44px/.test(css));
