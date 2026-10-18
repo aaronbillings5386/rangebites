@@ -349,7 +349,8 @@ t("stored acceptance matches TERMS_VERSION only", () => {
   assert.ok(
     /Use of RangeBites is subject to the <a href="\/terms">Terms<\/a> and <a href="\/privacy">Privacy<\/a>/.test(html),
   );
-  assert.strictEqual((cfg.match(/2026-10-16/g) || []).length, 1);
+  assert.ok(/const PUBLISH_DATE = "2026-10-16"/.test(cfg));
+  assert.ok(/const BUILD_DATE = "2026-10-16"/.test(cfg));
   assert.strictEqual((cfg.match(/2026-10-0[34]/g) || []).length, 0);
   for (const page of ["index.html", "about.html", "about/index.html", "privacy.html", "privacy/index.html"]) {
     const pageSrc = fs.readFileSync(path.join(__dirname, "..", page), "utf8");

@@ -32,6 +32,10 @@ global.fetch = async () => ({
   ok: true,
   json: async () => JSON.parse(fs.readFileSync(path.join(root, "data", "closed-places.json"), "utf8")),
 });
+// 20261016e: wireBadgeTips() lives in this slice and registers listeners at load.
+const noop = () => {};
+globalThis.document = { addEventListener: noop, body: {}, documentElement: { clientWidth: 0 } };
+globalThis.window = { addEventListener: noop };
 eval(s.slice(a, b) + ";globalThis.L=loadClosedPlaces;globalThis.C=isCuratedClosed;");
 globalThis
   .L()
