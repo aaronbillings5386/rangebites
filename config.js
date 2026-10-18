@@ -10,8 +10,8 @@
  */
 const PUBLISH_DATE = "2026-10-16";
 /** BUILD_ID / BUILD_DATE: when the site files were last published. Separate from PUBLISH_DATE (Terms). */
-const BUILD_ID = "20261016e";
-const BUILD_DATE = "2026-10-16";
+const BUILD_ID = "20261018a";
+const BUILD_DATE = "2026-10-18";
 
 function publishDateLabel(iso) {
   const parts = String(iso || "").split("-");

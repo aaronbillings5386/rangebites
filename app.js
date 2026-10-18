@@ -1853,6 +1853,63 @@
 
     L.control.zoom({ position: "bottomright" }).addTo(state.map);
     state.markersLayer = L.layerGroup().addTo(state.map);
+    state.spiderIds = "";
+    state.map.on("zoomend", function () {
+      state.spiderIds = "";
+      if (state.markersLayer && state.places && state.places.length) renderMarkers(filteredPlaces());
+    });
+  }
+
+  /** 20261018a: place dots are 26px (24px from CSS on wide screens) inside a 44px hit box.
+   * The search-center marker is a separate 15px ring so it never reads as a place pin.
+   * Pins whose 44px boxes would overlap become one cluster instead of stacked targets. */
+  const PIN_VISIBLE_PX = 26;
+  const PIN_HIT_PX = 44;
+  const USER_PIN_PX = 15;
+
+  /** Group points whose centers are closer than minDist pixels. Transitive: a chain counts as one group. */
+  function clusterByPixel(points, minDist) {
+    const n = points.length;
+    const parent = [];
+    for (let i = 0; i < n; i++) parent[i] = i;
+    function find(i) {
+      while (parent[i] !== i) {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+      }
+      return i;
+    }
+    const limit = minDist * minDist;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const dx = points[i].x - points[j].x;
+        const dy = points[i].y - points[j].y;
+        if (dx * dx + dy * dy < limit) {
+          const a = find(i);
+          const b = find(j);
+          if (a !== b) parent[a] = b;
+        }
+      }
+    }
+    const groups = new Map();
+    for (let i = 0; i < n; i++) {
+      const root = find(i);
+      if (!groups.has(root)) groups.set(root, []);
+      groups.get(root).push(points[i]);
+    }
+    return Array.from(groups.values());
+  }
+
+  /** Pixel offsets so n markers sit on a circle with neighboring centers at least minDist apart. */
+  function spiderOffsets(n, minDist) {
+    if (n <= 1) return [{ x: 0, y: 0 }];
+    const radius = (minDist + 2) / (2 * Math.sin(Math.PI / n));
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const angle = -Math.PI / 2 + (2 * Math.PI * i) / n;
+      out.push({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
+    }
+    return out;
   }
 
   /** 20261004b (Gate): every Leaflet marker gets an accessible name. Leaflet copies `title` onto the
@@ -1874,10 +1931,10 @@
     if (state.radiusCircle) state.map.removeLayer(state.radiusCircle);
 
     const icon = L.divIcon({
-      className: "",
-      html: '<div class="radar-marker"></div>',
-      iconSize: [14, 14],
-      iconAnchor: [7, 7],
+      className: "user-location-icon",
+      html: '<div class="user-location-marker"></div>',
+      iconSize: [USER_PIN_PX, USER_PIN_PX],
+      iconAnchor: [USER_PIN_PX / 2, USER_PIN_PX / 2],
     });
     state.userMarker = L.marker([lat, lng], markerOptions("Search center", { icon, zIndexOffset: 1000 })).addTo(
       state.map,
@@ -1917,7 +1974,7 @@
     markerById.forEach((m) => {
       const el = m.getElement && m.getElement();
       if (!el) return;
-      const pin = el.querySelector(".radar-marker");
+      const pin = el.querySelector(".radar-marker, .pin-cluster");
       if (pin) pin.classList.remove("active-pin");
     });
   }
@@ -1947,7 +2004,7 @@
     if (m) {
       const el = m.getElement && m.getElement();
       if (el) {
-        const pin = el.querySelector(".radar-marker");
+        const pin = el.querySelector(".radar-marker, .pin-cluster");
         if (pin) pin.classList.add("active-pin");
       }
       if (pan && state.map) {
@@ -1957,41 +2014,110 @@
     }
   }
 
+  function placePinIcon(p) {
+    const isDeal = !!p.deal;
+    const isSponsored = !!p.sponsored;
+    const pinClass = `radar-marker${isDeal ? " deal" : ""}${isSponsored ? " sponsored" : ""}`;
+    // Sponsored uses the same 44px box as every other place. The caption stays inside it.
+    const iconW = PIN_HIT_PX;
+    const iconH = PIN_HIT_PX;
+    const pinHtml = isSponsored
+      ? `<div class="pin-hit" style="--pin-dot:${PIN_VISIBLE_PX}px"><div class="${pinClass}"></div><span class="pin-sponsored">Sponsored</span></div>`
+      : `<div class="pin-hit" style="--pin-dot:${PIN_VISIBLE_PX}px"><div class="${pinClass}"></div></div>`;
+    return L.divIcon({
+      className: isSponsored ? "sponsored-pin-icon" : "pin-hit-icon",
+      html: pinHtml,
+      iconSize: [iconW, iconH],
+      iconAnchor: [PIN_HIT_PX / 2, PIN_HIT_PX / 2],
+    });
+  }
+
+  function bindPlaceMarker(m, p) {
+    const sponsoredPopup = p.sponsored ? `<br><span class="popup-sponsored">Sponsored</span>` : "";
+    m.bindPopup(
+      `<strong>${escapeHtml(p.name)}</strong><br>${formatMiles(p.miles)} · ${escapeHtml(p.cuisine ? prettyCuisineList(p.cuisine) : amenityLabel(p.amenity))}` +
+        (p.deal ? `<br><span class="popup-deal">${escapeHtml(p.deal.label)}</span>` : "") +
+        sponsoredPopup,
+    );
+    m.on("click", () => {
+      highlightPlace(p.id, { openPopup: false, scrollCard: true, pan: false });
+      openDealSheet(p, { startDirections: true });
+    });
+    markerById.set(p.id, m);
+    state.markersLayer.addLayer(m);
+  }
+
+  function focusCluster(members) {
+    const map = state.map;
+    if (!map || !members || !members.length) return;
+    const bounds = L.latLngBounds(members.map((p) => [p.lat, p.lng]));
+    const zoom = map.getZoom();
+    let target = zoom + 1;
+    try {
+      target = map.getBoundsZoom(bounds, false);
+    } catch (_) {
+      /* keep the one-step zoom */
+    }
+    const key = members
+      .map((p) => p.id)
+      .sort()
+      .join("|");
+    if (zoom >= map.getMaxZoom() || target <= zoom) {
+      state.spiderIds = key;
+      renderMarkers(filteredPlaces());
+      return;
+    }
+    state.spiderIds = "";
+    map.fitBounds(bounds, { padding: [36, 36], maxZoom: map.getMaxZoom(), animate: true });
+  }
+
   function renderMarkers(places) {
-    if (!state.markersLayer) return;
+    if (!state.markersLayer || !state.map) return;
     state.markersLayer.clearLayers();
     markerById.clear();
-    places.forEach((p) => {
-      const isDeal = !!p.deal;
-      const isSponsored = !!p.sponsored;
-      const size = isDeal ? 16 : 12;
-      // forge 20261003 (Lens): 32px invisible hit box around the same small visual dot.
-      const HIT = 32;
-      const iconW = isSponsored ? 76 : HIT;
-      const iconH = isSponsored ? size + 14 : HIT;
-      const pinClass = `radar-marker${isDeal ? " deal" : ""}${isSponsored ? " sponsored" : ""}`;
-      const pinHtml = isSponsored
-        ? `<div class="${pinClass}"></div><span class="pin-sponsored">Sponsored</span>`
-        : `<div class="pin-hit"><div class="${pinClass}"></div></div>`;
-      const icon = L.divIcon({
-        className: isSponsored ? "sponsored-pin-icon" : "pin-hit-icon",
-        html: pinHtml,
-        iconSize: [iconW, iconH],
-        iconAnchor: isSponsored ? [iconW / 2, size / 2] : [HIT / 2, HIT / 2],
+    const list = places || [];
+    const points = list.map((p) => {
+      const pt = state.map.latLngToContainerPoint([p.lat, p.lng]);
+      return { x: pt.x, y: pt.y, p: p };
+    });
+    const groups = clusterByPixel(points, PIN_HIT_PX);
+    groups.forEach((group) => {
+      const members = group.map((item) => item.p);
+      const key = members
+        .map((p) => p.id)
+        .sort()
+        .join("|");
+      if (members.length > 1 && state.spiderIds !== key) {
+        const lat = members.reduce((sum, p) => sum + p.lat, 0) / members.length;
+        const lng = members.reduce((sum, p) => sum + p.lng, 0) / members.length;
+        const count = members.length;
+        const icon = L.divIcon({
+          className: "pin-cluster-icon",
+          html: `<div class="pin-cluster"><span class="pin-cluster-count">${count}</span></div>`,
+          iconSize: [PIN_HIT_PX, PIN_HIT_PX],
+          iconAnchor: [PIN_HIT_PX / 2, PIN_HIT_PX / 2],
+        });
+        const label = count + (count === 1 ? " place" : " places");
+        const m = L.marker([lat, lng], markerOptions(label, { icon, zIndexOffset: 500 }));
+        m.__rbMembers = members;
+        m.on("click", () => focusCluster(members));
+        members.forEach((p) => markerById.set(p.id, m));
+        state.markersLayer.addLayer(m);
+        return;
+      }
+      const offsets = members.length > 1 ? spiderOffsets(members.length, PIN_HIT_PX) : [{ x: 0, y: 0 }];
+      members.forEach((p, index) => {
+        const off = offsets[index];
+        if (!off.x && !off.y) {
+          const m = L.marker([p.lat, p.lng], markerOptions(p.name, { icon: placePinIcon(p) }));
+          bindPlaceMarker(m, p);
+          return;
+        }
+        const origin = state.map.latLngToContainerPoint([p.lat, p.lng]);
+        const ll = state.map.containerPointToLatLng(L.point(origin.x + off.x, origin.y + off.y));
+        const m = L.marker([ll.lat, ll.lng], markerOptions(p.name, { icon: placePinIcon(p) }));
+        bindPlaceMarker(m, p);
       });
-      const m = L.marker([p.lat, p.lng], markerOptions(p.name, { icon }));
-      const sponsoredPopup = isSponsored ? `<br><span class="popup-sponsored">Sponsored</span>` : "";
-      m.bindPopup(
-        `<strong>${escapeHtml(p.name)}</strong><br>${formatMiles(p.miles)} · ${escapeHtml(p.cuisine ? prettyCuisineList(p.cuisine) : amenityLabel(p.amenity))}` +
-          (p.deal ? `<br><span class="popup-deal">${escapeHtml(p.deal.label)}</span>` : "") +
-          sponsoredPopup,
-      );
-      m.on("click", () => {
-        highlightPlace(p.id, { openPopup: false, scrollCard: true, pan: false });
-        openDealSheet(p, { startDirections: true });
-      });
-      markerById.set(p.id, m);
-      state.markersLayer.addLayer(m);
     });
   }
 
@@ -4504,7 +4630,10 @@
     "Taipei",
   ];
 
-  function pickPlaceHint() {
+  let placeHintCity = "";
+
+  function currentPlaceHintCity() {
+    if (placeHintCity) return placeHintCity;
     const pool = PLACE_HINT_CITIES.slice();
     for (let i = pool.length - 1; i > 0; i--) {
       const k = Math.floor(Math.random() * (i + 1));
@@ -4512,16 +4641,60 @@
       pool[i] = pool[k];
       pool[k] = tmp;
     }
-    // forge 20261003 (Lens): one short hint so it fits the phone field (was three cities, cut off).
-    return "City or ZIP, e.g. " + pool[0];
+    placeHintCity = pool[0];
+    return placeHintCity;
+  }
+
+  /** Longest complete hint first. A narrow field gets a shorter complete hint, never an ellipsis. */
+  function placeHintCandidates(city) {
+    const name = String(city || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const full = name ? "City or ZIP, e.g. " + name : "City or ZIP";
+    const shorter = name ? "e.g. " + name : "City or ZIP";
+    const base = "City or ZIP";
+    const list = [];
+    if (full !== base) list.push(full);
+    if (shorter !== full && shorter !== base) list.push(shorter);
+    list.push(base);
+    return list;
+  }
+
+  function pickFittingHint(candidates, fits) {
+    const list = candidates && candidates.length ? candidates : ["City or ZIP"];
+    for (let i = 0; i < list.length; i++) {
+      if (typeof fits === "function" && fits(list[i])) return list[i];
+    }
+    return list[list.length - 1];
+  }
+
+  function hintFitsField(input, text) {
+    if (!input || !input.clientWidth) return false;
+    const cs = getComputedStyle(input);
+    let probe = hintFitsField.probe;
+    if (!probe) {
+      probe = document.createElement("span");
+      probe.setAttribute("aria-hidden", "true");
+      probe.style.cssText =
+        "position:absolute;left:-9999px;top:0;white-space:nowrap;visibility:hidden;pointer-events:none;";
+      document.body.appendChild(probe);
+      hintFitsField.probe = probe;
+    }
+    probe.style.font = cs.font;
+    probe.textContent = text;
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const padR = parseFloat(cs.paddingRight) || 0;
+    const avail = input.clientWidth - padL - padR - 8;
+    return probe.getBoundingClientRect().width <= avail;
   }
 
   function applyPlaceHint() {
     const input = document.getElementById("placeSearch");
     if (!input) return;
-    const hint = pickPlaceHint();
-    // Very narrow fields get the shortest hint.
-    input.placeholder = input.clientWidth && input.clientWidth < 200 ? "City or ZIP" : hint;
+    const candidates = placeHintCandidates(currentPlaceHintCity());
+    input.placeholder = pickFittingHint(candidates, function (text) {
+      return hintFitsField(input, text);
+    });
   }
 
   function hidePlaceSuggest() {
@@ -4572,6 +4745,7 @@
     }
     hidePlaceSuggest();
     syncPlaceClear();
+    applyPlaceHint();
   }
 
   function bindPlaceAlternates() {
@@ -4591,6 +4765,7 @@
     const clearBtn = $("#placeSearchClear");
     if (!input) return;
     applyPlaceHint();
+    requestAnimationFrame(applyPlaceHint);
     syncPlaceClear();
     if (clearBtn) {
       clearBtn.addEventListener("click", (e) => {
@@ -5077,7 +5252,11 @@
     let resizeTimer = null;
     function onResizeLayout() {
       detectDevice();
-      if (state.map) state.map.invalidateSize();
+      applyPlaceHint();
+      if (state.map) {
+        state.map.invalidateSize();
+        if (state.places && state.places.length) renderMarkers(filteredPlaces());
+      }
     }
     window.addEventListener("resize", () => {
       if (resizeTimer) clearTimeout(resizeTimer);

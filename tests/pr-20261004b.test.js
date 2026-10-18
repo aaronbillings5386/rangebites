@@ -915,7 +915,7 @@ t("share image and favicons exist at the declared sizes", () => {
   assert.deepStrictEqual(png("favicon-32.png"), [32, 32]);
   assert.deepStrictEqual(png("favicon-16.png"), [16, 16]);
   const html = read("index.html");
-  assert.ok(/content="https:\/\/rangebites\.com\/og-image\.png\?v=20261016e"/.test(html));
+  assert.ok(/content="https:\/\/rangebites\.com\/og-image\.png\?v=20261018a"/.test(html));
   assert.ok(
     html.includes('<meta property="og:image:width" content="1200"') &&
       html.includes('<meta property="og:image:height" content="630"'),
